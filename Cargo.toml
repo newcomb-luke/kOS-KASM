@@ -11,4 +11,3 @@ readme = "README.md"
 
 [dependencies]
 clap = "~2.27.0"
-flate2 = "1.0"
