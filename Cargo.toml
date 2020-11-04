@@ -6,6 +6,7 @@ edition = "2018"
 license = "GPL-3.0"
 description = "The Kerbal Compiler Collection assembler for kOS"
 readme = "README.md"
+homepage = "https://github.com/newcomb-luke/kOS-KASM"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
