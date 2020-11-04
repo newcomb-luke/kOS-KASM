@@ -1,0 +1,14 @@
+[package]
+name = "kasm"
+version = "0.1.0"
+authors = ["Luke Newcomb <newcomb.luke@protonmail.com>"]
+edition = "2018"
+license = "GPL-3.0"
+description = "The Kerbal Compiler Collection assembler for kOS"
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "~2.27.0"
+flate2 = "1.0"
