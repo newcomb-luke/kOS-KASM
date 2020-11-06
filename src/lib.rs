@@ -1,6 +1,9 @@
 use clap::ArgMatches;
 use std::error::Error;
 
+mod lexer;
+pub use lexer::{Lexer};
+
 pub static VERSION: &'static str = "0.1.0";
 
 pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
@@ -27,6 +30,15 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
     if config.debug {
         println!("Outputting to: {}", output_path);
+    }
+
+    let tokens = Lexer::lex("
+        
+
+    ")?;
+
+    for token in tokens {
+        println!("{:?}", token);
     }
 
     Ok(())
