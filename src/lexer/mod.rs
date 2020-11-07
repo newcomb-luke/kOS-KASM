@@ -7,12 +7,14 @@ pub enum Token {
     IDENTIFIER(String),
     INT(i32),
     DOUBLE(f64),
+    STRING(String),
     MINUS,
     COMP,
     NEGATE,
     ADD,
     MULT,
     DIV,
+    MOD,
     AND,
     OR,
     EQ,
@@ -23,7 +25,12 @@ pub enum Token {
     GTE,
     QUESTION,
     COLON,
-    NEWLINE
+    NEWLINE,
+    AMPERSAND,
+    LABEL(String),
+    INNERLABEL(String),
+    DIRECTIVE(String),
+    EOF
 }
 
 #[derive(PartialEq, Eq)]
@@ -48,6 +55,16 @@ impl<'source> Lexer {
 
         while !chars.peek().is_none() {
             tokens.push( Lexer::parse_token(&mut chars)? );
+
+            println!("---------------------------------------------------------------");
+
+            for token in &tokens {
+                println!("{:?}", token);
+            }
+        }
+
+        while tokens.len() > 0 && (*tokens.last().unwrap() == Token::EOF || *tokens.last().unwrap() == Token::NEWLINE) {
+            tokens.remove(tokens.len() - 1);
         }
 
         Ok(tokens)
@@ -67,6 +84,11 @@ impl<'source> Lexer {
             }
         }
 
+        // If the last token is a space
+        if next_char == ' ' {
+            // It is the end of the file
+            return Ok(Token::EOF);
+        }
 
         Ok(match next_char {
             '(' => Token::OPENPAREN,
@@ -74,8 +96,22 @@ impl<'source> Lexer {
             '_' | 'A'..='z' => {
                 Lexer::parse_identifier(next_char, chars)
             },
-            '0'..='9' | '.' => {
+            '0'..='9' => {
                 Lexer::parse_number(next_char, chars)?
+            },
+            '"' => {
+                Lexer::parse_string(chars)?
+            },
+            '.' => {
+                if !chars.peek().is_none() {
+                    if chars.peek().unwrap().is_ascii_digit() {
+                        Lexer::parse_number(next_char, chars)?
+                    } else {
+                        Lexer::parse_dotted(chars)?
+                    }
+                } else {
+                    return Err("Just . is not a token".into());
+                }
             },
             '-' => Token::MINUS,
             '~' => Token::COMP,
@@ -91,6 +127,7 @@ impl<'source> Lexer {
             '+' => Token::ADD,
             '*' => Token::MULT,
             '/' => Token::DIV,
+            '%' => Token::MOD,
             '<' => {
                 if !chars.peek().is_none() && *chars.peek().unwrap() == '=' {
                     chars.next();
@@ -124,17 +161,11 @@ impl<'source> Lexer {
                 }
             },
             '&' => {
-                if !chars.peek().is_none() {
-                    if *chars.peek().unwrap() != '&' {
-                        return Err(format!("Found &{} expected &&", chars.peek().unwrap()).into());
-                    }
-                    else {
-                        chars.next();
-                        Token::AND
-                    }
+                if !chars.peek().is_none() && *chars.peek().unwrap() == '&' {
+                    Token::AND
                 }
                 else {
-                    return Err("Found & expected &&".into());
+                    Token::AMPERSAND
                 }
             },
             '|' => {
@@ -159,6 +190,37 @@ impl<'source> Lexer {
             }
         })
 
+    }
+
+    fn parse_string(chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
+        // The first token was a " so we don't really need it
+
+        let mut value = String::new();
+
+        while !chars.peek().is_none() && *chars.peek().unwrap() != '"' {
+            value.push(chars.next().unwrap());
+        }
+
+        chars.next();
+
+        Ok(Token::STRING(value))
+    }
+
+    fn parse_dotted(chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
+
+        let mut value = String::new();
+
+        while !chars.peek().is_none() && (chars.peek().unwrap().is_ascii_alphanumeric() || *chars.peek().unwrap() == '_') {
+            value.push(chars.next().unwrap());
+        }
+
+        Ok(if !chars.peek().is_none() && *chars.peek().unwrap() == ':' {
+            chars.next();
+
+            Token::INNERLABEL(value)
+        } else {
+            Token::DIRECTIVE(value)
+        })
     }
 
     fn parse_number(first_char: char, chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
@@ -332,25 +394,20 @@ impl<'source> Lexer {
 
     fn parse_identifier(first_char: char, chars: &mut Peekable<Chars>) -> Token {
 
-        let mut id = String::with_capacity(1);
+        let mut id = String::from(first_char);
 
-        let mut next_char = first_char;
-
-        while next_char.is_ascii_alphanumeric() || next_char == '_' {
-
-            id.push(next_char);
-
-            next_char = match chars.peek() {
-                Some(v) => *v,
-                None => {
-                    break;
-                }
-            };
-
-            chars.next();
+        while !chars.peek().is_none() && (chars.peek().unwrap().is_ascii_alphanumeric() || *chars.peek().unwrap() == '_') {
+            id.push(chars.next().unwrap());
         }
 
-        Token::IDENTIFIER(id)
+        if !chars.peek().is_none() && *chars.peek().unwrap() == ':' {
+            chars.next();
+
+            Token::LABEL(id)
+        } else {
+            Token::IDENTIFIER(id)
+        }
+        
 
     }
 

@@ -33,7 +33,21 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     }
 
     let tokens = Lexer::lex("
-        
+        .define PI 3.14
+
+        .define PUSH2 push 2
+
+        .define a(b)    1 + b(x)
+
+        .macro somemacro 1
+            push 1
+            push &1
+            add
+        .endmacro
+
+        .include \"somefilename.extensions\"
+
+        .define YOURMOM  2 + 2 > 5 || 100 / 20 % 5 == 1
 
     ")?;
 
