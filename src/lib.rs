@@ -2,7 +2,9 @@ use clap::ArgMatches;
 use std::error::Error;
 
 mod lexer;
-pub use lexer::{Lexer};
+pub use lexer::Lexer;
+
+mod parser;
 
 pub static VERSION: &'static str = "0.1.0";
 
@@ -32,7 +34,8 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         println!("Outputting to: {}", output_path);
     }
 
-    let tokens = Lexer::lex("
+    let tokens = Lexer::lex(
+        r#"
         .define PI 3.14
 
         .define PUSH2 push 2
@@ -45,11 +48,25 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
             add
         .endmacro
 
-        .include \"somefilename.extensions\"
+        push 0xffff
+        stoe "$z"
 
-        .define YOURMOM  2 + 2 > 5 || 100 / 20 % 5 == 1
+        push 0b1111_0010
+        stoe "$z"
 
-    ")?;
+        .include "somefilename\".extensions"
+
+        .define YOURMOM  2 + 2 > 5 \
+         || 100 / 20 % 5 == 1
+
+         loop:
+            INC  "$x"
+            stoe "$x"
+            .inner:
+                push YOURMOM
+                stoe "$y"
+    "#,
+    )?;
 
     for token in tokens {
         println!("{:?}", token);

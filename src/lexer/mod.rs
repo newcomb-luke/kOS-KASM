@@ -1,4 +1,4 @@
-use std::{error::Error, str::Chars, iter::Peekable, str::FromStr};
+use std::{error::Error, iter::Peekable, str::Chars, str::FromStr};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
@@ -30,7 +30,8 @@ pub enum Token {
     LABEL(String),
     INNERLABEL(String),
     DIRECTIVE(String),
-    EOF
+    EOF,
+    LINECONTINUE,
 }
 
 #[derive(PartialEq, Eq)]
@@ -38,40 +39,75 @@ enum NumberType {
     DEC,
     HEX,
     FLOAT,
-    BIN
+    BIN,
 }
 
-pub struct Lexer {
-
-}
+pub struct Lexer {}
 
 impl<'source> Lexer {
-
     pub fn lex(input: &'source str) -> Result<Vec<Token>, Box<dyn Error>> {
-
         let mut tokens: Vec<Token> = Vec::new();
 
         let mut chars = input.chars().peekable();
 
         while !chars.peek().is_none() {
-            tokens.push( Lexer::parse_token(&mut chars)? );
+            tokens.push(Lexer::parse_token(&mut chars)?);
 
-            println!("---------------------------------------------------------------");
+            // println!("---------------------------------------------------------------");
 
-            for token in &tokens {
-                println!("{:?}", token);
-            }
+            // for token in &tokens {
+            //     println!("{:?}", token);
+            // }
         }
 
-        while tokens.len() > 0 && (*tokens.last().unwrap() == Token::EOF || *tokens.last().unwrap() == Token::NEWLINE) {
+        while tokens.len() > 0
+            && (*tokens.last().unwrap() == Token::EOF || *tokens.last().unwrap() == Token::NEWLINE)
+        {
             tokens.remove(tokens.len() - 1);
         }
+
+        Lexer::remove_line_continues(&mut tokens)?;
 
         Ok(tokens)
     }
 
-    fn parse_token(chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
+    fn remove_line_continues(tokens: &mut Vec<Token>) -> Result<(), Box<dyn Error>> {
+        
+        // I was originally going to tokens.remove() all of the line continues and newlines
+        // But it turns out that copies the entire vector every time, so why not just do that?
 
+        // We will allocate the max, and then shrink it later
+        let mut new_tokens: Vec<Token> = Vec::with_capacity(tokens.len());
+
+        let mut skip_next = false;
+        for index in 0..tokens.len() {
+
+            if !skip_next {
+                if tokens[index] == Token::LINECONTINUE {
+                    if index < tokens.len() - 1 && tokens[index + 1] != Token::NEWLINE {
+                        return Err(format!("Error parsing, \\ should only be followed by a newline. Found: {:?}", tokens[index + 1]).into());
+                    } else {
+                        // Skip the newline token
+                        skip_next = true;
+                    }
+                } else {
+                    new_tokens.push(tokens[index].to_owned());
+                }
+            } else {
+                skip_next = false;
+            }
+
+        }
+
+        tokens.clear();
+        tokens.append(&mut new_tokens);
+
+        tokens.shrink_to_fit();
+
+        Ok(())
+    }
+
+    fn parse_token(chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
         let mut next_char = chars.next().unwrap();
 
         if next_char == ' ' {
@@ -93,15 +129,10 @@ impl<'source> Lexer {
         Ok(match next_char {
             '(' => Token::OPENPAREN,
             ')' => Token::CLOSEPAREN,
-            '_' | 'A'..='z' => {
-                Lexer::parse_identifier(next_char, chars)
-            },
-            '0'..='9' => {
-                Lexer::parse_number(next_char, chars)?
-            },
-            '"' => {
-                Lexer::parse_string(chars)?
-            },
+            '\\' => Token::LINECONTINUE,
+            '_' | 'A'..='z' => Lexer::parse_identifier(next_char, chars),
+            '0'..='9' => Lexer::parse_number(next_char, chars)?,
+            '"' => Lexer::parse_string(chars)?,
             '.' => {
                 if !chars.peek().is_none() {
                     if chars.peek().unwrap().is_ascii_digit() {
@@ -112,18 +143,17 @@ impl<'source> Lexer {
                 } else {
                     return Err("Just . is not a token".into());
                 }
-            },
+            }
             '-' => Token::MINUS,
             '~' => Token::COMP,
             '!' => {
                 if !chars.peek().is_none() && *chars.peek().unwrap() == '=' {
                     chars.next();
                     Token::NE
-                }
-                else {
+                } else {
                     Token::NEGATE
                 }
-            },
+            }
             '+' => Token::ADD,
             '*' => Token::MULT,
             '/' => Token::DIV,
@@ -132,64 +162,58 @@ impl<'source> Lexer {
                 if !chars.peek().is_none() && *chars.peek().unwrap() == '=' {
                     chars.next();
                     Token::LTE
-                }
-                else {
+                } else {
                     Token::LT
                 }
-            },
+            }
             '>' => {
                 if !chars.peek().is_none() && *chars.peek().unwrap() == '=' {
                     chars.next();
                     Token::GTE
-                }
-                else {
+                } else {
                     Token::GT
                 }
-            },
+            }
             '=' => {
                 if !chars.peek().is_none() {
                     if *chars.peek().unwrap() != '=' {
                         return Err(format!("Found ={} expected ==", chars.peek().unwrap()).into());
-                    }
-                    else {
+                    } else {
                         chars.next();
                         Token::EQ
                     }
-                }
-                else {
+                } else {
                     return Err("Found = expected ==".into());
                 }
-            },
+            }
             '&' => {
                 if !chars.peek().is_none() && *chars.peek().unwrap() == '&' {
                     Token::AND
-                }
-                else {
+                } else {
                     Token::AMPERSAND
                 }
-            },
+            }
             '|' => {
                 if !chars.peek().is_none() {
                     if *chars.peek().unwrap() != '|' {
                         return Err(format!("Found |{} expected ||", chars.peek().unwrap()).into());
-                    }
-                    else {
+                    } else {
                         chars.next();
                         Token::OR
                     }
-                }
-                else {
+                } else {
                     return Err("Found | expected ||".into());
                 }
-            },
+            }
             '?' => Token::QUESTION,
             ':' => Token::COLON,
             '\n' => Token::NEWLINE,
             _ => {
-                return Err(format!("Unexpected character {} while parsing token", next_char).into());
+                return Err(
+                    format!("Unexpected character {} while parsing token", next_char).into(),
+                );
             }
         })
-
     }
 
     fn parse_string(chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
@@ -197,7 +221,29 @@ impl<'source> Lexer {
 
         let mut value = String::new();
 
-        while !chars.peek().is_none() && *chars.peek().unwrap() != '"' {
+        while !chars.peek().is_none() {
+
+            // If we have encountered a "
+            if *chars.peek().unwrap() == '"' {
+
+                // Try to get the last character we parsed
+                match value.get((value.len() - 1)..) {
+                    // If there is one
+                    Some(s) => {
+                        let c = s.chars().next().unwrap();
+
+                        // If it was not escaped, that is the end of the string
+                        if c != '\\' {
+                            break;
+                        }
+                    },
+                    // This would actually be the string "", which is valid
+                    None => {
+                        break;
+                    }
+                }
+            }
+
             value.push(chars.next().unwrap());
         }
 
@@ -207,14 +253,11 @@ impl<'source> Lexer {
     }
 
     fn parse_dotted(chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
-
         let mut value = String::new();
 
-        while !chars.peek().is_none() && (chars.peek().unwrap().is_ascii_alphanumeric() || *chars.peek().unwrap() == '_') {
-            value.push(chars.next().unwrap());
-        }
+        value.push_str(&Lexer::parse_alphanumeric(chars));
 
-        Ok(if !chars.peek().is_none() && *chars.peek().unwrap() == ':' {
+        Ok(if Lexer::is_next_char(chars, ':') {
             chars.next();
 
             Token::INNERLABEL(value)
@@ -223,192 +266,113 @@ impl<'source> Lexer {
         })
     }
 
-    fn parse_number(first_char: char, chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
+    fn parse_number(
+        first_char: char,
+        chars: &mut Peekable<Chars>,
+    ) -> Result<Token, Box<dyn Error>> {
+        let mut parsable = String::from(first_char);
 
-        let mut number_type = NumberType::DEC;
-
-        let mut parsable = String::with_capacity(1);
-
-        let mut next_char;
-
-        // It could be binary (0b) or hex (0x)
-        if first_char == '0' {
-
-            // If it is not the last character
-            if !chars.peek().is_none() {
-                next_char = *chars.peek().unwrap();
-
-                // 0b is a binary integer
-                if next_char == 'b' {
-                    chars.next();
-                    number_type = NumberType::BIN;
-                }
-                // 0x is a hex integer
-                else if next_char == 'x' {
-                    chars.next();
-                    number_type = NumberType::HEX;
-                }
-                // If it is neither, then it might be nice to carry on
-                else {
-                    parsable.push(first_char);
-                }
+        while !chars.peek().is_none()
+            && (chars.peek().unwrap().is_ascii_hexdigit()
+                || chars.peek().unwrap().is_ascii_digit()
+                || *chars.peek().unwrap() == '_'
+                || *chars.peek().unwrap() == 'x'
+                || *chars.peek().unwrap() == '.')
+        {
+            if *chars.peek().unwrap() != '_' {
+                parsable.push(chars.next().unwrap());
             }
-            // If that is the last character, it is just a 0
-            // That actually simplifies a lot if it is
             else {
-                return Ok(Token::INT(0));
+                chars.next();
             }
-
         }
-        else if first_char == '.' {
-            number_type = NumberType::FLOAT;
-            parsable.push('.');
+
+        if parsable.starts_with("0x") {
+            Lexer::parse_hex_number(&parsable)
+        } else if parsable.starts_with("0b") {
+            Lexer::parse_binary_number(&parsable)
+        } else if parsable.contains('.') {
+            Lexer::parse_double_number(&parsable)
         } else {
-            parsable.push(first_char);
+            Lexer::parse_decimal_number(&parsable)
         }
+    }
 
-        match number_type {
-            NumberType::DEC => {
+    fn parse_decimal_number(input: &str) -> Result<Token, Box<dyn Error>> {
+        match i32::from_str(input) {
+            Result::Ok(value) => Ok(Token::INT(value)),
+            Err(_) => {
+                return Err(format!("Invalid int literal: {}", input).into());
+            }
+        }
+    }
 
-                next_char = *chars.peek().unwrap();
+    fn parse_double_number(input: &str) -> Result<Token, Box<dyn Error>> {
+        match f64::from_str(input) {
+            Result::Ok(value) => Ok(Token::DOUBLE(value)),
+            Err(_) => {
+                return Err(format!("Invalid double literal: {}", input).into());
+            }
+        }
+    }
 
-                while next_char.is_ascii_digit() || next_char == '_' {
+    fn parse_binary_number(input: &str) -> Result<Token, Box<dyn Error>> {
+        let number_str = &input[2..];
 
-                    if next_char != '_' {
-                        parsable.push(next_char);
-                    }
-
-                    chars.next();
-
-                    if chars.peek().is_none() {
-                        break;
-                    }
-                    else {
-                        next_char = *chars.peek().unwrap();
-                    }
-                }
-
-                if !chars.peek().is_none() && *chars.peek().unwrap() == '.' {
-
-                    number_type = NumberType::FLOAT;
-
-                    parsable.push('.');
-
-                    chars.next();
-
-                    if !chars.peek().is_none() {
-                        next_char = *chars.peek().unwrap();
-
-                        while next_char.is_ascii_digit() {
-    
-                            parsable.push(next_char);
-
-                            chars.next();
-        
-                            if chars.peek().is_none() {
-                                break;
-                            }
-                            else {
-                                next_char = *chars.peek().unwrap();
-                            }
-                        }
-                    }
-                }
-            },
-            NumberType::FLOAT => {
-                next_char = *chars.peek().unwrap();
-
-                while next_char.is_ascii_digit() || next_char == '_' {
-
-                    if next_char != '_' {
-                        parsable.push(next_char);
-                    }
-
-                    chars.next();
-
-                    if chars.peek().is_none() {
-                        break;
-                    }
-                    else {
-                        next_char = *chars.peek().unwrap();
-                    }
-                }
-            },
-            NumberType::HEX => {
-
-                if chars.peek().is_none() {
-                    return Err("Error trying to parse token 0x, expected hex literal".into());
-                }
-                else {
-                    next_char = *chars.peek().unwrap();
-                }
-
-                while next_char.is_ascii_hexdigit() {
-
-                    parsable.push(next_char);
-
-                    chars.next();
-
-                    if chars.peek().is_none() {
-                        break;
-                    }
-                    else {
-                        next_char = *chars.peek().unwrap();
-                    }
-                }
-            },
-            NumberType::BIN => {
-
-                if chars.peek().is_none() {
-                    return Err("Error trying to parse token 0b, expected binary literal".into());
-                }
-                else {
-                    next_char = *chars.peek().unwrap();
-                }
-
-                while next_char == '1' || next_char == '0' || next_char == '_' {
-
-                    if next_char != '_' {
-                        parsable.push(next_char);
-                    }
-
-                    chars.next();
-
-                    if chars.peek().is_none() {
-                        break;
-                    }
-                    else {
-                        next_char = *chars.peek().unwrap();
-                    }
+        if number_str.is_empty() {
+            return Err("Error trying to parse token 0b, expected hex literal".into());
+        } else {
+            match i32::from_str_radix(number_str, 2) {
+                Result::Ok(value) => Ok(Token::INT(value)),
+                Err(_) => {
+                    return Err(format!("Invalid binary literal: {}", number_str).into());
                 }
             }
         }
+    }
 
-        Ok(match number_type {
-            NumberType::DEC => Token::INT( i32::from_str(&parsable).expect(&format!("Somehow failed to parse the decimal number: {}", parsable)) ),
-            NumberType::HEX => Token::INT( i32::from_str_radix(&parsable, 16).expect(&format!("Somehow failed to parse the hex number: {}", parsable)) ),
-            NumberType::FLOAT => Token::DOUBLE( f64::from_str(&parsable).expect(&format!("Somehow failed to parse the double number: {}", parsable)) ),
-            NumberType::BIN => Token::INT( i32::from_str_radix(&parsable, 2).expect(&format!("Somehow failed to parse the binary number: {}", parsable)))
-        })
+    fn parse_hex_number(input: &str) -> Result<Token, Box<dyn Error>> {
+        let number_str = &input[2..];
+
+        if number_str.is_empty() {
+            return Err("Error trying to parse token 0x, expected hex literal".into());
+        } else {
+            match i32::from_str_radix(number_str, 16) {
+                Result::Ok(value) => Ok(Token::INT(value)),
+                Err(_) => {
+                    return Err(format!("Invalid hex literal: {}", number_str).into());
+                }
+            }
+        }
+    }
+
+    fn parse_alphanumeric(chars: &mut Peekable<Chars>) -> String {
+        let mut value = String::new();
+
+        while !chars.peek().is_none()
+            && (chars.peek().unwrap().is_ascii_alphanumeric() || *chars.peek().unwrap() == '_')
+        {
+            value.push(chars.next().unwrap());
+        }
+
+        value
+    }
+
+    fn is_next_char(chars: &mut Peekable<Chars>, value: char) -> bool {
+        !chars.peek().is_none() && *chars.peek().unwrap() == value
     }
 
     fn parse_identifier(first_char: char, chars: &mut Peekable<Chars>) -> Token {
-
         let mut id = String::from(first_char);
 
-        while !chars.peek().is_none() && (chars.peek().unwrap().is_ascii_alphanumeric() || *chars.peek().unwrap() == '_') {
-            id.push(chars.next().unwrap());
-        }
+        id.push_str(&Lexer::parse_alphanumeric(chars));
 
-        if !chars.peek().is_none() && *chars.peek().unwrap() == ':' {
+        if Lexer::is_next_char(chars, ':') {
             chars.next();
 
             Token::LABEL(id)
         } else {
             Token::IDENTIFIER(id)
         }
-        
-
     }
-
 }
