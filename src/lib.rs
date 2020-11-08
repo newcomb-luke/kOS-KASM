@@ -5,7 +5,7 @@ mod lexer;
 pub use lexer::{Lexer, Token};
 
 mod parser;
-pub use parser::{ExpressionParser, ExpNode, Value};
+pub use parser::{ExpressionParser, ExpNode, Value, DefinitionTable, Definition};
 
 pub static VERSION: &'static str = "0.1.0";
 
@@ -78,6 +78,12 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?;
 
     println!("{:#?}", exp);
+
+    let mut defTable = DefinitionTable::new();
+
+    defTable.def("NUM_SWORDS", Definition::Constant(ExpNode::Constant(Value::Int(20))));
+
+    
 
     Ok(())
 }
