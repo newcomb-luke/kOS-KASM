@@ -54,7 +54,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         push 0b1111_0010
         stoe "$z"
 
-        .include "somefilename\".extensions"
+        .include "somefilename.extensions"
 
         .define YOURMOM  2 + 2 > 5 \
          || 100 / 20 % 5 == 1

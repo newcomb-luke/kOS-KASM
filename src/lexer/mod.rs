@@ -216,6 +216,10 @@ impl<'source> Lexer {
         })
     }
 
+    fn interpret_string(s: &str) -> Result<String, EscapeError> {
+        (EscapedStringInterpreter { s: s.chars() }).collect()
+    }
+
     fn parse_string(chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
         // The first token was a " so we don't really need it
 
@@ -249,7 +253,21 @@ impl<'source> Lexer {
 
         chars.next();
 
-        Ok(Token::STRING(value))
+        let fully = match Lexer::interpret_string(&value) {
+            Ok(s) => s,
+            Err(e) => {
+                match e {
+                    EscapeError::TrailingEscape => {
+                        return Err("Found trailing escape while parsing string".into());
+                    },
+                    EscapeError::InvalidEscapedChar(c) => {
+                        return Err(format!("Invalid escape sequence found: {}", c).into());
+                    }
+                }
+            }
+        };
+
+        Ok(Token::STRING(fully))
     }
 
     fn parse_dotted(chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
@@ -374,5 +392,35 @@ impl<'source> Lexer {
         } else {
             Token::IDENTIFIER(id)
         }
+    }
+}
+
+// Source: https://stackoverflow.com/questions/58551211/how-do-i-interpret-escaped-characters-in-a-string
+
+#[derive(Debug, PartialEq)]
+enum EscapeError {
+    TrailingEscape,
+    InvalidEscapedChar(char)
+}
+
+struct EscapedStringInterpreter<'a> {
+    s: std::str::Chars<'a>
+}
+
+impl<'a> Iterator for EscapedStringInterpreter<'a> {
+    type Item = Result<char, EscapeError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.s.next().map(|c| match c {
+            '\\' => match self.s.next() {
+                None => Err(EscapeError::TrailingEscape),
+                Some('n') => Ok('\n'),
+                Some('\\') => Ok('\\'),
+                Some('"') => Ok('"'),
+                Some('t') => Ok('\t'),
+                Some(c) => Err(EscapeError::InvalidEscapedChar(c)),
+            },
+            c => Ok(c),
+        })
     }
 }
