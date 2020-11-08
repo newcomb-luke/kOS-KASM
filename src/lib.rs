@@ -5,7 +5,7 @@ mod lexer;
 pub use lexer::{Lexer, Token};
 
 mod parser;
-pub use parser::{ExpressionParser, ExpNode, Value, DefinitionTable, Definition};
+pub use parser::{BinOp, Definition, DefinitionTable, ExpNode, ExpressionParser, UnOp, Value, ValueType, ExpressionEvaluator};
 
 pub static VERSION: &'static str = "0.1.0";
 
@@ -69,21 +69,33 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     // "#,
     // )?;
 
-    let tokens = Lexer::lex("0xffffff + 2 * 3 || false || !(NUM_SWORDS / 2)")?;
+    let tokens = Lexer::lex("(NUM_SWORDS >= NUM_HOLDERS) + 1")?;
 
     for token in &tokens {
         println!("{:?}", token);
     }
 
-    let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?;
+    let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?.unwrap();
 
     println!("{:#?}", exp);
 
-    let mut defTable = DefinitionTable::new();
+    let mut def_table = DefinitionTable::new();
 
-    defTable.def("NUM_SWORDS", Definition::Constant(ExpNode::Constant(Value::Int(20))));
+    def_table.def(
+        "NUM_SWORDS",
+        Definition::Constant(ExpNode::Constant(Value::Int(2))),
+    );
 
-    
+    def_table.def(
+        "NUM_HOLDERS",
+        Definition::Constant(ExpNode::Constant(Value::Int(2))),
+    );
+
+    let mut exp_eval = ExpressionEvaluator::new(&mut def_table);
+
+    let result = exp_eval.evaluate(&exp)?;
+
+    println!("{:?}", result);
 
     Ok(())
 }

@@ -1,5 +1,5 @@
 mod expressions;
-pub use expressions::{ExpressionParser, ExpNode, Value};
+pub use expressions::{BinOp, ExpNode, ExpressionParser, UnOp, Value, ValueType};
 
 mod instructions;
-pub use instructions::{DefinitionTable, Definition};
+pub use instructions::{Definition, DefinitionTable, ExpressionEvaluator};

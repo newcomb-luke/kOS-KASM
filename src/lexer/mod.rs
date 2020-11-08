@@ -73,7 +73,6 @@ impl<'source> Lexer {
     }
 
     fn remove_line_continues(tokens: &mut Vec<Token>) -> Result<(), Box<dyn Error>> {
-        
         // I was originally going to tokens.remove() all of the line continues and newlines
         // But it turns out that copies the entire vector every time, so why not just do that?
 
@@ -82,11 +81,14 @@ impl<'source> Lexer {
 
         let mut skip_next = false;
         for index in 0..tokens.len() {
-
             if !skip_next {
                 if tokens[index] == Token::LINECONTINUE {
                     if index < tokens.len() - 1 && tokens[index + 1] != Token::NEWLINE {
-                        return Err(format!("Error parsing, \\ should only be followed by a newline. Found: {:?}", tokens[index + 1]).into());
+                        return Err(format!(
+                            "Error parsing, \\ should only be followed by a newline. Found: {:?}",
+                            tokens[index + 1]
+                        )
+                        .into());
                     } else {
                         // Skip the newline token
                         skip_next = true;
@@ -97,7 +99,6 @@ impl<'source> Lexer {
             } else {
                 skip_next = false;
             }
-
         }
 
         tokens.clear();
@@ -228,10 +229,8 @@ impl<'source> Lexer {
         let mut value = String::new();
 
         while !chars.peek().is_none() {
-
             // If we have encountered a "
             if *chars.peek().unwrap() == '"' {
-
                 // Try to get the last character we parsed
                 match value.get((value.len() - 1)..) {
                     // If there is one
@@ -242,7 +241,7 @@ impl<'source> Lexer {
                         if c != '\\' {
                             break;
                         }
-                    },
+                    }
                     // This would actually be the string "", which is valid
                     None => {
                         break;
@@ -257,16 +256,14 @@ impl<'source> Lexer {
 
         let fully = match Lexer::interpret_string(&value) {
             Ok(s) => s,
-            Err(e) => {
-                match e {
-                    EscapeError::TrailingEscape => {
-                        return Err("Found trailing escape while parsing string".into());
-                    },
-                    EscapeError::InvalidEscapedChar(c) => {
-                        return Err(format!("Invalid escape sequence found: {}", c).into());
-                    }
+            Err(e) => match e {
+                EscapeError::TrailingEscape => {
+                    return Err("Found trailing escape while parsing string".into());
                 }
-            }
+                EscapeError::InvalidEscapedChar(c) => {
+                    return Err(format!("Invalid escape sequence found: {}", c).into());
+                }
+            },
         };
 
         Ok(Token::STRING(fully))
@@ -301,8 +298,7 @@ impl<'source> Lexer {
         {
             if *chars.peek().unwrap() != '_' {
                 parsable.push(chars.next().unwrap());
-            }
-            else {
+            } else {
                 chars.next();
             }
         }
@@ -324,7 +320,7 @@ impl<'source> Lexer {
             Err(_) => {
                 return match i64::from_str(input) {
                     Result::Ok(_) => Err(format!("Integer literal {} too large.", input).into()),
-                    Err(_) => Err(format!("Invalid int literal: {}", input).into())
+                    Err(_) => Err(format!("Invalid int literal: {}", input).into()),
                 }
             }
         }
@@ -349,7 +345,11 @@ impl<'source> Lexer {
                 Result::Ok(value) => Ok(Token::INT(value)),
                 Err(_) => {
                     return match i64::from_str_radix(number_str, 16) {
-                        Result::Ok(_) => Err(format!("Binary literal {} too large to fit into an integer", input).into()),
+                        Result::Ok(_) => Err(format!(
+                            "Binary literal {} too large to fit into an integer",
+                            input
+                        )
+                        .into()),
                         Err(_) => Err(format!("Invalid binary literal {}", input).into()),
                     }
                 }
@@ -367,7 +367,11 @@ impl<'source> Lexer {
                 Result::Ok(value) => Ok(Token::INT(value)),
                 Err(_) => {
                     return match i64::from_str_radix(number_str, 16) {
-                        Result::Ok(_) => Err(format!("Hex literal {} too large to fit into an integer", input).into()),
+                        Result::Ok(_) => Err(format!(
+                            "Hex literal {} too large to fit into an integer",
+                            input
+                        )
+                        .into()),
                         Err(_) => Err(format!("Invalid hex literal {}", input).into()),
                     }
                 }
@@ -411,11 +415,11 @@ impl<'source> Lexer {
 #[derive(Debug, PartialEq)]
 enum EscapeError {
     TrailingEscape,
-    InvalidEscapedChar(char)
+    InvalidEscapedChar(char),
 }
 
 struct EscapedStringInterpreter<'a> {
-    s: std::str::Chars<'a>
+    s: std::str::Chars<'a>,
 }
 
 impl<'a> Iterator for EscapedStringInterpreter<'a> {
