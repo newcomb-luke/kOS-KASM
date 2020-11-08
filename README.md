@@ -14,5 +14,5 @@ This is not meant to be used by anything yet in this condition!
         - [ ] Macro parser
         - [ ] Instruction parser
     - [ ] First pass
-    - [ ] Second pass
 - [ ] Generating KO files
+    - [ ] Second pass
