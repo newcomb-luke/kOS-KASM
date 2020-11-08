@@ -23,7 +23,7 @@ impl Value {
             Value::Int(i) => Ok(*i > 0),
             Value::Double(_) => Ok(true),
             Value::Bool(b) => Ok(*b),
-            _ => Err("Cannot implicitly convert identifier to boolean".into()),
+            _ => Err("Cannot directly convert identifier to boolean".into()),
         }
     }
 
@@ -32,7 +32,7 @@ impl Value {
             Value::Int(i) => Ok(*i as f64),
             Value::Double(d) => Ok(*d),
             Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
-            _ => Err("Cannot implicitly convert identifier to double".into()),
+            _ => Err("Cannot directly convert identifier to double".into()),
         }
     }
 
@@ -41,7 +41,7 @@ impl Value {
             Value::Int(i) => Ok(*i),
             Value::Double(d) => Ok(*d as i32),
             Value::Bool(b) => Ok(if *b { 1 } else { 0 }),
-            _ => Err("Cannot implicitly convert identifier to integer".into()),
+            _ => Err("Cannot directly convert identifier to integer".into()),
         }
     }
 
