@@ -25,6 +25,7 @@ pub enum Token {
     GTE,
     QUESTION,
     COLON,
+    COMMA,
     NEWLINE,
     AMPERSAND,
     LABEL(String),
@@ -141,7 +142,7 @@ impl<'source> Lexer {
                         Lexer::parse_dotted(chars)?
                     }
                 } else {
-                    return Err("Just . is not a token".into());
+                    return Err("Found lone .".into());
                 }
             }
             '-' => Token::MINUS,
@@ -208,6 +209,7 @@ impl<'source> Lexer {
             '?' => Token::QUESTION,
             ':' => Token::COLON,
             '\n' => Token::NEWLINE,
+            ',' => Token::COMMA,
             _ => {
                 return Err(
                     format!("Unexpected character {} while parsing token", next_char).into(),

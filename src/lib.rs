@@ -69,7 +69,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     // "#,
     // )?;
 
-    let tokens = Lexer::lex("2 + 2 * 3 || false || !(NUM_SWORDS / 2) tiny tim")?;
+    let tokens = Lexer::lex("0xffffffff2 + 2 * 3 || false || !(NUM_SWORDS / 2)")?;
 
     for token in &tokens {
         println!("{:?}", token);
@@ -77,7 +77,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
     let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?;
 
-    println!("{:?}", exp);
+    println!("{:#?}", exp);
 
     Ok(())
 }
