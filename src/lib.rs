@@ -2,9 +2,10 @@ use clap::ArgMatches;
 use std::error::Error;
 
 mod lexer;
-pub use lexer::Lexer;
+pub use lexer::{Lexer, Token};
 
 mod parser;
+pub use parser::{ExpressionParser, ExpNode, Value};
 
 pub static VERSION: &'static str = "0.1.0";
 
@@ -34,43 +35,49 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         println!("Outputting to: {}", output_path);
     }
 
-    let tokens = Lexer::lex(
-        r#"
-        .define PI 3.14
+    // let tokens = Lexer::lex(
+    //     r#"
+    //     .define PI 3.14
 
-        .define PUSH2 push 2
+    //     .define PUSH2 push 2
 
-        .define a(b)    1 + b(x)
+    //     .define a(b)    1 + b(x)
 
-        .macro somemacro 1
-            push 1
-            push &1
-            add
-        .endmacro
+    //     .macro somemacro 1
+    //         push 1
+    //         push &1
+    //         add
+    //     .endmacro
 
-        push 0xffff
-        stoe "$z"
+    //     push 0xffff
+    //     stoe "$z"
 
-        push 0b1111_0010
-        stoe "$z"
+    //     push 0b1111_0010
+    //     stoe "$z"
 
-        .include "somefilename.extensions"
+    //     .include "somefilename.extensions"
 
-        .define YOURMOM  2 + 2 > 5 \
-         || 100 / 20 % 5 == 1
+    //     .define YOURMOM  2 + 2 > 5 \
+    //      || 100 / 20 % 5 == 1
 
-         loop:
-            INC  "$x"
-            stoe "$x"
-            .inner:
-                push YOURMOM
-                stoe "$y"
-    "#,
-    )?;
+    //      loop:
+    //         INC  "$x"
+    //         stoe "$x"
+    //         .inner:
+    //             push YOURMOM
+    //             stoe "$y"
+    // "#,
+    // )?;
 
-    for token in tokens {
+    let tokens = Lexer::lex("2 + 2 * 3 || false || !(NUM_SWORDS / 2) tiny tim")?;
+
+    for token in &tokens {
         println!("{:?}", token);
     }
+
+    let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?;
+
+    println!("{:?}", exp);
 
     Ok(())
 }
