@@ -5,7 +5,10 @@ mod lexer;
 pub use lexer::{Lexer, Token};
 
 mod parser;
-pub use parser::{BinOp, Definition, DefinitionTable, ExpNode, ExpressionParser, UnOp, Value, ValueType, ExpressionEvaluator};
+pub use parser::{
+    BinOp, Definition, DefinitionTable, ExpNode, ExpressionEvaluator, ExpressionParser, UnOp,
+    Value, ValueType,
+};
 
 pub static VERSION: &'static str = "0.1.0";
 
@@ -71,13 +74,11 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
     let tokens = Lexer::lex("(NUM_SWORDS >= NUM_HOLDERS) + 1")?;
 
-    for token in &tokens {
-        println!("{:?}", token);
-    }
+    // for token in &tokens {
+    //     println!("{:?}", token);
+    // }
 
     let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?.unwrap();
-
-    println!("{:#?}", exp);
 
     let mut def_table = DefinitionTable::new();
 
@@ -88,7 +89,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
     def_table.def(
         "NUM_HOLDERS",
-        Definition::Constant(ExpNode::Constant(Value::Int(2))),
+        Definition::Empty,
     );
 
     let mut exp_eval = ExpressionEvaluator::new(&mut def_table);

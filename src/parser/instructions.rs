@@ -47,7 +47,7 @@ impl DefinitionTable {
     pub fn get_as_exp(&mut self, identifier: &str) -> Result<&ExpNode, Box<dyn Error>> {
         match self.get(identifier)? {
             Definition::Empty => Err(format!("Definition {} has no value", identifier).into()),
-            Definition::Constant(exp) => Ok(exp)
+            Definition::Constant(exp) => Ok(exp),
         }
     }
 }
@@ -57,32 +57,23 @@ pub struct ExpressionEvaluator<'a> {
 }
 
 impl<'a> ExpressionEvaluator<'a> {
-
     pub fn new(definition_table: &'a mut DefinitionTable) -> ExpressionEvaluator {
-
         ExpressionEvaluator { definition_table }
-
     }
 
     pub fn evaluate(&mut self, exp: &ExpNode) -> Result<Value, Box<dyn Error>> {
         match exp {
-            ExpNode::Constant(c) => {
-                match c {
-                    Value::Int(_) => Ok(c.clone()),
-                    Value::Double(_) => Ok(c.clone()),
-                    Value::Bool(_) => Ok(c.clone()),
-                    Value::Id(i) => {
-                        match self.definition_table.get(&i)? {
-                            Definition::Empty => {
-                                Err(format!("Definition {} has no value", i).into())
-                            }
-                            Definition::Constant(exp) => {
-                                let inner_exp = exp.clone();
-                                self.evaluate(&inner_exp)
-                            }
-                        }
+            ExpNode::Constant(c) => match c {
+                Value::Int(_) => Ok(c.clone()),
+                Value::Double(_) => Ok(c.clone()),
+                Value::Bool(_) => Ok(c.clone()),
+                Value::Id(i) => match self.definition_table.get(&i)? {
+                    Definition::Empty => Err(format!("Definition {} has no value", i).into()),
+                    Definition::Constant(exp) => {
+                        let inner_exp = exp.clone();
+                        self.evaluate(&inner_exp)
                     }
-                }
+                },
             },
             ExpNode::UnOp(op, v) => match op {
                 UnOp::FLIP => {
@@ -93,7 +84,7 @@ impl<'a> ExpressionEvaluator<'a> {
                         Value::Id(s) => {
                             let new_exp = self.definition_table.get_as_exp(&s)?.clone();
                             self.evaluate(&ExpNode::UnOp(UnOp::FLIP, new_exp.into()))
-                        },
+                        }
                         _ => Err("~ operator only valid on type of integer".into()),
                     }
                 }
@@ -106,7 +97,7 @@ impl<'a> ExpressionEvaluator<'a> {
                         Value::Id(s) => {
                             let new_exp = self.definition_table.get_as_exp(&s)?.clone();
                             self.evaluate(&ExpNode::UnOp(UnOp::NEGATE, new_exp.into()))
-                        },
+                        }
                         _ => Err("- operator not valid on type bool".into()),
                     }
                 }
@@ -117,7 +108,7 @@ impl<'a> ExpressionEvaluator<'a> {
                         Value::Id(s) => {
                             let new_exp = self.definition_table.get_as_exp(&s)?.clone();
                             self.evaluate(&ExpNode::UnOp(UnOp::NOT, new_exp.into()))
-                        },
+                        }
                         v => Ok(Value::Bool(!v.to_bool()?)),
                     }
                 }
@@ -152,37 +143,47 @@ impl<'a> ExpressionEvaluator<'a> {
                 match op {
                     BinOp::ADD => match math_return {
                         ValueType::INT => Ok(Value::Int(lval.to_int()? + rval.to_int()?)),
-                        ValueType::DOUBLE => Ok(Value::Double(lval.to_double()? + rval.to_double()?)),
+                        ValueType::DOUBLE => {
+                            Ok(Value::Double(lval.to_double()? + rval.to_double()?))
+                        }
                         _ => unreachable!(),
                     },
                     BinOp::SUB => match math_return {
                         ValueType::INT => Ok(Value::Int(lval.to_int()? - rval.to_int()?)),
-                        ValueType::DOUBLE => Ok(Value::Double(lval.to_double()? - rval.to_double()?)),
+                        ValueType::DOUBLE => {
+                            Ok(Value::Double(lval.to_double()? - rval.to_double()?))
+                        }
                         _ => unreachable!(),
                     },
                     BinOp::MULT => match math_return {
                         ValueType::INT => Ok(Value::Int(lval.to_int()? * rval.to_int()?)),
-                        ValueType::DOUBLE => Ok(Value::Double(lval.to_double()? * rval.to_double()?)),
+                        ValueType::DOUBLE => {
+                            Ok(Value::Double(lval.to_double()? * rval.to_double()?))
+                        }
                         _ => unreachable!(),
                     },
                     BinOp::DIV => match math_return {
                         ValueType::INT => Ok(Value::Int(lval.to_int()? / rval.to_int()?)),
-                        ValueType::DOUBLE => Ok(Value::Double(lval.to_double()? / rval.to_double()?)),
+                        ValueType::DOUBLE => {
+                            Ok(Value::Double(lval.to_double()? / rval.to_double()?))
+                        }
                         _ => unreachable!(),
                     },
                     BinOp::MOD => match math_return {
                         ValueType::INT => Ok(Value::Int(lval.to_int()? % rval.to_int()?)),
-                        ValueType::DOUBLE => Ok(Value::Double(lval.to_double()? % rval.to_double()?)),
+                        ValueType::DOUBLE => {
+                            Ok(Value::Double(lval.to_double()? % rval.to_double()?))
+                        }
                         _ => unreachable!(),
                     },
-                    BinOp::AND => Ok(Value::Bool( lval.to_bool()? && rval.to_bool()? )),
-                    BinOp::OR  => Ok(Value::Bool( lval.to_bool()? || rval.to_bool()? )),
-                    BinOp::EQ  => Ok(Value::Bool( lval.equals(&rval)                 )),
-                    BinOp::NE  => Ok(Value::Bool( !lval.equals(&rval)                )),
-                    BinOp::GT  => Ok(Value::Bool( lval.greater_than(&rval)           )),
-                    BinOp::LT  => Ok(Value::Bool( lval.less_than(&rval)              )),
-                    BinOp::GTE => Ok(Value::Bool( !lval.less_than(&rval)             )),
-                    BinOp::LTE => Ok(Value::Bool( !lval.greater_than(&rval)          )),
+                    BinOp::AND => Ok(Value::Bool(lval.to_bool()? && rval.to_bool()?)),
+                    BinOp::OR => Ok(Value::Bool(lval.to_bool()? || rval.to_bool()?)),
+                    BinOp::EQ => Ok(Value::Bool(lval.equals(&rval))),
+                    BinOp::NE => Ok(Value::Bool(!lval.equals(&rval))),
+                    BinOp::GT => Ok(Value::Bool(lval.greater_than(&rval))),
+                    BinOp::LT => Ok(Value::Bool(lval.less_than(&rval))),
+                    BinOp::GTE => Ok(Value::Bool(!lval.less_than(&rval))),
+                    BinOp::LTE => Ok(Value::Bool(!lval.greater_than(&rval))),
                 }
             }
         }

@@ -35,14 +35,6 @@ pub enum Token {
     LINECONTINUE,
 }
 
-#[derive(PartialEq, Eq)]
-enum NumberType {
-    DEC,
-    HEX,
-    FLOAT,
-    BIN,
-}
-
 pub struct Lexer {}
 
 impl<'source> Lexer {
@@ -53,12 +45,6 @@ impl<'source> Lexer {
 
         while !chars.peek().is_none() {
             tokens.push(Lexer::parse_token(&mut chars)?);
-
-            // println!("---------------------------------------------------------------");
-
-            // for token in &tokens {
-            //     println!("{:?}", token);
-            // }
         }
 
         while tokens.len() > 0

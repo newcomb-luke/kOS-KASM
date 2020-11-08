@@ -61,20 +61,36 @@ impl Value {
 
         if ltype != rtype {
             false
-        }
-        else {
+        } else {
             if ltype == ValueType::INT {
-                let v1 = match self  { Value::Int(i) => *i, _ => unreachable!()};
-                let v2 = match other { Value::Int(i) => *i, _ => unreachable!()};
+                let v1 = match self {
+                    Value::Int(i) => *i,
+                    _ => unreachable!(),
+                };
+                let v2 = match other {
+                    Value::Int(i) => *i,
+                    _ => unreachable!(),
+                };
                 v1 == v2
             } else if ltype == ValueType::DOUBLE {
-                let v1 = match self  { Value::Double(d) => *d, _ => unreachable!()};
-                let v2 = match other { Value::Double(d) => *d, _ => unreachable!()};
+                let v1 = match self {
+                    Value::Double(d) => *d,
+                    _ => unreachable!(),
+                };
+                let v2 = match other {
+                    Value::Double(d) => *d,
+                    _ => unreachable!(),
+                };
                 v1 == v2
-            }
-            else {
-                let v1 = match self  { Value::Bool(b) => *b, _ => unreachable!()};
-                let v2 = match other { Value::Bool(b) => *b, _ => unreachable!()};
+            } else {
+                let v1 = match self {
+                    Value::Bool(b) => *b,
+                    _ => unreachable!(),
+                };
+                let v2 = match other {
+                    Value::Bool(b) => *b,
+                    _ => unreachable!(),
+                };
                 v1 == v2
             }
         }
@@ -87,20 +103,36 @@ impl Value {
 
         if ltype != rtype {
             false
-        }
-        else {
+        } else {
             if ltype == ValueType::INT {
-                let v1 = match self  { Value::Int(i) => *i, _ => unreachable!()};
-                let v2 = match other { Value::Int(i) => *i, _ => unreachable!()};
+                let v1 = match self {
+                    Value::Int(i) => *i,
+                    _ => unreachable!(),
+                };
+                let v2 = match other {
+                    Value::Int(i) => *i,
+                    _ => unreachable!(),
+                };
                 v1 > v2
             } else if ltype == ValueType::DOUBLE {
-                let v1 = match self  { Value::Double(d) => *d, _ => unreachable!()};
-                let v2 = match other { Value::Double(d) => *d, _ => unreachable!()};
+                let v1 = match self {
+                    Value::Double(d) => *d,
+                    _ => unreachable!(),
+                };
+                let v2 = match other {
+                    Value::Double(d) => *d,
+                    _ => unreachable!(),
+                };
                 v1 > v2
-            }
-            else {
-                let v1 = match self  { Value::Bool(b) => *b, _ => unreachable!()};
-                let v2 = match other { Value::Bool(b) => *b, _ => unreachable!()};
+            } else {
+                let v1 = match self {
+                    Value::Bool(b) => *b,
+                    _ => unreachable!(),
+                };
+                let v2 = match other {
+                    Value::Bool(b) => *b,
+                    _ => unreachable!(),
+                };
                 v1 > v2
             }
         }
@@ -113,20 +145,36 @@ impl Value {
 
         if ltype != rtype {
             false
-        }
-        else {
+        } else {
             if ltype == ValueType::INT {
-                let v1 = match self  { Value::Int(i) => *i, _ => unreachable!()};
-                let v2 = match other { Value::Int(i) => *i, _ => unreachable!()};
+                let v1 = match self {
+                    Value::Int(i) => *i,
+                    _ => unreachable!(),
+                };
+                let v2 = match other {
+                    Value::Int(i) => *i,
+                    _ => unreachable!(),
+                };
                 v1 < v2
             } else if ltype == ValueType::DOUBLE {
-                let v1 = match self  { Value::Double(d) => *d, _ => unreachable!()};
-                let v2 = match other { Value::Double(d) => *d, _ => unreachable!()};
+                let v1 = match self {
+                    Value::Double(d) => *d,
+                    _ => unreachable!(),
+                };
+                let v2 = match other {
+                    Value::Double(d) => *d,
+                    _ => unreachable!(),
+                };
                 v1 < v2
-            }
-            else {
-                let v1 = match self  { Value::Bool(b) => *b, _ => unreachable!()};
-                let v2 = match other { Value::Bool(b) => *b, _ => unreachable!()};
+            } else {
+                let v1 = match self {
+                    Value::Bool(b) => *b,
+                    _ => unreachable!(),
+                };
+                let v2 = match other {
+                    Value::Bool(b) => *b,
+                    _ => unreachable!(),
+                };
                 v1 < v2
             }
         }
