@@ -322,7 +322,10 @@ impl<'source> Lexer {
         match i32::from_str(input) {
             Result::Ok(value) => Ok(Token::INT(value)),
             Err(_) => {
-                return Err(format!("Invalid int literal: {}", input).into());
+                return match i64::from_str(input) {
+                    Result::Ok(_) => Err(format!("Integer literal {} too large.", input).into()),
+                    Err(_) => Err(format!("Invalid int literal: {}", input).into())
+                }
             }
         }
     }
@@ -345,7 +348,10 @@ impl<'source> Lexer {
             match i32::from_str_radix(number_str, 2) {
                 Result::Ok(value) => Ok(Token::INT(value)),
                 Err(_) => {
-                    return Err(format!("Invalid binary literal: {}", number_str).into());
+                    return match i64::from_str_radix(number_str, 16) {
+                        Result::Ok(_) => Err(format!("Binary literal {} too large to fit into an integer", input).into()),
+                        Err(_) => Err(format!("Invalid binary literal {}", input).into()),
+                    }
                 }
             }
         }
@@ -360,7 +366,10 @@ impl<'source> Lexer {
             match i32::from_str_radix(number_str, 16) {
                 Result::Ok(value) => Ok(Token::INT(value)),
                 Err(_) => {
-                    return Err(format!("Invalid hex literal: {}", number_str).into());
+                    return match i64::from_str_radix(number_str, 16) {
+                        Result::Ok(_) => Err(format!("Hex literal {} too large to fit into an integer", input).into()),
+                        Err(_) => Err(format!("Invalid hex literal {}", input).into()),
+                    }
                 }
             }
         }

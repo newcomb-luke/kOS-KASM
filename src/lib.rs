@@ -69,7 +69,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     // "#,
     // )?;
 
-    let tokens = Lexer::lex("0xffffffff2 + 2 * 3 || false || !(NUM_SWORDS / 2)")?;
+    let tokens = Lexer::lex("0xffffff + 2 * 3 || false || !(NUM_SWORDS / 2)")?;
 
     for token in &tokens {
         println!("{:?}", token);
