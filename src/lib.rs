@@ -4,11 +4,14 @@ use std::error::Error;
 mod lexer;
 pub use lexer::{Lexer, Token};
 
-mod parser;
-pub use parser::{
+mod preprocessor;
+pub use preprocessor::{
     BinOp, Definition, DefinitionTable, ExpNode, ExpressionEvaluator, ExpressionParser, UnOp,
     Value, ValueType,
 };
+
+mod parser;
+pub use parser::{Instruction, Label, TextEntry};
 
 pub static VERSION: &'static str = "0.1.0";
 
@@ -89,12 +92,10 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
     def_table.def(
         "NUM_HOLDERS",
-        Definition::Empty,
+        Definition::Constant(ExpNode::Constant(Value::Int(20))),
     );
 
-    let mut exp_eval = ExpressionEvaluator::new(&mut def_table);
-
-    let result = exp_eval.evaluate(&exp)?;
+    let result = ExpressionEvaluator::evaluate(&mut def_table, &exp)?;
 
     println!("{:?}", result);
 
