@@ -1,13 +1,14 @@
 use std::{error::Error, iter::Peekable, str::Chars, str::FromStr};
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Token {
+/// Represents the type of any given token
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum TokenType {
     OPENPAREN,
     CLOSEPAREN,
-    IDENTIFIER(String),
-    INT(i32),
-    DOUBLE(f64),
-    STRING(String),
+    IDENTIFIER,
+    INT,
+    DOUBLE,
+    STRING,
     MINUS,
     COMP,
     NEGATE,
@@ -28,38 +29,176 @@ pub enum Token {
     COMMA,
     NEWLINE,
     AMPERSAND,
-    LABEL(String),
-    INNERLABEL(String),
-    DIRECTIVE(String),
-    EOF,
+    LABEL,
+    INNERLABEL,
+    DIRECTIVE,
     LINECONTINUE,
-    PLACEHOLDER(String)
+    PLACEHOLDER
 }
 
-pub struct Lexer {}
+#[derive(Debug, PartialEq, Clone)]
+pub enum TokenData {
+    STRING(String),
+    INT(i32),
+    DOUBLE(f64),
+    NONE
+}
 
-impl<'source> Lexer {
-    pub fn lex(input: &'source str) -> Result<Vec<Token>, Box<dyn Error>> {
-        let mut tokens: Vec<Token> = Vec::new();
+// Produced by the lexer, it is the smallest element that can be parsed, it contains the token's data and position in the source code
+#[derive(Debug, Clone)]
+pub struct Token {
+    tt: TokenType,
+    data: TokenData,
+    col: usize,
+    line: usize
+}
 
-        let mut chars = input.chars().peekable();
+impl Token {
+    pub fn new(tt: TokenType, data: TokenData) -> Token {
+        Token {
+            tt,
+            data,
+            col: 0,
+            line: 0
+        }
+    }
 
-        while !chars.peek().is_none() {
-            tokens.push(Lexer::parse_token(&mut chars)?);
+    pub fn set_col(&mut self, col: usize) {
+        self.col = col;
+    }
+
+    pub fn set_line(&mut self, line: usize) {
+        self.line = line
+    }
+
+    pub fn col(&self) -> usize {
+        self.col
+    }
+
+    pub fn line(&self) -> usize {
+        self.line
+    }
+
+    pub fn tt(&self) -> TokenType {
+        self.tt
+    }
+
+    pub fn data(&self) -> &TokenData {
+        &self.data
+    }
+
+    pub fn as_str(&self) -> String {
+        let mut s = format!("{:?}", self.tt);
+
+        match &self.data {
+            TokenData::DOUBLE(d) => {
+                s.push_str(&format!(": {}", d));
+            },
+            TokenData::INT(i) => {
+                s.push_str(&format!(": {}", i));
+            },
+            TokenData::STRING(v) => {
+                s.push_str(&format!(": \"{}\"", v));
+            },
+            TokenData::NONE => {}
         }
 
-        while tokens.len() > 0
-            && (*tokens.last().unwrap() == Token::EOF || *tokens.last().unwrap() == Token::NEWLINE)
+        s
+    }
+}
+
+pub struct Lexer {
+    line_map: Vec<usize>,
+    column_count: usize,
+    source_index: usize
+}
+
+impl Lexer {
+
+    /// Creates a new lexer
+    pub fn new() -> Lexer {
+        Lexer {
+            line_map: vec![0],
+            column_count: 0,
+            source_index: 0
+        }
+    }
+
+    /// Lexes the given source and returns a vector of token structs
+    pub fn lex(&mut self, input: &str) -> Result<Vec<Token>, Box<dyn Error>> {
+        // The vector that will contain all of the tokens
+        let mut tokens: Vec<Token> = Vec::new();
+
+        // This lexer goes through the source character by character
+        let mut chars = input.chars().peekable();
+
+        // While we have another character
+        while chars.peek().is_some() {
+
+            // Consume the whitespace, but if we have reached the end of the file, break from the loop too
+            if self.consume_whitespace(&mut chars) {
+                break;
+            }
+
+            // Lex another token if there are more characters
+            let (mut token, length) = match self.lex_token(&mut chars) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    let msg = format!("Error lexing input: {}, line {}.\n", e, self.line_map.len());
+                    return Err( msg.into() )
+                },
+            };
+
+            if token.tt() == TokenType::NEWLINE {
+                // Reset to start with the next line of the source
+                self.source_index += 1 + self.column_count;
+                self.line_map.push(self.source_index);
+                self.column_count = 0;
+            } else {
+                self.column_count += length;
+            }
+
+            // Set this token's column and line numbers
+            token.set_col(self.column_count);
+            token.set_line(self.line_map.len());
+
+            // Finally, add the token to the list
+            tokens.push(token);
+        }
+
+        // As long as there is at least one token in the vector, and the last token is a newline
+        while tokens.len() > 0 && tokens.last().unwrap().tt() == TokenType::NEWLINE
         {
+            // Remove it so that there are no random trailing tokens
             tokens.remove(tokens.len() - 1);
         }
 
-        Lexer::remove_line_continues(&mut tokens)?;
+        // Finally, remove the line continue characters because they can get in the way later
+        match self.remove_line_continues(&mut tokens) {
+            Ok(_) => {},
+            Err(e) => {
+                let msg = format!("Error lexing input: {}, line {}.\n", e, self.line_map.len());
+                return Err( msg.into() )
+            },
+        };
 
+        // We are done with this step
         Ok(tokens)
     }
 
-    fn remove_line_continues(tokens: &mut Vec<Token>) -> Result<(), Box<dyn Error>> {
+    /// Consumes whitespace characters all except for newlines, returns true if the end of the iterator has been reached
+    fn consume_whitespace(&mut self, chars: &mut Peekable<Chars>) -> bool {
+        // This will run if the next character is whitespace
+        while chars.peek().is_some() && match chars.peek().unwrap() { '\t' | ' ' => true, _ => false } {
+            self.column_count += 1; // Add it to the count
+            chars.next(); // Consume it and move on to the next
+        }
+
+        // Returns true if there is not another character
+        chars.peek().is_none()
+    }
+
+    fn remove_line_continues(&self, tokens: &mut Vec<Token>) -> Result<(), Box<dyn Error>> {
         // I was originally going to tokens.remove() all of the line continues and newlines
         // But it turns out that copies the entire vector every time, so why not just do that?
 
@@ -69,11 +208,11 @@ impl<'source> Lexer {
         let mut skip_next = false;
         for index in 0..tokens.len() {
             if !skip_next {
-                if tokens[index] == Token::LINECONTINUE {
-                    if index < tokens.len() - 1 && tokens[index + 1] != Token::NEWLINE {
+                if tokens[index].tt() == TokenType::LINECONTINUE {
+                    if index < tokens.len() - 1 && tokens[index + 1].tt() != TokenType::NEWLINE {
                         return Err(format!(
-                            "Error parsing, \\ should only be followed by a newline. Found: {:?}",
-                            tokens[index + 1]
+                            "Error parsing, \\ should only be followed by a newline. Found: {}",
+                            tokens[index + 1].as_str()
                         )
                         .into());
                     } else {
@@ -96,71 +235,58 @@ impl<'source> Lexer {
         Ok(())
     }
 
-    fn parse_token(chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
-        let mut next_char = chars.next().unwrap();
+    /// Lexes a single token from the character iterator. Returns a tuple containing the token, and the number of characters that the token spans in the source
+    fn lex_token(&self, chars: &mut Peekable<Chars>) -> Result<(Token, usize), Box<dyn Error>> {
 
-        if next_char == ' ' {
-            while !chars.peek().is_none() {
-                next_char = chars.next().unwrap();
+        // We are guaranteed to have another character, so just get the next one
+        let c = chars.next().unwrap();
 
-                if next_char != ' ' {
-                    break;
-                }
-            }
-        }
-
-        // If the last token is a space
-        if next_char == ' ' {
-            // It is the end of the file
-            return Ok(Token::EOF);
-        }
-
-        Ok(match next_char {
-            '(' => Token::OPENPAREN,
-            ')' => Token::CLOSEPAREN,
-            '\\' => Token::LINECONTINUE,
-            '_' | 'A'..='z' => Lexer::parse_identifier(next_char, chars),
-            '0'..='9' => Lexer::parse_number(next_char, chars)?,
-            '"' => Lexer::parse_string(chars)?,
+        Ok(match c {
+            '(' => (Token::new(TokenType::OPENPAREN, TokenData::NONE), 1),
+            ')' => (Token::new(TokenType::CLOSEPAREN, TokenData::NONE), 1),
+            '\\' => (Token::new(TokenType::LINECONTINUE, TokenData::NONE), 1),
+            '_' | 'A'..='z' => Lexer::lex_identifier(c, chars),
+            '0'..='9' => Lexer::lex_number(c, chars)?,
+            '"' => Lexer::lex_string(chars)?,
             '.' => {
                 if !chars.peek().is_none() {
                     if chars.peek().unwrap().is_ascii_digit() {
-                        Lexer::parse_number(next_char, chars)?
+                        Lexer::lex_number(c, chars)?
                     } else {
-                        Lexer::parse_dotted(chars)?
+                        Lexer::lex_dotted(chars)?
                     }
                 } else {
                     return Err("Found lone .".into());
                 }
             }
-            '-' => Token::MINUS,
-            '~' => Token::COMP,
+            '-' => (Token::new(TokenType::MINUS, TokenData::NONE), 1),
+            '~' => (Token::new(TokenType::COMP, TokenData::NONE), 1),
             '!' => {
                 if !chars.peek().is_none() && *chars.peek().unwrap() == '=' {
                     chars.next();
-                    Token::NE
+                    (Token::new(TokenType::NE, TokenData::NONE), 2)
                 } else {
-                    Token::NEGATE
+                    (Token::new(TokenType::NEGATE, TokenData::NONE), 1)
                 }
             }
-            '+' => Token::ADD,
-            '*' => Token::MULT,
-            '/' => Token::DIV,
-            '%' => Token::MOD,
+            '+' => (Token::new(TokenType::ADD, TokenData::NONE), 1),
+            '*' => (Token::new(TokenType::MULT, TokenData::NONE), 1),
+            '/' => (Token::new(TokenType::DIV, TokenData::NONE), 1),
+            '%' => (Token::new(TokenType::MOD, TokenData::NONE), 1),
             '<' => {
                 if !chars.peek().is_none() && *chars.peek().unwrap() == '=' {
                     chars.next();
-                    Token::LTE
+                    (Token::new(TokenType::LTE, TokenData::NONE), 2)
                 } else {
-                    Token::LT
+                    (Token::new(TokenType::LT, TokenData::NONE), 1)
                 }
             }
             '>' => {
                 if !chars.peek().is_none() && *chars.peek().unwrap() == '=' {
                     chars.next();
-                    Token::GTE
+                    (Token::new(TokenType::GTE, TokenData::NONE), 2)
                 } else {
-                    Token::GT
+                    (Token::new(TokenType::GT, TokenData::NONE), 1)
                 }
             }
             '=' => {
@@ -169,7 +295,7 @@ impl<'source> Lexer {
                         return Err(format!("Found ={} expected ==", chars.peek().unwrap()).into());
                     } else {
                         chars.next();
-                        Token::EQ
+                        (Token::new(TokenType::EQ, TokenData::NONE), 2)
                     }
                 } else {
                     return Err("Found = expected ==".into());
@@ -177,9 +303,9 @@ impl<'source> Lexer {
             }
             '&' => {
                 if !chars.peek().is_none() && *chars.peek().unwrap() == '&' {
-                    Token::AND
+                    (Token::new(TokenType::AND, TokenData::NONE), 2)
                 } else {
-                    Token::AMPERSAND
+                    (Token::new(TokenType::AMPERSAND, TokenData::NONE), 1)
                 }
             }
             '|' => {
@@ -188,26 +314,26 @@ impl<'source> Lexer {
                         return Err(format!("Found |{} expected ||", chars.peek().unwrap()).into());
                     } else {
                         chars.next();
-                        Token::OR
+                        (Token::new(TokenType::OR, TokenData::NONE), 2)
                     }
                 } else {
                     return Err("Found | expected ||".into());
                 }
             }
-            '?' => Token::QUESTION,
-            ':' => Token::COLON,
-            '\n' => Token::NEWLINE,
-            ',' => Token::COMMA,
+            '?' => (Token::new(TokenType::QUESTION, TokenData::NONE), 1),
+            ':' => (Token::new(TokenType::COLON, TokenData::NONE), 1),
+            '\n' => (Token::new(TokenType::NEWLINE, TokenData::NONE), 1),
+            ',' => (Token::new(TokenType::COMMA, TokenData::NONE), 1),
             '\r' => {
                 // This is a carriage return which will always be followed by a newline.
                 // Consume the newline
                 chars.next();
                 // Return a newline token
-                Token::NEWLINE
+                (Token::new(TokenType::NEWLINE, TokenData::NONE), 2)
             },
             _ => {
                 return Err(
-                    format!("Unexpected character {} while parsing token", next_char).into()
+                    format!("Unexpected character {} while parsing token", c).into()
                 );
             }
         })
@@ -217,8 +343,9 @@ impl<'source> Lexer {
         (EscapedStringInterpreter { s: s.chars() }).collect()
     }
 
-    fn parse_string(chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
-        // The first token was a " so we don't really need it
+    fn lex_string(chars: &mut Peekable<Chars>) -> Result<(Token, usize), Box<dyn Error>> {
+        // The first token was a " so we don't really need it, but it still counts towards the size
+        let mut size = 1;
 
         let mut value = String::new();
 
@@ -243,11 +370,16 @@ impl<'source> Lexer {
                 }
             }
 
+            // If everything is in order, push the character, and add 1 to the size
             value.push(chars.next().unwrap());
+            size += 1;
         }
 
+        // This will be the ending quote, which does count for the size
         chars.next();
+        size += 1;
 
+        // This will resolve any escape sequences in the string to their proper values
         let fully = match Lexer::interpret_string(&value) {
             Ok(s) => s,
             Err(e) => match e {
@@ -260,29 +392,40 @@ impl<'source> Lexer {
             },
         };
 
-        Ok(Token::STRING(fully))
+        // Return the token, and the size of it
+        Ok((Token::new(TokenType::STRING, TokenData::STRING(fully)), size))
     }
 
-    fn parse_dotted(chars: &mut Peekable<Chars>) -> Result<Token, Box<dyn Error>> {
+    /// This function lexes any string value that begins with a . character, this could be an inner label or a directive
+    fn lex_dotted(chars: &mut Peekable<Chars>) -> Result<(Token, usize), Box<dyn Error>> {
         let mut value = String::new();
+        let mut size;
 
+        // The inner value of this token will just be whatever the alphanumeric characters following this will be
         value.push_str(&Lexer::parse_alphanumeric(chars));
+        size = value.len();
 
+        // If the next character is a :, then it is an inner label
         Ok(if Lexer::is_next_char(chars, ':') {
+            // Consume the :, and add 1 to the size
             chars.next();
+            size += 1;
 
-            Token::INNERLABEL(value)
+            (Token::new(TokenType::INNERLABEL, TokenData::STRING(value)), size)
         } else {
-            Token::DIRECTIVE(value)
+            (Token::new(TokenType::DIRECTIVE, TokenData::STRING(value)), size)
         })
     }
 
-    fn parse_number(
+    // Parses any type of number from the input, and produces either an int or double token
+    fn lex_number(
         first_char: char,
         chars: &mut Peekable<Chars>,
-    ) -> Result<Token, Box<dyn Error>> {
+    ) -> Result<(Token, usize), Box<dyn Error>> {
+        // This function works by reading in the number as a string and parsing it later
         let mut parsable = String::from(first_char);
 
+        // Basically, this will read in any characters that make a valid number
         while !chars.peek().is_none()
             && (chars.peek().unwrap().is_ascii_hexdigit()
                 || chars.peek().unwrap().is_ascii_digit()
@@ -308,9 +451,12 @@ impl<'source> Lexer {
         }
     }
 
-    fn parse_decimal_number(input: &str) -> Result<Token, Box<dyn Error>> {
+    fn parse_decimal_number(input: &str) -> Result<(Token, usize), Box<dyn Error>> {
+        // Because of the nature of this, the size is actually just the size of the string
+        let size = input.len();
+
         match i32::from_str(input) {
-            Result::Ok(value) => Ok(Token::INT(value)),
+            Result::Ok(value) => Ok((Token::new(TokenType::INT, TokenData::INT(value)), size)),
             Err(_) => {
                 return match i64::from_str(input) {
                     Result::Ok(_) => Err(format!("Integer literal {} too large.", input).into()),
@@ -320,23 +466,30 @@ impl<'source> Lexer {
         }
     }
 
-    fn parse_double_number(input: &str) -> Result<Token, Box<dyn Error>> {
+    fn parse_double_number(input: &str) -> Result<(Token, usize), Box<dyn Error>> {
+        // Because of the nature of this, the size is actually just the size of the string
+        let size = input.len();
+
         match f64::from_str(input) {
-            Result::Ok(value) => Ok(Token::DOUBLE(value)),
+            Result::Ok(value) => Ok((Token::new(TokenType::DOUBLE, TokenData::DOUBLE(value)), size)),
             Err(_) => {
                 return Err(format!("Invalid double literal: {}", input).into());
             }
         }
     }
 
-    fn parse_binary_number(input: &str) -> Result<Token, Box<dyn Error>> {
+    fn parse_binary_number(input: &str) -> Result<(Token, usize), Box<dyn Error>> {
+        // Because of the nature of this, the size is actually just the size of the string
+        let size = input.len();
+
+        // This contains the number with the leading 0b stripped off
         let number_str = &input[2..];
 
         if number_str.is_empty() {
             return Err("Error trying to parse token 0b, expected hex literal".into());
         } else {
             match i32::from_str_radix(number_str, 2) {
-                Result::Ok(value) => Ok(Token::INT(value)),
+                Result::Ok(value) => Ok((Token::new(TokenType::INT, TokenData::INT(value)), size)),
                 Err(_) => {
                     return match i64::from_str_radix(number_str, 16) {
                         Result::Ok(_) => Err(format!(
@@ -351,14 +504,18 @@ impl<'source> Lexer {
         }
     }
 
-    fn parse_hex_number(input: &str) -> Result<Token, Box<dyn Error>> {
+    fn parse_hex_number(input: &str) -> Result<(Token, usize), Box<dyn Error>> {
+        // Because of the nature of this, the size is actually just the size of the string
+        let size = input.len();
+
+        // This contains the number with the leading 0x stripped off
         let number_str = &input[2..];
 
         if number_str.is_empty() {
             return Err("Error trying to parse token 0x, expected hex literal".into());
         } else {
             match i32::from_str_radix(number_str, 16) {
-                Result::Ok(value) => Ok(Token::INT(value)),
+                Result::Ok(value) => Ok((Token::new(TokenType::INT, TokenData::INT(value)), size)),
                 Err(_) => {
                     return match i64::from_str_radix(number_str, 16) {
                         Result::Ok(_) => Err(format!(
@@ -389,17 +546,23 @@ impl<'source> Lexer {
         !chars.peek().is_none() && *chars.peek().unwrap() == value
     }
 
-    fn parse_identifier(first_char: char, chars: &mut Peekable<Chars>) -> Token {
+    fn lex_identifier(first_char: char, chars: &mut Peekable<Chars>) -> (Token, usize) {
         let mut id = String::from(first_char);
+        let mut size;
 
+        // The inner value of this token will just be whatever the alphanumeric characters following this will be
         id.push_str(&Lexer::parse_alphanumeric(chars));
+        size = id.len();
 
+        // If the next character is a :, then it is a label
         if Lexer::is_next_char(chars, ':') {
+            // Consume the :, and add 1 to the size
             chars.next();
+            size += 1;
 
-            Token::LABEL(id)
+            (Token::new(TokenType::LABEL, TokenData::STRING(id)), size)
         } else {
-            Token::IDENTIFIER(id)
+            (Token::new(TokenType::IDENTIFIER, TokenData::STRING(id)), size)
         }
     }
 }

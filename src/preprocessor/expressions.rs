@@ -1,6 +1,6 @@
 use std::{error::Error, iter::Peekable, slice::Iter};
 
-use crate::Token;
+use crate::{Token, TokenType, TokenData};
 
 #[derive(Debug)]
 pub enum Value {
@@ -239,7 +239,7 @@ impl ExpressionParser {
     ) -> Result<ExpNode, Box<dyn Error>> {
         let mut lhs = ExpressionParser::parse_logical_and(token_iter)?;
 
-        while token_iter.peek().is_some() && **token_iter.peek().unwrap() == Token::OR {
+        while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::OR {
             token_iter.next();
 
             let rhs = ExpressionParser::parse_logical_and(token_iter)?;
@@ -255,7 +255,7 @@ impl ExpressionParser {
     ) -> Result<ExpNode, Box<dyn Error>> {
         let mut lhs = ExpressionParser::parse_equality_exp(token_iter)?;
 
-        while token_iter.peek().is_some() && **token_iter.peek().unwrap() == Token::AND {
+        while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::AND {
             token_iter.next();
 
             let rhs = ExpressionParser::parse_equality_exp(token_iter)?;
@@ -272,15 +272,15 @@ impl ExpressionParser {
         let mut lhs = ExpressionParser::parse_relational_exp(token_iter)?;
 
         while token_iter.peek().is_some()
-            && (match token_iter.peek().unwrap() {
-                Token::EQ => true,
-                Token::NE => true,
+            && (match token_iter.peek().unwrap().tt() {
+                TokenType::EQ => true,
+                TokenType::NE => true,
                 _ => false,
             })
         {
-            let op = match token_iter.next().unwrap() {
-                Token::EQ => BinOp::EQ,
-                Token::NE => BinOp::NE,
+            let op = match token_iter.next().unwrap().tt() {
+                TokenType::EQ => BinOp::EQ,
+                TokenType::NE => BinOp::NE,
                 _ => unreachable!(),
             };
 
@@ -298,19 +298,19 @@ impl ExpressionParser {
         let mut lhs = ExpressionParser::parse_additive_exp(token_iter)?;
 
         while token_iter.peek().is_some()
-            && (match token_iter.peek().unwrap() {
-                Token::GT => true,
-                Token::LT => true,
-                Token::GTE => true,
-                Token::LTE => true,
+            && (match token_iter.peek().unwrap().tt() {
+                TokenType::GT => true,
+                TokenType::LT => true,
+                TokenType::GTE => true,
+                TokenType::LTE => true,
                 _ => false,
             })
         {
-            let op = match token_iter.next().unwrap() {
-                Token::GT => BinOp::GT,
-                Token::LT => BinOp::LT,
-                Token::GTE => BinOp::GTE,
-                Token::LTE => BinOp::LTE,
+            let op = match token_iter.next().unwrap().tt() {
+                TokenType::GT => BinOp::GT,
+                TokenType::LT => BinOp::LT,
+                TokenType::GTE => BinOp::GTE,
+                TokenType::LTE => BinOp::LTE,
                 _ => unreachable!(),
             };
 
@@ -328,15 +328,15 @@ impl ExpressionParser {
         let mut lhs = ExpressionParser::parse_term(token_iter)?;
 
         while token_iter.peek().is_some()
-            && (match token_iter.peek().unwrap() {
-                Token::ADD => true,
-                Token::MINUS => true,
+            && (match token_iter.peek().unwrap().tt() {
+                TokenType::ADD => true,
+                TokenType::MINUS => true,
                 _ => false,
             })
         {
-            let op = match token_iter.next().unwrap() {
-                Token::ADD => BinOp::ADD,
-                Token::MINUS => BinOp::SUB,
+            let op = match token_iter.next().unwrap().tt() {
+                TokenType::ADD => BinOp::ADD,
+                TokenType::MINUS => BinOp::SUB,
                 _ => unreachable!(),
             };
 
@@ -352,15 +352,15 @@ impl ExpressionParser {
         let mut lhs = ExpressionParser::parse_factor(token_iter)?;
 
         while token_iter.peek().is_some()
-            && (match token_iter.peek().unwrap() {
-                Token::MULT => true,
-                Token::DIV => true,
+            && (match token_iter.peek().unwrap().tt() {
+                TokenType::MULT => true,
+                TokenType::DIV => true,
                 _ => false,
             })
         {
-            let op = match token_iter.next().unwrap() {
-                Token::MULT => BinOp::MULT,
-                Token::DIV => BinOp::DIV,
+            let op = match token_iter.next().unwrap().tt() {
+                TokenType::MULT => BinOp::MULT,
+                TokenType::DIV => BinOp::DIV,
                 _ => unreachable!(),
             };
 
@@ -377,8 +377,10 @@ impl ExpressionParser {
             return Err("Tried to parse empty expression".into());
         }
 
-        match token_iter.peek().unwrap() {
-            Token::OPENPAREN => {
+        let next_token = token_iter.peek().unwrap();
+
+        match next_token.tt() {
+            TokenType::OPENPAREN => {
                 // Consume the (
                 token_iter.next();
 
@@ -390,7 +392,7 @@ impl ExpressionParser {
 
                 let exp = exp_option.unwrap();
 
-                if token_iter.peek().is_some() && **token_iter.peek().unwrap() == Token::CLOSEPAREN
+                if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::CLOSEPAREN
                 {
                     // Consume the )
                     token_iter.next();
@@ -400,11 +402,11 @@ impl ExpressionParser {
                     return Err("Error parsing expression, found (, expected closing )".into());
                 }
             }
-            Token::NEGATE | Token::COMP | Token::MINUS => {
-                let op = match token_iter.next().unwrap() {
-                    Token::NEGATE => UnOp::NOT,
-                    Token::COMP => UnOp::FLIP,
-                    Token::MINUS => UnOp::NEGATE,
+            TokenType::NEGATE | TokenType::COMP | TokenType::MINUS => {
+                let op = match token_iter.next().unwrap().tt() {
+                    TokenType::NEGATE => UnOp::NOT,
+                    TokenType::COMP => UnOp::FLIP,
+                    TokenType::MINUS => UnOp::NEGATE,
                     _ => unreachable!(),
                 };
 
@@ -412,17 +414,23 @@ impl ExpressionParser {
 
                 return Ok(ExpNode::UnOp(op, factor.into()));
             }
-            Token::INT(v) => {
+            TokenType::INT => {
+                // Get the int value out of it
+                let v = match next_token.data() { TokenData::INT(v) => v, _ => unreachable!() };
                 // Consume it
                 token_iter.next();
                 return Ok(ExpNode::Constant(Value::Int(*v)).into());
             }
-            Token::DOUBLE(v) => {
+            TokenType::DOUBLE => {
+                // Get the double value out of it
+                let v = match next_token.data() { TokenData::DOUBLE(v) => v, _ => unreachable!() };
                 // Consume it
                 token_iter.next();
                 return Ok(ExpNode::Constant(Value::Double(*v)).into());
             }
-            Token::IDENTIFIER(v) => {
+            TokenType::IDENTIFIER => {
+                // Get the string value out of it
+                let v = match next_token.data() { TokenData::STRING(v) => v, _ => unreachable!() };
                 // Consume it
                 token_iter.next();
 

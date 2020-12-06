@@ -2,12 +2,12 @@ use clap::ArgMatches;
 use std::{error::Error, path::Path, fs};
 
 mod lexer;
-pub use lexer::{Lexer, Token};
+pub use lexer::{Lexer, Token, TokenType, TokenData};
 
 mod preprocessor;
 pub use preprocessor::{
     BinOp, DefinitionTable, ExpNode, ExpressionEvaluator, ExpressionParser, UnOp,
-    Value, ValueType, Preprocessor
+    Value, ValueType
 };
 
 mod parser;
@@ -52,23 +52,25 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         println!("Include path: {}", include_path);
     }
 
-    let mut preprocessor = Preprocessor::new(include_path);
+    // let mut preprocessor = Preprocessor::new(include_path);
 
     let main_contents = fs::read_to_string(&config.file_path)?;
 
-    let main_tokens = Lexer::lex(&main_contents)?;
+    let mut lexer = Lexer::new();
+
+    let main_tokens = lexer.lex(&main_contents)?;
 
     for token in &main_tokens {
-        println!("{:?}", token);
+        println!("{}", token.as_str());
     }
 
-    let processed_tokens = preprocessor.process(main_tokens)?;
+    // let processed_tokens = preprocessor.process(main_tokens)?;
 
-    println!("Preprocessed:");
+    // println!("Preprocessed:");
 
-    for token in &processed_tokens {
-        println!("{:?}", token);
-    }
+    // for token in &processed_tokens {
+    //     println!("{}", token.as_str());
+    // }
 
     // let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?.unwrap();
 
