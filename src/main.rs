@@ -27,6 +27,14 @@ fn main() {
                 .short("d")
                 .long("debug"),
         )
+        .arg(
+            Arg::with_name("include_path")
+                .help("Specifies the include path for the assembler. Defaults to the current working directory.")
+                .short("i")
+                .long("include-path")
+                .require_equals(true)
+                .takes_value(true)
+        )
         .get_matches();
 
     let config = CLIConfig::new(matches);

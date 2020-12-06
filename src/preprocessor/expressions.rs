@@ -7,7 +7,6 @@ pub enum Value {
     Int(i32),
     Double(f64),
     Bool(bool),
-    Id(String),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -186,8 +185,7 @@ impl Clone for Value {
         match self {
             Value::Int(i) => Value::Int(*i),
             Value::Double(f) => Value::Double(*f),
-            Value::Bool(b) => Value::Bool(*b),
-            Value::Id(s) => Value::Id(s.to_owned()),
+            Value::Bool(b) => Value::Bool(*b)
         }
     }
 }
@@ -430,10 +428,8 @@ impl ExpressionParser {
 
                 if v == "true" {
                     return Ok(ExpNode::Constant(Value::Bool(true)).into());
-                } else if v == "false" {
-                    return Ok(ExpNode::Constant(Value::Bool(false)).into());
                 } else {
-                    return Ok(ExpNode::Constant(Value::Id(v.to_owned())).into());
+                    return Ok(ExpNode::Constant(Value::Bool(false)).into());
                 }
             }
             t => {

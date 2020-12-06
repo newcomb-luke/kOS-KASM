@@ -33,6 +33,7 @@ pub enum Token {
     DIRECTIVE(String),
     EOF,
     LINECONTINUE,
+    PLACEHOLDER(String)
 }
 
 pub struct Lexer {}
@@ -197,9 +198,16 @@ impl<'source> Lexer {
             ':' => Token::COLON,
             '\n' => Token::NEWLINE,
             ',' => Token::COMMA,
+            '\r' => {
+                // This is a carriage return which will always be followed by a newline.
+                // Consume the newline
+                chars.next();
+                // Return a newline token
+                Token::NEWLINE
+            },
             _ => {
                 return Err(
-                    format!("Unexpected character {} while parsing token", next_char).into(),
+                    format!("Unexpected character {} while parsing token", next_char).into()
                 );
             }
         })

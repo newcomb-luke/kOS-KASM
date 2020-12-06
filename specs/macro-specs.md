@@ -10,7 +10,6 @@
 
 push.i16        a(8) ; expands to 1 + 2 * 8
 
-.define foo (a, b) ; no arguments, (a, b) is the expansion
 .define bar(a, b)  ; two arguments, empty expansion
 
 ; detect recursive macro expansions
@@ -22,8 +21,6 @@ push.i16        a(8) ; expands to 1 + 2 * 8
 ; Macro redefinition
 
 .undef foo
-
-.assign i i+1
 
 .macro  some_macro 1
 

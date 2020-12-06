@@ -1,13 +1,13 @@
 use clap::ArgMatches;
-use std::error::Error;
+use std::{error::Error, path::Path, fs};
 
 mod lexer;
 pub use lexer::{Lexer, Token};
 
 mod preprocessor;
 pub use preprocessor::{
-    BinOp, Definition, DefinitionTable, ExpNode, ExpressionEvaluator, ExpressionParser, UnOp,
-    Value, ValueType,
+    BinOp, DefinitionTable, ExpNode, ExpressionEvaluator, ExpressionParser, UnOp,
+    Value, ValueType, Preprocessor
 };
 
 mod parser;
@@ -37,67 +37,56 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         output_path.push_str(".ko");
     }
 
-    if config.debug {
-        println!("Outputting to: {}", output_path);
+    let mut include_path = config.include_path.clone();
+
+    if include_path.is_empty() {
+       include_path = String::from(Path::new(&config.file_path).parent().unwrap().canonicalize().unwrap().to_str().unwrap());
+    } else {
+        if !Path::new(&include_path).is_dir() {
+            return Err("Include path must be a directory.".into());
+        }
     }
 
-    // let tokens = Lexer::lex(
-    //     r#"
-    //     .define PI 3.14
+    if config.debug {
+        println!("Outputting to: {}", output_path);
+        println!("Include path: {}", include_path);
+    }
 
-    //     .define PUSH2 push 2
+    let mut preprocessor = Preprocessor::new(include_path);
 
-    //     .define a(b)    1 + b(x)
+    let main_contents = fs::read_to_string(&config.file_path)?;
 
-    //     .macro somemacro 1
-    //         push 1
-    //         push &1
-    //         add
-    //     .endmacro
+    let main_tokens = Lexer::lex(&main_contents)?;
 
-    //     push 0xffff
-    //     stoe "$z"
+    for token in &main_tokens {
+        println!("{:?}", token);
+    }
 
-    //     push 0b1111_0010
-    //     stoe "$z"
+    let processed_tokens = preprocessor.process(main_tokens)?;
 
-    //     .include "somefilename.extensions"
+    println!("Preprocessed:");
 
-    //     .define YOURMOM  2 + 2 > 5 \
-    //      || 100 / 20 % 5 == 1
+    for token in &processed_tokens {
+        println!("{:?}", token);
+    }
 
-    //      loop:
-    //         INC  "$x"
-    //         stoe "$x"
-    //         .inner:
-    //             push YOURMOM
-    //             stoe "$y"
-    // "#,
-    // )?;
+    // let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?.unwrap();
 
-    let tokens = Lexer::lex("(NUM_SWORDS >= NUM_HOLDERS) + 1")?;
+    // let mut def_table = DefinitionTable::new();
 
-    // for token in &tokens {
-    //     println!("{:?}", token);
-    // }
+    // def_table.def(
+    //     "NUM_SWORDS",
+    //     Definition::Constant(ExpNode::Constant(Value::Int(2))),
+    // );
 
-    let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?.unwrap();
+    // def_table.def(
+    //     "NUM_HOLDERS",
+    //     Definition::Constant(ExpNode::Constant(Value::Int(20))),
+    // );
 
-    let mut def_table = DefinitionTable::new();
+    // let result = ExpressionEvaluator::evaluate(&mut def_table, &exp)?;
 
-    def_table.def(
-        "NUM_SWORDS",
-        Definition::Constant(ExpNode::Constant(Value::Int(2))),
-    );
-
-    def_table.def(
-        "NUM_HOLDERS",
-        Definition::Constant(ExpNode::Constant(Value::Int(20))),
-    );
-
-    let result = ExpressionEvaluator::evaluate(&mut def_table, &exp)?;
-
-    println!("{:?}", result);
+    // println!("{:?}", result);
 
     Ok(())
 }
@@ -106,6 +95,7 @@ pub struct CLIConfig {
     pub file_path: String,
     pub output_path_value: String,
     pub debug: bool,
+    pub include_path: String,
 }
 
 impl CLIConfig {
@@ -118,6 +108,11 @@ impl CLIConfig {
                 String::new()
             },
             debug: matches.is_present("debug"),
+            include_path: if matches.is_present("include_path") {
+                String::from(matches.value_of("include_path").unwrap())
+            } else {
+                String::new()
+            },
         }
     }
 }
