@@ -11,3 +11,4 @@ Cargo.lock
 
 test.kasm
 preprocessed.kasm
+test_include.kasm

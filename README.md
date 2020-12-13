@@ -16,6 +16,14 @@ This is not meant to be used by anything yet in this condition!
             - [x] Parsing
                 - [ ] Ability to use definitions and expressions as macro argument numbers?
             - [x] Expansion
+        - [x] Rep
+        - [x] Include
+        - [x] Extern
+        - [x] Global
+        - [ ] If*
+        - [x] Undef
+        - [x] Unmacro
+        - [ ] Line
     - [x] Parser
         - [x] Expression parser
         - [x] Expression evaluator

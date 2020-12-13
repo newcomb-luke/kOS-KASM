@@ -9,7 +9,8 @@ pub struct DefinitionTable {
 pub enum SymbolType {
     LABEL,
     EMPTY,
-    MACRO
+    DATA,
+    UNDEF
 }
 
 pub enum SymbolInfo {
@@ -20,7 +21,8 @@ pub enum SymbolInfo {
 
 pub struct Symbol {
     id: String,
-
+    st: SymbolType,
+    si: SymbolInfo,
 }
 
 pub struct SymbolTable {
@@ -50,7 +52,7 @@ impl Preprocessor {
         }
     }
 
-    pub fn process(&mut self, settings: PreprocessorSettings, input: Vec<Token>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, symbol_table: &mut SymbolTable, input_files: &mut InputFiles) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn process(&mut self, settings: &PreprocessorSettings, input: Vec<Token>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, symbol_table: &mut SymbolTable, input_files: &mut InputFiles) -> Result<Vec<Token>, Box<dyn Error>> {
         let mut new_tokens = Vec::with_capacity(input.len());
 
         let mut token_iter = input.iter().peekable();
@@ -83,7 +85,7 @@ impl Preprocessor {
                             return Err(format!("Cannot create macro {} with same name as definiton. Line {}", parsed_macro.id(), directive_line).into());
                         }
 
-                        final_contents = self.process(macro_settings, parsed_macro.contents_cloned(), definition_table, macro_table, symbol_table, input_files)?;
+                        final_contents = self.process(&macro_settings, parsed_macro.contents_cloned(), definition_table, macro_table, symbol_table, input_files)?;
 
                         final_macro = Macro::new(&parsed_macro.id(), final_contents, parsed_macro.args_cloned(), parsed_macro.num_required_args());
 
@@ -138,7 +140,7 @@ impl Preprocessor {
                         // While there are more tokens
                         while body_iter.peek().is_some() {
                             // Process the line
-                            let mut processed_line = self.process_line(&settings, &mut body_iter, definition_table, macro_table)?;
+                            let mut processed_line = self.process_line(&settings, &mut body_iter, definition_table, macro_table, symbol_table)?;
                             // Add the line to processed_tokens
                             processed_body.append(&mut processed_line);
                         }
@@ -151,10 +153,154 @@ impl Preprocessor {
                         }
 
                     },
+                    DirectiveType::INCLUDE => {
+                        let include_file;
+                        let included;
+                        let mut included_preprocessed;
+                        
+                        // After .include there must be a string.
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::STRING {
+                            return Err(format!("Expected string after .include. Line {}", directive_line).into());
+                        }
+
+                        // Get the file name or path
+                        include_file = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
+
+                        // Also make sure there is nothing else
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                            return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                        }
+                        
+                        // Consume the newline
+                        token_iter.next();
+
+                        // Read the file and lex it
+                        included = self.include_file(include_file, input_files)?;
+
+                        // Now preprocess it like everything else
+                        included_preprocessed = self.process(&settings, included, definition_table, macro_table, symbol_table, input_files)?;
+
+                        // Add it to the preprocessed tokens
+                        new_tokens.append(&mut included_preprocessed);
+
+                    },
+                    DirectiveType::EXTERN => {
+                        let id;
+
+                        // There must be something after this, and it must be an identifier
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
+                            return Err(format!("Expected identifier after .extern. Line {}", directive_line).into());
+                        }
+
+                        // Read in the identifier
+                        id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
+
+                        // Also make sure there is nothing else
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                            return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                        }
+                        
+                        // Consume the newline
+                        token_iter.next();
+
+                        // Test if it is already in the symbol table
+                        if symbol_table.ifdef(id) {
+                            return Err(format!("Duplicate symbol {} defined. Line {}", id, directive_line).into());
+                        }
+
+                        // Then define it
+                        symbol_table.def(id, Symbol::new(id, SymbolType::UNDEF, SymbolInfo::EXTERN));
+
+                    },
+                    DirectiveType::GLOBAL => {
+                        let id;
+
+                        // There must be something after this, and it must be an identifier
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
+                            return Err(format!("Expected identifier after .extern. Line {}", directive_line).into());
+                        }
+
+                        // Read in the identifier
+                        id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
+
+                        // Also make sure there is nothing else
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                            return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                        }
+                        
+                        // Consume the newline
+                        token_iter.next();
+
+                        // Test if it is already in the symbol table
+                        if symbol_table.ifdef(id) {
+                            return Err(format!("Duplicate symbol {} defined. Line {}", id, directive_line).into());
+                        }
+
+                        // Then define it
+                        symbol_table.def(id, Symbol::new(id, SymbolType::UNDEF, SymbolInfo::GLOBAL));
+
+                    },
+                    DirectiveType::LINE => {
+                        return Err("Line directive currently unsupported in this version of kasm.".into());
+                    },
+                    DirectiveType::UNDEF => {
+                        let id;
+
+                        // There must be something after this, and it must be an identifier
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
+                            return Err(format!("Expected identifier after .undef. Line {}", directive_line).into());
+                        }
+
+                        // Read in the identifier
+                        id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
+
+                        // Also make sure there is nothing else
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                            return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                        }
+                        
+                        // Consume the newline
+                        token_iter.next();
+
+                        // Test if it is in the definition table
+                        if definition_table.ifndef(id) {
+                            return Err(format!("Definition {} does not exist, and cannot be undefined. Line {}", id, directive_line).into());
+                        }
+
+                        // If it is in there, undefine it
+                        definition_table.undef(id);
+                    },
+                    DirectiveType::UNMACRO => {
+                        let id;
+
+                        // There must be something after this, and it must be an identifier
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
+                            return Err(format!("Expected identifier after .unmacro. Line {}", directive_line).into());
+                        }
+
+                        // Read in the identifier
+                        id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
+
+                        // Also make sure there is nothing else
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                            return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                        }
+                        
+                        // Consume the newline
+                        token_iter.next();
+
+                        // Test if it is in the macro table
+                        if macro_table.ifndef(id) {
+                            return Err(format!("Macro {} does not exist, and cannot be undefined. Line {}", id, directive_line).into());
+                        }
+
+                        // If it is in there, undefine it
+                        macro_table.undef(id);
+                    },
                     _ => unimplemented!(),
                 }
             } else {
-                let mut append = self.process_line(&settings, &mut token_iter, definition_table, macro_table)?;
+                let mut append = self.process_line(&settings, &mut token_iter, definition_table, macro_table, symbol_table)?;
 
                 new_tokens.append(&mut append);
             }
@@ -163,7 +309,7 @@ impl Preprocessor {
         Ok(new_tokens)
     }
 
-    pub fn process_line(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn process_line(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, symbol_table: &SymbolTable) -> Result<Vec<Token>, Box<dyn Error>> {
         let mut new_tokens = Vec::new();
 
         // While we haven't reached the end of the line
@@ -213,8 +359,13 @@ impl Preprocessor {
                         else {
                             new_tokens.push(token);
                         }
-
-                    } else {
+                    }
+                    // We also need to check if it is an external symbol
+                    else if symbol_table.ifdef(id) {
+                        // If it is, it will be dealt with much later on down the line, so just push it
+                        new_tokens.push(token);
+                    }
+                    else {
                         return Err(format!("Macro or definition used before declaration: {}, line {}.", id, line).into());
                     }
                 }
@@ -591,9 +742,29 @@ impl DefinitionTable {
     }
 }
 
+impl Symbol {
+    pub fn new(identifier: &str, st: SymbolType, si: SymbolInfo) -> Symbol {
+        Symbol {
+            id: identifier.to_owned(),
+            st,
+            si
+        }
+    }
+}
+
 impl SymbolTable {
     pub fn new() -> SymbolTable {
         SymbolTable { symbols: HashMap::new() }
+    }
+
+    pub fn def(&mut self, identifier: &str, symbol: Symbol) {
+        // This already does what it needs to do. If it exists, the value is updated, if not, the value is created.
+        self.symbols
+        .insert(String::from(identifier), symbol);
+    }
+
+    pub fn ifdef(&self, identifier: &str) -> bool {
+        self.symbols.contains_key(identifier)
     }
 }
 
@@ -613,6 +784,14 @@ impl MacroTable {
         self.macros.contains_key(identifier)
     }
 
+    pub fn ifndef(&self, identifier: &str) -> bool {
+        !self.macros.contains_key(identifier)
+    }
+
+    pub fn undef(&mut self, identifier: &str) {
+        self.macros.remove(identifier);
+    }
+
     pub fn get(&self, identifier: &str) -> Result<&Macro, Box<dyn Error>> {
         if self.ifdef(identifier) {
             Ok(self.macros.get(identifier).unwrap())
@@ -626,20 +805,20 @@ pub enum DirectiveType {
     DEFINE,
     UNDEF,
     MACRO,
-    ENDMACRO,
+    // ENDMACRO,
     UNMACRO,
     IF,
-    IFN,
-    ELIF,
-    ELIFN,
-    ELIFDEF,
-    ELIFNDEF,
-    ELSE,
-    ENDIF,
+    // IFN,
+    // ELIF,
+    // ELIFN,
+    // ELIFDEF,
+    // ELIFNDEF,
+    // ELSE,
+    // ENDIF,
     IFDEF,
     IFNDEF,
     REP,
-    ENDREP,
+    // ENDREP,
     INCLUDE,
     LINE,
     EXTERN,
@@ -653,19 +832,19 @@ impl DirectiveType {
             "undef" => DirectiveType::UNDEF,
             "macro" => DirectiveType::MACRO,
             "unmacro" => DirectiveType::UNMACRO,
-            "endmacro" => DirectiveType::ENDMACRO,
+            // "endmacro" => DirectiveType::ENDMACRO,
             "if" => DirectiveType::IF,
-            "ifn" => DirectiveType::IFN,
-            "elif" => DirectiveType::ELIF,
-            "elifn" => DirectiveType::ELIFN,
-            "else" => DirectiveType::ELSE,
-            "endif" => DirectiveType::ENDIF,
-            "elifdef" => DirectiveType::ELIFDEF,
-            "elifndef" => DirectiveType::ELIFNDEF,
+            // "ifn" => DirectiveType::IFN,
+            // "elif" => DirectiveType::ELIF,
+            // "elifn" => DirectiveType::ELIFN,
+            // "else" => DirectiveType::ELSE,
+            // "endif" => DirectiveType::ENDIF,
+            // "elifdef" => DirectiveType::ELIFDEF,
+            // "elifndef" => DirectiveType::ELIFNDEF,
             "ifdef" => DirectiveType::IFDEF,
             "ifndef" => DirectiveType::IFNDEF,
             "rep" => DirectiveType::REP,
-            "endrep" => DirectiveType::ENDREP,
+            // "endrep" => DirectiveType::ENDREP,
             "include" => DirectiveType::INCLUDE,
             "line" => DirectiveType::LINE,
             "extern" => DirectiveType::EXTERN,

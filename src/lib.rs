@@ -75,7 +75,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         println!("{}", token.as_str());
     }
 
-    let processed_tokens = preprocessor.process(settings, main_tokens, &mut definition_table, &mut macro_table, &mut symbol_table, &mut input_files)?;
+    let processed_tokens = preprocessor.process(&settings, main_tokens, &mut definition_table, &mut macro_table, &mut symbol_table, &mut input_files)?;
 
     println!("---------------------------------------------------------------------");
     println!("Preprocessed:\n");
