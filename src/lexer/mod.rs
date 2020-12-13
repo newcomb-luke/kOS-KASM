@@ -33,7 +33,9 @@ pub enum TokenType {
     INNERLABEL,
     DIRECTIVE,
     LINECONTINUE,
-    PLACEHOLDER
+    PLACEHOLDER,
+    COMMENT,
+    DOLLAR
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -50,7 +52,8 @@ pub struct Token {
     tt: TokenType,
     data: TokenData,
     col: usize,
-    line: usize
+    line: usize,
+    file: usize
 }
 
 impl Token {
@@ -59,7 +62,8 @@ impl Token {
             tt,
             data,
             col: 0,
-            line: 0
+            line: 0,
+            file: 0
         }
     }
 
@@ -71,12 +75,20 @@ impl Token {
         self.line = line
     }
 
+    pub fn set_file(&mut self, file: usize) {
+        self.file = file
+    }
+
     pub fn col(&self) -> usize {
         self.col
     }
 
     pub fn line(&self) -> usize {
         self.line
+    }
+
+    pub fn file(&self) -> usize {
+        self.file
     }
 
     pub fn tt(&self) -> TokenType {
@@ -108,7 +120,7 @@ impl Token {
 }
 
 pub struct Lexer {
-    line_map: Vec<usize>,
+    line_map: Vec<(usize, usize)>,
     column_count: usize,
     source_index: usize
 }
@@ -118,14 +130,14 @@ impl Lexer {
     /// Creates a new lexer
     pub fn new() -> Lexer {
         Lexer {
-            line_map: vec![0],
+            line_map: vec![(0, 0)],
             column_count: 0,
             source_index: 0
         }
     }
 
     /// Lexes the given source and returns a vector of token structs
-    pub fn lex(&mut self, input: &str) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn lex(&mut self, input: &str, file_name: &str, file_id: usize) -> Result<Vec<Token>, Box<dyn Error>> {
         // The vector that will contain all of the tokens
         let mut tokens: Vec<Token> = Vec::new();
 
@@ -144,7 +156,7 @@ impl Lexer {
             let (mut token, length) = match self.lex_token(&mut chars) {
                 Ok(ret) => ret,
                 Err(e) => {
-                    let msg = format!("Error lexing input: {}, line {}.\n", e, self.line_map.len());
+                    let msg = format!("Error lexing inputin file {}: {}, line {}.\n", file_name, e, self.line_map.len());
                     return Err( msg.into() )
                 },
             };
@@ -152,7 +164,8 @@ impl Lexer {
             if token.tt() == TokenType::NEWLINE {
                 // Reset to start with the next line of the source
                 self.source_index += 1 + self.column_count;
-                self.line_map.push(self.source_index);
+                self.line_map.last_mut().unwrap().1 = self.source_index - 1;
+                self.line_map.push((self.source_index, 0));
                 self.column_count = 0;
             } else {
                 self.column_count += length;
@@ -173,6 +186,15 @@ impl Lexer {
             tokens.remove(tokens.len() - 1);
         }
 
+        // Also, just in case there was no trailing newline in the input at all, make sure the last line ends in the map
+        self.line_map.last_mut().unwrap().1 = self.source_index - 1;
+
+        // Remove all comment tokens from the list
+        self.remove_comments(&mut tokens);
+
+        // Set the file id for each token to the current file
+        self.set_file(&mut tokens, file_id);
+
         // Finally, remove the line continue characters because they can get in the way later
         match self.remove_line_continues(&mut tokens) {
             Ok(_) => {},
@@ -184,6 +206,13 @@ impl Lexer {
 
         // We are done with this step
         Ok(tokens)
+    }
+
+    /// Sets the file member of each token to the specified file id
+    fn set_file(&self, tokens: &mut Vec<Token>, file: usize) {
+        for token in tokens.iter_mut() {
+            token.set_file(file);
+        }
     }
 
     /// Consumes whitespace characters all except for newlines, returns true if the end of the iterator has been reached
@@ -233,6 +262,23 @@ impl Lexer {
         tokens.shrink_to_fit();
 
         Ok(())
+    }
+
+    /// Removes all comment tokens from the token list
+    fn remove_comments(&mut self, tokens: &mut Vec<Token>) {
+        // We will allocate the max, and then shrink it later
+        let mut new_tokens: Vec<Token> = Vec::with_capacity(tokens.len());
+
+        for index in 0..tokens.len() {
+            if tokens[index].tt() != TokenType::COMMENT {
+                new_tokens.push(tokens[index].to_owned());
+            }
+        }
+
+        tokens.clear();
+        tokens.append(&mut new_tokens);
+
+        tokens.shrink_to_fit();
     }
 
     /// Lexes a single token from the character iterator. Returns a tuple containing the token, and the number of characters that the token spans in the source
@@ -324,6 +370,8 @@ impl Lexer {
             ':' => (Token::new(TokenType::COLON, TokenData::NONE), 1),
             '\n' => (Token::new(TokenType::NEWLINE, TokenData::NONE), 1),
             ',' => (Token::new(TokenType::COMMA, TokenData::NONE), 1),
+            ';' => Lexer::lex_comment(chars),
+            '$' => (Token::new(TokenType::DOLLAR, TokenData::NONE), 1),
             '\r' => {
                 // This is a carriage return which will always be followed by a newline.
                 // Consume the newline
@@ -353,13 +401,21 @@ impl Lexer {
             // If we have encountered a "
             if *chars.peek().unwrap() == '"' {
                 // Try to get the last character we parsed
-                match value.get((value.len() - 1)..) {
+                let last_index;
+
+                if value.len() > 0 {
+                    last_index = value.len() - 1;
+                } else {
+                    last_index = 0;
+                }
+
+                match value.get(last_index..) {
                     // If there is one
                     Some(s) => {
-                        let c = s.chars().next().unwrap();
+                        let c = s.chars().next();
 
                         // If it was not escaped, that is the end of the string
-                        if c != '\\' {
+                        if c.is_none() || c.unwrap() != '\\' {
                             break;
                         }
                     }
@@ -564,6 +620,24 @@ impl Lexer {
         } else {
             (Token::new(TokenType::IDENTIFIER, TokenData::STRING(id)), size)
         }
+    }
+
+    /// Consumes a comment until the end of the stream or until a newline
+    fn lex_comment(chars: &mut Peekable<Chars>) -> (Token, usize) {
+        let mut contents = String::new();
+        let size;
+
+        // Get rid of that ;
+        chars.next();
+
+        // While there is another character, and it isn't a newline, consume it
+        while chars.peek().is_some() && (*chars.peek().unwrap() != '\n' && *chars.peek().unwrap() != '\r') {
+            contents.push(chars.next().unwrap());
+        }
+
+        size = contents.len() + 1;
+
+        (Token::new(TokenType::COMMENT, TokenData::STRING(contents)), size)
     }
 }
 

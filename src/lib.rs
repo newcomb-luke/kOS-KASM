@@ -1,5 +1,6 @@
 use clap::ArgMatches;
-use std::{error::Error, path::Path, fs};
+use std::{error::Error, path::Path, fs, fs::File};
+use std::io::Write;
 
 mod lexer;
 pub use lexer::{Lexer, Token, TokenType, TokenData};
@@ -7,11 +8,14 @@ pub use lexer::{Lexer, Token, TokenType, TokenData};
 mod preprocessor;
 pub use preprocessor::{
     BinOp, DefinitionTable, ExpNode, ExpressionEvaluator, ExpressionParser, UnOp,
-    Value, ValueType
+    Value, ValueType, Definition, Macro, Preprocessor, MacroTable, SymbolTable, PreprocessorSettings
 };
 
 mod parser;
 pub use parser::{Instruction, Label, TextEntry};
+
+mod output;
+pub use output::{tokens_to_text};
 
 pub static VERSION: &'static str = "0.1.0";
 
@@ -52,25 +56,39 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         println!("Include path: {}", include_path);
     }
 
-    // let mut preprocessor = Preprocessor::new(include_path);
+    let mut preprocessor = Preprocessor::new(include_path);
+    let mut definition_table = DefinitionTable::new();
+    let mut macro_table = MacroTable::new();
+    let mut symbol_table = SymbolTable::new();
+    let mut input_files = InputFiles::new();
+    input_files.add_file("main");
+
+    let settings = PreprocessorSettings { expand_definitions: true, expand_macros: true };
 
     let main_contents = fs::read_to_string(&config.file_path)?;
 
     let mut lexer = Lexer::new();
 
-    let main_tokens = lexer.lex(&main_contents)?;
+    let main_tokens = lexer.lex(&main_contents, "main", 0)?;
 
     for token in &main_tokens {
         println!("{}", token.as_str());
     }
 
-    // let processed_tokens = preprocessor.process(main_tokens)?;
+    let processed_tokens = preprocessor.process(settings, main_tokens, &mut definition_table, &mut macro_table, &mut symbol_table, &mut input_files)?;
 
-    // println!("Preprocessed:");
+    println!("---------------------------------------------------------------------");
+    println!("Preprocessed:\n");
 
-    // for token in &processed_tokens {
-    //     println!("{}", token.as_str());
-    // }
+    for token in &processed_tokens {
+        println!("{}", token.as_str());
+    }
+
+    let preprocessed = tokens_to_text(&processed_tokens);
+
+    let mut pre_file = File::create("preprocessed.kasm")?;
+
+    pre_file.write_all(&preprocessed.as_bytes())?;
 
     // let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?.unwrap();
 
@@ -116,5 +134,26 @@ impl CLIConfig {
                 String::new()
             },
         }
+    }
+}
+
+pub struct InputFiles {
+    files: Vec<String>
+}
+
+impl InputFiles {
+    pub fn new() -> InputFiles {
+        InputFiles { files: Vec::new() }
+    }
+
+    /// Adds the file to the internal vector, and returns the file's id
+    pub fn add_file(&mut self, file: &str) -> usize {
+        self.files.push(String::from(file));
+
+        self.files.len()
+    }
+
+    pub fn get_from_id(&self, id: usize) -> String {
+        self.files.get(id).unwrap().to_owned()
     }
 }

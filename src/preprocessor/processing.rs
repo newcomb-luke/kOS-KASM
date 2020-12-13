@@ -1,257 +1,499 @@
 use std::{collections::HashMap, error::Error, slice::Iter, fs, iter::Peekable, path::Path};
 
-use crate::{BinOp, ExpNode, UnOp, Value, ValueType, Token, Lexer, Instruction};
-
-pub enum Definition {
-    EMPTY,
-    MACRO(Vec<Token>),
-    MACROARGS(Vec<String>, Vec<Token>)
-}
+use crate::{Token, Lexer, Instruction, InputFiles, TokenType, TokenData, Definition, Macro};
 
 pub struct DefinitionTable {
     definitions: HashMap<String, Definition>,
 }
 
-pub enum DirectiveType {
-    DEFINE,
-    UNDEF,
-    MACRO,
-    ENDMACRO,
-    UNMACRO,
-    IF,
-    IFN,
-    ELIF,
-    ELIFN,
-    ELSE,
-    ENDIF,
-    IFDEF,
-    IFNDEF,
-    REP,
-    ENDREP,
-    INCLUDE,
-    LINE
+pub enum SymbolType {
+    LABEL,
+    EMPTY,
+    MACRO
 }
 
-impl DirectiveType {
-    pub fn from_str(s: &str) -> Result<DirectiveType, Box<dyn Error>> {
-        Ok(match s {
-            "define" => DirectiveType::DEFINE,
-            "undef" => DirectiveType::UNDEF,
-            "macro" => DirectiveType::MACRO,
-            "unmacro" => DirectiveType::UNMACRO,
-            "if" => DirectiveType::IF,
-            "ifn" => DirectiveType::IFN,
-            "elif" => DirectiveType::ELIF,
-            "elifn" => DirectiveType::ELIFN,
-            "else" => DirectiveType::ELSE,
-            "endif" => DirectiveType::ENDIF,
-            "ifdef" => DirectiveType::IFDEF,
-            "ifndef" => DirectiveType::IFNDEF,
-            "rep" => DirectiveType::REP,
-            "endrep" => DirectiveType::ENDREP,
-            "include" => DirectiveType::INCLUDE,
-            "line" => DirectiveType::LINE,
-            _ => {
-                return Err(format!("Invalid directive found: {}", s).into());
-            }
-        })
+pub enum SymbolInfo {
+    GLOBAL,
+    LOCAL,
+    EXTERN
+}
+
+pub struct Symbol {
+    id: String,
+
+}
+
+pub struct SymbolTable {
+    symbols: HashMap<String, Symbol>,
+}
+
+pub struct MacroTable {
+    macros: HashMap<String, Macro>,
+}
+
+pub struct PreprocessorSettings {
+    pub expand_macros: bool,
+    pub expand_definitions: bool,
+}
+
+pub struct Preprocessor {
+    include_path: String,
+    macro_invocation_map: HashMap<String, u32>
+}
+
+impl Preprocessor {
+
+    pub fn new(include_path: String) -> Preprocessor {
+        Preprocessor {
+            include_path,
+            macro_invocation_map: HashMap::new(),
+        }
     }
+
+    pub fn process(&mut self, settings: PreprocessorSettings, input: Vec<Token>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, symbol_table: &mut SymbolTable, input_files: &mut InputFiles) -> Result<Vec<Token>, Box<dyn Error>> {
+        let mut new_tokens = Vec::with_capacity(input.len());
+
+        let mut token_iter = input.iter().peekable();
+        
+        while token_iter.peek().is_some() {
+            let token = token_iter.peek().unwrap();
+
+            if token.tt() == TokenType::DIRECTIVE {
+                let directive = DirectiveType::from_str(match token.data() { TokenData::STRING(s) => s, _ => unreachable!()})?;
+                let directive_line = token.line();
+                token_iter.next();
+
+                match directive {
+                    DirectiveType::DEFINE => {
+                        let definition = Definition::parse_definition(&mut token_iter)?;
+
+                        if macro_table.ifdef(&definition.id()) {
+                            return Err(format!("Cannot create definiton {} with same name as macro. Line {}", definition.id(), directive_line).into());
+                        }
+
+                        definition_table.def(&definition.id(), definition);
+                    },
+                    DirectiveType::MACRO => {
+                        let parsed_macro = Macro::parse_macro(directive_line, &mut token_iter)?;
+                        let final_macro;
+                        let final_contents;
+                        let macro_settings = PreprocessorSettings { expand_definitions: false, expand_macros: true };
+
+                        if definition_table.ifdef(&parsed_macro.id()) {
+                            return Err(format!("Cannot create macro {} with same name as definiton. Line {}", parsed_macro.id(), directive_line).into());
+                        }
+
+                        final_contents = self.process(macro_settings, parsed_macro.contents_cloned(), definition_table, macro_table, symbol_table, input_files)?;
+
+                        final_macro = Macro::new(&parsed_macro.id(), final_contents, parsed_macro.args_cloned(), parsed_macro.num_required_args());
+
+                        macro_table.def(&parsed_macro.id(), final_macro);
+                    }
+                    _ => unimplemented!(),
+                }
+            } else {
+                let mut append = self.process_line(&settings, &mut token_iter, definition_table, macro_table)?;
+
+                new_tokens.append(&mut append);
+            }
+        }
+
+        Ok(new_tokens)
+    }
+
+    pub fn process_line(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable) -> Result<Vec<Token>, Box<dyn Error>> {
+        let mut new_tokens = Vec::new();
+
+        // While we haven't reached the end of the line
+        while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+
+            let token = token_iter.next().unwrap().clone();
+
+            if token.tt() == TokenType::IDENTIFIER {
+                let id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
+                let line =  token.line();
+
+                // 0 means that it is not a valid mnemonic
+                if Instruction::opcode_from_mnemonic(id) == 0 {
+                    // If it is a defined macro
+                    if macro_table.ifdef(id) {
+                        // And if we want it to be expanded
+                        if settings.expand_macros {
+                            let mut expanded = match self.expand_macro(id, token_iter, definition_table, macro_table)  {
+                                Ok(expanded) => expanded,
+                                Err(e) => {
+                                    return Err(format!("{}. Line {}", e, line).into());
+                                }
+                            };
+
+                            // Append the expansion
+                            new_tokens.append(&mut expanded);
+                        }
+                        // If we don't, just append it
+                        else {
+                            new_tokens.push(token);
+                        }
+                    }
+                    // If it is a definition
+                    else if definition_table.ifdef(id) {
+                        // And if we want it to be expanded
+                        if settings.expand_definitions {
+                            let mut expanded = match self.expand_definition(id, token_iter, definition_table) {
+                                Ok(expanded) => expanded,
+                                Err(e) => {
+                                    return Err(format!("{}. Line {}", e, line).into());
+                                }
+                            };
+    
+                            new_tokens.append(&mut expanded);
+                        }
+                        // If not, just append it
+                        else {
+                            new_tokens.push(token);
+                        }
+
+                    } else {
+                        return Err(format!("Macro or definition used before declaration: {}, line {}.", id, line).into());
+                    }
+                }
+                // If it is a valid mnemonic, then just append it
+                else {
+                    new_tokens.push(token);
+                }
+            } else {
+                new_tokens.push(token);
+            }
+
+        }
+
+        // If the line ended because of a new line
+        if token_iter.peek().is_some() {
+            // Add it to the end
+            new_tokens.push(token_iter.next().unwrap().clone());
+        }
+
+        Ok(new_tokens)
+    }
+
+    pub fn expand_macro(&mut self, id: &str, token_iter: &mut Peekable<Iter<Token>>, definition_table: &DefinitionTable, macro_table: &MacroTable) -> Result<Vec<Token>, Box<dyn Error>> {
+        let macro_ref = macro_table.get(id)?;
+        let macro_args = macro_ref.args();
+        let num_required_args = macro_ref.num_required_args();
+        let mut content_iter = macro_ref.get_contents_iter();
+        let mut without_placeholders = Vec::new();
+        let mut without_placeholders_iter;
+        let mut expanded_tokens = Vec::new();
+        let mut args = Vec::new();
+        let invocation_id;
+
+        // In order to solve the problem of macro local labels, each macro invocation is given an id, this is appended to the macro's name followed by an underscore
+        // Ex. if this was the second time the macro was expanded, and the macro's name was WRITE
+        // __WRITE_2
+        // This way, a local label ".loop" would be:
+        // __WRITE_2.loop
+        
+        // If this is the first time
+        if self.macro_invocation_map.get(id).is_none() {
+            // Create the entry
+            self.macro_invocation_map.insert(String::from(id), 1);
+            // Set the id
+            invocation_id = format!("__{}_{}", id, 0);
+        } else {
+            // Get the number of the invocation
+            let num = *self.macro_invocation_map.get(id).unwrap();
+            // Increment the value in the map
+            self.macro_invocation_map.insert(String::from(id), num + 1);
+            // SEt the id
+            invocation_id = format!("__{}_{}", id, num);
+        }
+
+        // We need to collect all arguments before the newline
+        while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+
+            // We will stop the current argument if there is a comma
+            while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::COMMA && token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                let mut arg_tokens = Vec::new();
+
+                // Get the token
+                let token = token_iter.next().unwrap();
+
+                // If this token is a definiition expansion
+                if token.tt() == TokenType::IDENTIFIER && definition_table.ifdef(id) {
+                    // Get the id
+                    let inner_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!()};
+
+                    // Expand it
+                    let mut inner = self.expand_definition(inner_id, token_iter, definition_table)?;
+
+                    // Append it to this argument's tokens
+                    arg_tokens.append(&mut inner);
+                }
+                // If not
+                else {
+                    // Just append the token
+                    arg_tokens.push(token.clone());
+                }
+
+                // Add this argument to the list
+                args.push(arg_tokens);
+            }
+
+            // If it was a comma, consume it
+            if token_iter.peek().unwrap().tt() == TokenType::COMMA {
+                token_iter.next();
+            }
+        }
+
+        // If it was a newline that ended it, consume it
+        if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::NEWLINE {
+            token_iter.next();
+        }
+
+        // Note: We are actually perfectly fine if this ended because there was EOF
+
+        // Before we go on we need to test if we have the correct number of arguments
+        if num_required_args > args.len() || args.len() > macro_args.len() {
+            return Err(format!("Invalid number of arguments for macro {} expansion, invocation has {}, expected {}", id, args.len(),num_required_args).into());
+        }
+
+        // Now we need to fill in the rest of the arguments using their default values if they need them
+        for i in args.len()..macro_args.len() {
+            // The logic to decide if this argument is required is handled above
+            // Now we just need to append the tokens contained in the default value if the macro arg to the args
+            args.push(macro_args.get(i).unwrap().default_owned());
+        }
+
+        // Now we need to replace all of the placeholders with the argument values
+        while content_iter.peek().is_some() {
+            let token = content_iter.next().unwrap();
+
+            // If the token is a placeholder
+            if token.tt() == TokenType::PLACEHOLDER {
+                let arg_index = match token.data() { TokenData::INT(i) => *i as usize, _ => unreachable!()};
+
+                // Replace it with the tokens of that argument
+                for token in args.get(arg_index - 1).unwrap() {
+                    without_placeholders.push(token.clone());
+                }
+            }
+            // If it is a local label, then we need to prepend the invocation id
+            else if token.tt() == TokenType::INNERLABEL {
+                // Extract the local label's name
+                let label_name = match token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
+                // Create the combined name
+                let new_name = format!("{}.{}", invocation_id, label_name);
+
+                // So this acts correctly in global contexts, make it a regular label
+                without_placeholders.push(Token::new(TokenType::LABEL, TokenData::STRING(new_name)));
+            }
+            // If it isn't either
+            else {
+                // Just append the token
+                without_placeholders.push(token.clone());
+            }
+        }
+
+        // Create an iterator
+        without_placeholders_iter = without_placeholders.iter().peekable();
+
+        // Loop through each token in the definiton's new contents
+        while without_placeholders_iter.peek().is_some() {
+            let token = without_placeholders_iter.next().unwrap();
+
+            // If this token is a definition expansion
+            if token.tt() == TokenType::IDENTIFIER {
+                // Get the id
+                let inner_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!()};
+
+                if definition_table.ifdef(inner_id) {
+
+                    // Expand it
+                    let mut inner = self.expand_definition(inner_id, &mut without_placeholders_iter, definition_table)?;
+    
+                    // Append it to the expanded tokens list
+                    expanded_tokens.append(&mut inner);
+                } else {
+                    // Just append the token
+                    expanded_tokens.push(token.clone());
+                }
+            }
+            // If it isn't
+            else {
+                // Just append the token
+                expanded_tokens.push(token.clone());
+            }
+        }
+
+        // Finally, return the expanded tokens
+
+        Ok(expanded_tokens)
+    }
+
+    pub fn expand_definition(&self, id: &str, token_iter: &mut Peekable<Iter<Token>>, definition_table: &DefinitionTable) -> Result<Vec<Token>, Box<dyn Error>> {
+        let def_ref = definition_table.get(id)?;
+        let mut content_iter = def_ref.get_contents_iter();
+        let mut without_placeholders = Vec::new();
+        let mut without_placeholders_iter;
+        let mut expanded_tokens = Vec::new();
+        let mut args = Vec::new();
+
+        // We can't really expand a definition if it is in fact, empty
+        if def_ref.is_empty() {
+            return Err(format!("Definition {} is empty, and cannot be expanded", id).into());
+        }
+
+        // If the next token is an open parenthesis, then we have some arguments
+        if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::OPENPAREN {
+
+            // This will help us collect all of the arguments, because all we need to look for is the closing parenthesis
+            while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::CLOSEPAREN {
+                let mut arg_tokens = Vec::new();
+
+                // Consume either the opening parenthesis, or the preceeding comma
+                token_iter.next();
+
+                // We want to collect all tokens before there is a comma, or close parenthesis.
+                while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::COMMA && token_iter.peek().unwrap().tt() != TokenType::CLOSEPAREN {
+                    // Get the token
+                    let token = token_iter.next().unwrap();
+
+                    // If this token is another definiition expansion...
+                    if token.tt() == TokenType::IDENTIFIER && definition_table.ifdef(id) {
+                        // Get the id
+                        let inner_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!()};
+
+                        // Expand it
+                        let mut inner = self.expand_definition(inner_id, token_iter, definition_table)?;
+
+                        // Append it to this argument's tokens
+                        arg_tokens.append(&mut inner);
+                    }
+                    // If not
+                    else {
+                        // Just append the token
+                        arg_tokens.push(token.clone());
+                    }
+                }
+
+                // Add this argument to the list
+                args.push(arg_tokens);
+            }
+
+            // If the loop is over, that means there is a closing parenthesis, or no more tokens...
+            // If the case is no more tokens, that is an error
+            match token_iter.next() {
+                Some(_token) => {},
+                None => {
+                    return Err("Error reading arguments, expected closing parenthesis. Found end of file.".into());
+                }
+            }
+        }
+
+        // Before we go on we need to test if we have the correct number of arguments
+        if def_ref.num_args() != args.len() {
+            return Err(format!("Invalid number of arguments for definition {} expansion, invocation has {}, expected {}", id, args.len(), def_ref.num_args()).into());
+        }
+
+        // Now that we are done with the arguments if there were any, we can begin expansion
+
+        // First though, we need to replace all of the placeholders with the argument values
+        while content_iter.peek().is_some() {
+            let token = content_iter.next().unwrap();
+
+            // If the token is a placeholder
+            if token.tt() == TokenType::PLACEHOLDER {
+                let arg_index = match token.data() { TokenData::INT(i) => *i as usize, _ => unreachable!()};
+
+                // Replace it with the tokens of that argument
+                for token in args.get(arg_index).unwrap() {
+                    without_placeholders.push(token.clone());
+                }
+            }
+            // If it isn't
+            else {
+                // Just append the token
+                without_placeholders.push(token.clone());
+            }
+        }
+
+        // Create an iterator
+        without_placeholders_iter = without_placeholders.iter().peekable();
+
+        // Loop through each token in the definiton's new contents
+        while without_placeholders_iter.peek().is_some() {
+            let token = without_placeholders_iter.next().unwrap();
+
+            // If this token is another definition expansion...
+            if token.tt() == TokenType::IDENTIFIER && definition_table.ifdef(id) {
+                // Get the id
+                let inner_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!()};
+
+                // We don't want recursive expansion, that would be bad.
+                if *id == *inner_id {
+                    return Err(format!("Cannot have recursive definition expansion: {}", id).into());
+                }
+
+                // Expand it
+                let mut inner = self.expand_definition(inner_id, &mut without_placeholders_iter, definition_table)?;
+
+                // Append it to the expanded tokens list
+                expanded_tokens.append(&mut inner);
+            }
+            // If it isn't
+            else {
+                // Just append the token
+                expanded_tokens.push(token.clone());
+            }
+        }
+
+        // Finally, return the expanded tokens
+
+        Ok(expanded_tokens)
+    }
+
+    pub fn include_file(&self, file_path: &str, input_files: &mut InputFiles) -> Result<Vec<Token>, Box<dyn Error>> {
+        let mut file_path = Path::new(file_path);
+        let file_name;
+        let file_id;
+        let path_buffer;
+        let contents;
+        let tokens;
+
+        // Create a new lexer just for this file
+        let mut lexer = Lexer::new();
+
+        // If the file does not exist, error out here
+        if !file_path.exists() {
+            return Err(format!("Could not include {}, file does not exist.", file_path.to_str().unwrap()).into());
+        }
+
+        // If the file isn't a file, there is a problem
+        if !file_path.is_file() {
+            return Err(format!("Could not include {}, directories cannot be included.", file_path.to_str().unwrap()).into());
+        }
+
+        // If it is an absolute path, we don't need to do anything. If it is not, make it one by adding the include path
+        if !file_path.is_absolute() {
+            let include_path = Path::new(&self.include_path);
+            path_buffer = include_path.join(file_path);
+            file_path = path_buffer.as_path();
+        }
+
+        // Attempt to read the file as text
+        contents = fs::read_to_string(file_path)?;
+
+        // Add this file to the inputfiles
+        file_name = String::from(file_path.file_name().unwrap().to_str().unwrap());
+        file_id = input_files.add_file(&file_name);
+
+        // Lex the contents
+        tokens = lexer.lex(&contents, &file_name, file_id)?;
+        
+        Ok(tokens)
+
+    }
+
 }
-
-// pub struct Preprocessor {
-//     definition_table: DefinitionTable,
-//     include_path: String
-// }
-
-// impl Preprocessor {
-
-//     pub fn new(include_path: String) -> Preprocessor {
-//         Preprocessor {
-//             definition_table: DefinitionTable::new(),
-//             include_path,
-//         }
-//     }
-
-//     pub fn process(&mut self, tokens: Vec<Token>) -> Result<Vec<Token>, Box<dyn Error>> {
-
-//         // We will allocate a vector just as big as the tokens one, just in case it optimizes something
-//         let mut new_tokens: Vec<Token> = Vec::with_capacity(tokens.len());
-
-//         let mut token_iter = tokens.iter().peekable();
-
-//         while token_iter.peek().is_some() {
-
-//             match token_iter.peek().unwrap() {
-//                 Token::DIRECTIVE(d) => {
-//                     token_iter.next(); // Consume the directive token so it doesn't hold things up
-//                     self.process_directive(d, &mut token_iter)?;
-//                 },
-//                 t => {
-//                     new_tokens.push((*t).clone());
-//                 }
-//             }
-//         }
-
-//         Ok(new_tokens)
-//     }
-
-//     pub fn process_directive(&mut self, directive: &String, token_iter: &mut Peekable<Iter<Token>>) -> Result<(), Box<dyn Error>> {
-//         let dtype = DirectiveType::from_str(directive)?;
-
-//         match dtype {
-//             DirectiveType::DEFINE => {
-//                 let (id, definition) = self.parse_define(token_iter)?;
-//                 self.definition_table.def(&id, definition);
-//             },
-//             _ => {
-//                 return Err("Currently unsupported directive type.".into());
-//             }
-//         }
-
-//         Ok(())
-//     }
-
-//     pub fn parse_define(&self, token_iter: &mut Peekable<Iter<Token>>) -> Result<(String, Definition), Box<dyn Error>> {
-//         let id = self.expect_identifier(token_iter)?;
-//         let mut contents = Vec::new();
-//         let mut args = Vec::new();
-//         let definition;
-
-//         // Check to see if the id is valid, basically if it is an instruction, it is not valid
-//         if Instruction::is_instruction(&id) {
-//             return Err("Cannot define macro with same identifier as an instruction".into());
-//         }
-
-//         // If the define directive has a value
-//         if token_iter.peek().is_some() {
-//             match token_iter.peek().unwrap() {
-//                 // If it has arguments
-//                 Token::OPENPAREN => {
-//                     // Get rid of the open parenthesis
-//                     token_iter.next();
-
-//                     // Consume all of the arguments
-//                     loop {
-//                         if token_iter.peek().is_none() {
-//                             return Err(format!("Expected an argument in definition {}", id).into());
-//                         }
-//                         else {
-//                             match token_iter.next().unwrap() {
-//                                 Token::CLOSEPAREN => {
-//                                     // This is for if the arguments were empty
-//                                     break;
-//                                 },
-//                                 Token::IDENTIFIER(s) => {
-//                                     // Push that identifier as the argument string
-//                                     args.push(s.clone());
-//                                     // After each argument there should be a comma if it isn't the last
-//                                     match token_iter.next() {
-//                                         Some(t) => {
-//                                             match t {
-//                                                 Token::COMMA => {},
-//                                                 Token::CLOSEPAREN => {
-//                                                     println!("lol");
-//                                                     break;
-//                                                 },
-//                                                 _ => {
-//                                                     return Err("Expected comma, found other token.".into());
-//                                                 }
-//                                             }
-//                                         },
-//                                         None => {
-//                                             return Err("Incomplete define directive.".into());
-//                                         }
-//                                     }
-//                                 },
-//                                 _ => {
-//                                     return Err(format!("Expected argument or close parenthesis.").into());
-//                                 }
-//                             }
-//                         }
-//                     }
-
-                    
-//                 },
-//                 _ => {}
-//             }
-
-//             // If there is another token, and it isn't a newline, then loop
-//             while token_iter.peek().is_some() && match token_iter.peek().unwrap() { Token::NEWLINE => false, _ => true } {
-//                 // Append each token into the contents
-//                 contents.push(token_iter.next().unwrap().clone());
-//             }
-
-//             // If the file doesn't end here, there is a newline
-//             if token_iter.peek().is_some() {
-//                 // So consume it
-//                 token_iter.next();
-//             }
-
-//             // If there are any arguments
-//             if args.len() > 0 {
-//                 definition = Definition::MACROARGS(args, contents);
-//             } else {
-//                 definition = Definition::MACRO(contents);
-//             }
-//         }
-//         else {
-//             definition = Definition::EMPTY;
-//         }
-
-//         Ok((id, definition))
-//     }
-
-//     pub fn expect_identifier(&self, token_iter: &mut Peekable<Iter<Token>>) -> Result<String, Box<dyn Error>> {
-//         if token_iter.peek().is_some() {
-//             match token_iter.next().unwrap() {
-//                 Token::IDENTIFIER(s) => {
-//                     Ok(s.to_owned())
-//                 },
-//                 t => {
-//                     Err(format!("Expected macro identifier, found {:?}.", t).into())
-//                 }
-//             }
-//         }
-//         else {
-//             Err("Found empty directive.".into())
-//         }
-//     }
-
-//     pub fn include_file(&self, file_path: &str) -> Result<Vec<Token>, Box<dyn Error>> {
-        
-//         let mut file_path = Path::new(file_path);
-//         let path_buffer;
-//         let contents;
-//         let tokens;
-
-//         // If the file does not exist, error out here
-//         if !file_path.exists() {
-//             return Err(format!("Could not include {}, file does not exist.", file_path.to_str().unwrap()).into());
-//         }
-
-//         // If the file isn't a file, there is a problem
-//         if !file_path.is_file() {
-//             return Err(format!("Could not include {}, directories cannot be included.", file_path.to_str().unwrap()).into());
-//         }
-
-//         // If it is an absolute path, we don't need to do anything. If it is not, make it one by adding the include path
-//         if !file_path.is_absolute() {
-//             let include_path = Path::new(&self.include_path);
-//             path_buffer = include_path.join(file_path);
-//             file_path = path_buffer.as_path();
-//         }
-
-//         // Attempt to read the file as text
-//         contents = fs::read_to_string(file_path)?;
-
-//         // Lex the contents
-//         tokens = Lexer::lex(&contents)?;
-        
-//         Ok(tokens)
-
-//     }
-
-// }
 
 impl DefinitionTable {
     pub fn new() -> DefinitionTable {
@@ -266,11 +508,11 @@ impl DefinitionTable {
             .insert(String::from(identifier), new_definition);
     }
 
-    pub fn ifdef(&mut self, identifier: &str) -> bool {
+    pub fn ifdef(&self, identifier: &str) -> bool {
         self.definitions.contains_key(identifier)
     }
 
-    pub fn ifndef(&mut self, identifier: &str) -> bool {
+    pub fn ifndef(&self, identifier: &str) -> bool {
         !self.ifdef(identifier)
     }
 
@@ -278,7 +520,7 @@ impl DefinitionTable {
         self.definitions.remove(identifier);
     }
 
-    pub fn get(&mut self, identifier: &str) -> Result<&Definition, Box<dyn Error>> {
+    pub fn get(&self, identifier: &str) -> Result<&Definition, Box<dyn Error>> {
         if self.ifdef(identifier) {
             Ok(self.definitions.get(identifier).unwrap())
         } else {
@@ -287,105 +529,88 @@ impl DefinitionTable {
     }
 }
 
-pub struct ExpressionEvaluator {}
+impl SymbolTable {
+    pub fn new() -> SymbolTable {
+        SymbolTable { symbols: HashMap::new() }
+    }
+}
 
-impl ExpressionEvaluator {
+impl MacroTable {
 
-    pub fn evaluate(definition_table: &mut DefinitionTable, exp: &ExpNode) -> Result<Value, Box<dyn Error>> {
-        match exp {
-            ExpNode::Constant(c) => match c {
-                Value::Int(_) => Ok(c.clone()),
-                Value::Double(_) => Ok(c.clone()),
-                Value::Bool(_) => Ok(c.clone()),
-            },
-            ExpNode::UnOp(op, v) => match op {
-                UnOp::FLIP => {
-                    let c = ExpressionEvaluator::evaluate(definition_table, v.as_ref())?;
+    pub fn new() -> MacroTable {
+        MacroTable { macros: HashMap::new() }
+    }
 
-                    match c {
-                        Value::Int(i) => Ok(Value::Int(!i)),
-                        _ => Err("~ operator only valid on type of integer".into()),
-                    }
-                }
-                UnOp::NEGATE => {
-                    let c = ExpressionEvaluator::evaluate(definition_table, v)?;
+    pub fn def(&mut self, identifier: &str, new_macro: Macro) {
+        // This already does what it needs to do. If it exists, the value is updated, if not, the value is created.
+        self.macros
+            .insert(String::from(identifier), new_macro);
+    }
 
-                    match c {
-                        Value::Int(i) => Ok(Value::Int(-i)),
-                        Value::Double(d) => Ok(Value::Double(-d)),
-                        _ => Err("- operator not valid on type bool".into()),
-                    }
-                }
-                UnOp::NOT => {
-                    let c = ExpressionEvaluator::evaluate(definition_table, v)?;
+    pub fn ifdef(&self, identifier: &str) -> bool {
+        self.macros.contains_key(identifier)
+    }
 
-                    match c {
-                        v => Ok(Value::Bool(!v.to_bool()?)),
-                    }
-                }
-            },
-            ExpNode::BinOp(lhs, op, rhs) => {
-                let lval = ExpressionEvaluator::evaluate(definition_table, lhs)?;
-
-                let rval = ExpressionEvaluator::evaluate(definition_table, rhs)?;
-
-                let ltype = lval.valtype();
-                let rtype = rval.valtype();
-
-                let math_return = if ltype == ValueType::INT && rtype == ValueType::INT {
-                    ValueType::INT
-                } else if ltype == ValueType::DOUBLE || rtype == ValueType::DOUBLE {
-                    ValueType::DOUBLE
-                } else {
-                    ValueType::INT
-                };
-
-                match op {
-                    BinOp::ADD => match math_return {
-                        ValueType::INT => Ok(Value::Int(lval.to_int()? + rval.to_int()?)),
-                        ValueType::DOUBLE => {
-                            Ok(Value::Double(lval.to_double()? + rval.to_double()?))
-                        }
-                        _ => unreachable!(),
-                    },
-                    BinOp::SUB => match math_return {
-                        ValueType::INT => Ok(Value::Int(lval.to_int()? - rval.to_int()?)),
-                        ValueType::DOUBLE => {
-                            Ok(Value::Double(lval.to_double()? - rval.to_double()?))
-                        }
-                        _ => unreachable!(),
-                    },
-                    BinOp::MULT => match math_return {
-                        ValueType::INT => Ok(Value::Int(lval.to_int()? * rval.to_int()?)),
-                        ValueType::DOUBLE => {
-                            Ok(Value::Double(lval.to_double()? * rval.to_double()?))
-                        }
-                        _ => unreachable!(),
-                    },
-                    BinOp::DIV => match math_return {
-                        ValueType::INT => Ok(Value::Int(lval.to_int()? / rval.to_int()?)),
-                        ValueType::DOUBLE => {
-                            Ok(Value::Double(lval.to_double()? / rval.to_double()?))
-                        }
-                        _ => unreachable!(),
-                    },
-                    BinOp::MOD => match math_return {
-                        ValueType::INT => Ok(Value::Int(lval.to_int()? % rval.to_int()?)),
-                        ValueType::DOUBLE => {
-                            Ok(Value::Double(lval.to_double()? % rval.to_double()?))
-                        }
-                        _ => unreachable!(),
-                    },
-                    BinOp::AND => Ok(Value::Bool(lval.to_bool()? && rval.to_bool()?)),
-                    BinOp::OR => Ok(Value::Bool(lval.to_bool()? || rval.to_bool()?)),
-                    BinOp::EQ => Ok(Value::Bool(lval.equals(&rval))),
-                    BinOp::NE => Ok(Value::Bool(!lval.equals(&rval))),
-                    BinOp::GT => Ok(Value::Bool(lval.greater_than(&rval))),
-                    BinOp::LT => Ok(Value::Bool(lval.less_than(&rval))),
-                    BinOp::GTE => Ok(Value::Bool(!lval.less_than(&rval))),
-                    BinOp::LTE => Ok(Value::Bool(!lval.greater_than(&rval))),
-                }
-            }
+    pub fn get(&self, identifier: &str) -> Result<&Macro, Box<dyn Error>> {
+        if self.ifdef(identifier) {
+            Ok(self.macros.get(identifier).unwrap())
+        } else {
+            Err(format!("Macro {} referenced before definition", identifier).into())
         }
+    }
+}
+
+pub enum DirectiveType {
+    DEFINE,
+    UNDEF,
+    MACRO,
+    ENDMACRO,
+    UNMACRO,
+    IF,
+    IFN,
+    ELIF,
+    ELIFN,
+    ELIFDEF,
+    ELIFNDEF,
+    ELSE,
+    ENDIF,
+    IFDEF,
+    IFNDEF,
+    REP,
+    ENDREP,
+    INCLUDE,
+    LINE,
+    EXTERN,
+    GLOBAL
+}
+
+impl DirectiveType {
+    pub fn from_str(s: &str) -> Result<DirectiveType, Box<dyn Error>> {
+        Ok(match s {
+            "define" => DirectiveType::DEFINE,
+            "undef" => DirectiveType::UNDEF,
+            "macro" => DirectiveType::MACRO,
+            "unmacro" => DirectiveType::UNMACRO,
+            "endmacro" => DirectiveType::ENDMACRO,
+            "if" => DirectiveType::IF,
+            "ifn" => DirectiveType::IFN,
+            "elif" => DirectiveType::ELIF,
+            "elifn" => DirectiveType::ELIFN,
+            "else" => DirectiveType::ELSE,
+            "endif" => DirectiveType::ENDIF,
+            "elifdef" => DirectiveType::ELIFDEF,
+            "elifndef" => DirectiveType::ELIFNDEF,
+            "ifdef" => DirectiveType::IFDEF,
+            "ifndef" => DirectiveType::IFNDEF,
+            "rep" => DirectiveType::REP,
+            "endrep" => DirectiveType::ENDREP,
+            "include" => DirectiveType::INCLUDE,
+            "line" => DirectiveType::LINE,
+            "extern" => DirectiveType::EXTERN,
+            "global" => DirectiveType::GLOBAL,
+            _ => {
+                return Err(format!("Invalid directive found: {}", s).into());
+            }
+        })
     }
 }

@@ -48,6 +48,8 @@ ret &1
 
 .ifdef
 .ifndef
+.elifdef
+.elifndef
 
 .ifdef DEBUG
     push  ARGM

@@ -2,7 +2,7 @@ use std::{error::Error, iter::Peekable, slice::Iter};
 
 use crate::{Token, TokenType, TokenData};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Value {
     Int(i32),
     Double(f64),
@@ -21,8 +21,7 @@ impl Value {
         match self {
             Value::Int(i) => Ok(*i > 0),
             Value::Double(_) => Ok(true),
-            Value::Bool(b) => Ok(*b),
-            _ => Err("Cannot directly convert identifier to boolean".into()),
+            Value::Bool(b) => Ok(*b)
         }
     }
 
@@ -30,8 +29,7 @@ impl Value {
         match self {
             Value::Int(i) => Ok(*i as f64),
             Value::Double(d) => Ok(*d),
-            Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
-            _ => Err("Cannot directly convert identifier to double".into()),
+            Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 })
         }
     }
 
@@ -39,8 +37,7 @@ impl Value {
         match self {
             Value::Int(i) => Ok(*i),
             Value::Double(d) => Ok(*d as i32),
-            Value::Bool(b) => Ok(if *b { 1 } else { 0 }),
-            _ => Err("Cannot directly convert identifier to integer".into()),
+            Value::Bool(b) => Ok(if *b { 1 } else { 0 })
         }
     }
 
@@ -49,7 +46,6 @@ impl Value {
             Value::Int(_) => ValueType::INT,
             Value::Double(_) => ValueType::DOUBLE,
             Value::Bool(_) => ValueType::BOOL,
-            _ => unreachable!(),
         }
     }
 
@@ -176,16 +172,6 @@ impl Value {
                 };
                 v1 < v2
             }
-        }
-    }
-}
-
-impl Clone for Value {
-    fn clone(&self) -> Value {
-        match self {
-            Value::Int(i) => Value::Int(*i),
-            Value::Double(f) => Value::Double(*f),
-            Value::Bool(b) => Value::Bool(*b)
         }
     }
 }
