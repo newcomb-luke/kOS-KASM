@@ -8,10 +8,17 @@ This is not meant to be used by anything yet in this condition!
 
 - [ ] Parsing KASM
     - [x] Lexer/Tokenizer
+    - [ ] Preprocessor
+        - [x] Definitions
+            - [x] Parsing
+            - [x] Expansion
+        - [x] Macros
+            - [x] Parsing
+                - [ ] Ability to use definitions and expressions as macro argument numbers?
+            - [x] Expansion
     - [x] Parser
         - [x] Expression parser
         - [x] Expression evaluator
-        - [ ] Macro parser
         - [ ] Instruction parser
     - [ ] First pass
 - [ ] Generating KO files

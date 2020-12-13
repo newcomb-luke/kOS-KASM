@@ -88,7 +88,69 @@ impl Preprocessor {
                         final_macro = Macro::new(&parsed_macro.id(), final_contents, parsed_macro.args_cloned(), parsed_macro.num_required_args());
 
                         macro_table.def(&parsed_macro.id(), final_macro);
-                    }
+                    },
+                    DirectiveType::REP => {
+                        let times;
+                        let mut body = Vec::new();
+                        let mut body_iter;
+                        let mut processed_body = Vec::new();
+                        let mut was_last_newline = false;
+
+                        // Now we need to read the amount of times that this is to be expanded
+                        if token_iter.peek().is_some() {
+                            let times_token = token_iter.next().unwrap();
+
+                            // At this time, only ints are allowed
+                            if times_token.tt() != TokenType::INT {
+                                return Err(format!("Only integer values accepted for number of times for repetition directive. Line {}", directive_line).into());
+                            }
+
+                            // Set the number of times accordingly
+                            times = match times_token.data() { TokenData::INT(i) => *i, _ => unreachable!()};
+                        } else {
+                            return Err(format!("Expected number of times after repetition directive. Line {}", directive_line).into());
+                        }
+
+                        // We will break out of this other ways
+                        while token_iter.peek().is_some() {
+                            let rep_token = token_iter.next().unwrap();
+
+                            // .endrep directives not on a newline will not be recognized.
+                            if rep_token.tt() == TokenType::DIRECTIVE && was_last_newline && "endrep" == match rep_token.data() { TokenData::STRING(s) => s, _ => unreachable!()} {
+                                break;
+                            } else {
+                                body.push(rep_token.clone());
+                            }
+
+                            // If this was a newline, set the variable for next time
+                            was_last_newline = rep_token.tt() == TokenType::NEWLINE;
+
+                        }
+
+                        // If this loop ended because we ran out of tokens, that is a problem
+                        if token_iter.peek().is_none() {
+                            return Err(format!("Repetition ended unexpectedly without closing .endrep. Line {}", directive_line).into());
+                        }
+
+                        // Now we preprocess each line before we expand it
+                        body_iter = body.iter().peekable();
+
+                        // While there are more tokens
+                        while body_iter.peek().is_some() {
+                            // Process the line
+                            let mut processed_line = self.process_line(&settings, &mut body_iter, definition_table, macro_table)?;
+                            // Add the line to processed_tokens
+                            processed_body.append(&mut processed_line);
+                        }
+
+                        // Now we need to perform the repitition
+                        for _ in 0..times {
+                            for p_token in processed_body.iter() {
+                                new_tokens.push(p_token.clone());
+                            }
+                        }
+
+                    },
                     _ => unimplemented!(),
                 }
             } else {
