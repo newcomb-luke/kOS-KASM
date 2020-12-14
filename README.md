@@ -8,7 +8,7 @@ This is not meant to be used by anything yet in this condition!
 
 - [ ] Parsing KASM
     - [x] Lexer/Tokenizer
-    - [ ] Preprocessor
+    - [x] Preprocessor
         - [x] Definitions
             - [x] Parsing
             - [x] Expansion
@@ -20,7 +20,7 @@ This is not meant to be used by anything yet in this condition!
         - [x] Include
         - [x] Extern
         - [x] Global
-        - [ ] If*
+        - [x] If*
         - [x] Undef
         - [x] Unmacro
         - [ ] Line
@@ -28,6 +28,6 @@ This is not meant to be used by anything yet in this condition!
         - [x] Expression parser
         - [x] Expression evaluator
         - [ ] Instruction parser
-    - [ ] First pass
-- [ ] Generating KO files
-    - [ ] Second pass
+- [ ] First pass
+- [ ] Second pass
+    - [ ] Generating KO files

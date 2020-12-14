@@ -77,10 +77,6 @@ impl Instruction {
 }
 
 pub struct Label {
-    id: String
-}
-
-pub enum TextEntry {
-    Instruction(Instruction),
-    Label(Label)
+    id: String,
+    lc: String
 }

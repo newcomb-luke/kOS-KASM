@@ -1,12 +1,12 @@
 use std::{error::Error};
 
-use crate::{BinOp, ExpNode, UnOp, Value, ValueType, DefinitionTable};
+use crate::{BinOp, ExpNode, UnOp, Value, ValueType};
 
 pub struct ExpressionEvaluator {}
 
 impl ExpressionEvaluator {
 
-    pub fn evaluate(definition_table: &mut DefinitionTable, exp: &ExpNode) -> Result<Value, Box<dyn Error>> {
+    pub fn evaluate(exp: &ExpNode) -> Result<Value, Box<dyn Error>> {
         match exp {
             ExpNode::Constant(c) => match c {
                 Value::Int(_) => Ok(c.clone()),
@@ -15,7 +15,7 @@ impl ExpressionEvaluator {
             },
             ExpNode::UnOp(op, v) => match op {
                 UnOp::FLIP => {
-                    let c = ExpressionEvaluator::evaluate(definition_table, v.as_ref())?;
+                    let c = ExpressionEvaluator::evaluate(v.as_ref())?;
 
                     match c {
                         Value::Int(i) => Ok(Value::Int(!i)),
@@ -23,7 +23,7 @@ impl ExpressionEvaluator {
                     }
                 }
                 UnOp::NEGATE => {
-                    let c = ExpressionEvaluator::evaluate(definition_table, v)?;
+                    let c = ExpressionEvaluator::evaluate(v)?;
 
                     match c {
                         Value::Int(i) => Ok(Value::Int(-i)),
@@ -32,7 +32,7 @@ impl ExpressionEvaluator {
                     }
                 }
                 UnOp::NOT => {
-                    let c = ExpressionEvaluator::evaluate(definition_table, v)?;
+                    let c = ExpressionEvaluator::evaluate(v)?;
 
                     match c {
                         v => Ok(Value::Bool(!v.to_bool()?)),
@@ -40,9 +40,9 @@ impl ExpressionEvaluator {
                 }
             },
             ExpNode::BinOp(lhs, op, rhs) => {
-                let lval = ExpressionEvaluator::evaluate(definition_table, lhs)?;
+                let lval = ExpressionEvaluator::evaluate(lhs)?;
 
-                let rval = ExpressionEvaluator::evaluate(definition_table, rhs)?;
+                let rval = ExpressionEvaluator::evaluate(rhs)?;
 
                 let ltype = lval.valtype();
                 let rtype = rval.valtype();

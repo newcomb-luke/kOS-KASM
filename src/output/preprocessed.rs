@@ -60,7 +60,8 @@ pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
             TokenType::COMMENT => {
                 match data { TokenData::STRING(s) => format!("; {}", s), _ => unreachable!() }
             },
-            TokenType::DOLLAR => String::from("$")
+            TokenType::DOLLAR => String::from("$"),
+            TokenType::HASH => String::from("#")
         };
 
         output.push_str(&st);

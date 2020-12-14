@@ -1,6 +1,6 @@
 use std::{collections::HashMap, error::Error, slice::Iter, fs, iter::Peekable, path::Path};
 
-use crate::{Token, Lexer, Instruction, InputFiles, TokenType, TokenData, Definition, Macro};
+use crate::{Token, Lexer, Instruction, InputFiles, TokenType, TokenData, Definition, Macro, ExpressionParser, ExpressionEvaluator, ValueType};
 
 pub struct DefinitionTable {
     definitions: HashMap<String, Definition>,
@@ -297,7 +297,19 @@ impl Preprocessor {
                         // If it is in there, undefine it
                         macro_table.undef(id);
                     },
-                    _ => unimplemented!(),
+                    DirectiveType::IF | DirectiveType::IFDEF | DirectiveType::IFN | DirectiveType::IFNDEF => {
+
+                        // Process the if(s)
+                        let if_tokens = self.process_if(settings, &mut token_iter, definition_table, macro_table, symbol_table, directive, directive_line)?;
+                        
+                        // Now we need to actually preprocess the input
+                        let mut preprocessed_if = self.process(settings, if_tokens, definition_table, macro_table, symbol_table, input_files)?;
+
+                        // No matter what was returned, as long as it wasn't an error, append it
+                        new_tokens.append(&mut preprocessed_if);
+
+                    },
+                    _ => unreachable!()
                 }
             } else {
                 let mut append = self.process_line(&settings, &mut token_iter, definition_table, macro_table, symbol_table)?;
@@ -307,6 +319,262 @@ impl Preprocessor {
         }
 
         Ok(new_tokens)
+    }
+
+    pub fn process_if(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, symbol_table: &SymbolTable, if_type: DirectiveType, directive_line: usize) -> Result<Vec<Token>, Box<dyn Error>> {
+        let mut is_true;
+        let mut new_tokens: Vec<Token> = Vec::new();
+        let mut if_ended = false;
+
+        // This will be fun...
+        // Here we must support expressions
+
+        // Evaluate the if expression based on the directive type
+        is_true = self.evaluate_if(settings, token_iter, definition_table, macro_table, symbol_table, if_type, directive_line)?;
+
+        while !if_ended {
+
+            // If any of the if's is found to be true
+            if is_true {
+                let mut endif = false;
+                let mut scope_level = 0;
+                // Keep looping until we reach another if directive
+                while token_iter.peek().is_some() && !if_ended {
+                    let if_token = token_iter.next().unwrap();
+
+                    // If this token is a directive
+                    if if_token.tt() == TokenType::DIRECTIVE {
+                        // Find the directive type for easier classification
+                        let inner_directive = DirectiveType::from_str(match if_token.data() { TokenData::STRING(s) => s, _ => unreachable!()})?;
+
+                        match inner_directive {
+                            // If it is an if directive
+                            DirectiveType::IF | DirectiveType::IFDEF | DirectiveType::IFN | DirectiveType::IFNDEF => {
+                                scope_level += 1;
+                            },
+                            // If it is an if else
+                            DirectiveType::ELIF | DirectiveType::ELIFDEF | DirectiveType::ELIFN | DirectiveType::ELIFNDEF | DirectiveType::ELSE => {
+                                // And on our scope
+                                if scope_level == 0 {
+                                    // If we haven't reached the end yet, find the next one
+                                    while self.find_next_if(token_iter, directive_line)? != DirectiveType::ENDIF {}
+
+                                    // Now that we are done, end this outer loop and set endif to true
+                                    endif = true;
+                                    if_ended = true;
+                                }
+                                // If it isn't on our scope, push it because it is internal
+                                else {
+                                    new_tokens.push(if_token.clone());
+                                }
+                            },
+                            // If this is an endif
+                            DirectiveType::ENDIF => {
+                                // Check if the scope is zero
+                                if scope_level == 0 {
+                                    // If so, this is the end of the if block
+                                    // Set endif to true
+                                    endif = true;
+                                    if_ended = true;
+                                }
+                                // If it isn't on our scope, push it because it is internal
+                                else {
+                                    // Also subtract 1 from scope
+                                    scope_level -= 1;
+                                    new_tokens.push(if_token.clone());
+                                }
+                            },
+                            // If it is anything else, just push it
+                            _ => {
+                                new_tokens.push(if_token.clone());
+                            }
+                        }
+                    }
+                    // If this isn't a directive, just push it because it is part of the contents
+                    else {
+                        new_tokens.push(if_token.clone());
+                    }
+                }
+
+                // If this ended because we ran out of tokens, that is an error
+                if !endif {
+                    return Err(format!("Unexpected end of file while parsing if directive of line {}.", directive_line).into());
+                }
+            }
+            // If it is false
+            else {
+                // We just find the next if
+                let next_if = self.find_next_if(token_iter, directive_line)?;
+
+                // If we reach an endif, then just end
+                if next_if == DirectiveType::ENDIF {
+                    // Let this loop end
+                    if_ended = true;
+                }
+                // If it is an else, well that is always true if the past ones are false
+                else if next_if == DirectiveType::ELSE {
+                    is_true = true;
+                }
+                // If it is neither, then it must be an if
+                else {
+                    is_true = self.evaluate_if(settings, token_iter, definition_table, macro_table, symbol_table, next_if, directive_line)?;
+                }
+            }
+        }
+
+        println!("\tNew tokens:\n");
+
+        for token in new_tokens.iter() {
+            println!("\t\t{}", token.as_str());
+        }
+
+        Ok(new_tokens)
+    }
+
+    pub fn find_next_if(&self, token_iter: &mut Peekable<Iter<Token>>, directive_line: usize) -> Result<DirectiveType, Box<dyn Error>> {
+        let mut scope = 0;
+
+        // The only time this should end is if there is a return
+        while token_iter.peek().is_some() {
+            // If the token is a directive
+            if token_iter.peek().unwrap().tt() == TokenType::DIRECTIVE {
+                // Find the directive type for easier classification
+                let inner_directive = DirectiveType::from_str(match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()})?;
+
+                match inner_directive {
+                    // If it is an "if*"
+                    DirectiveType::IF | DirectiveType::IFDEF | DirectiveType::IFN | DirectiveType::IFNDEF => {
+                        // Check if the scope is 0
+                        if scope == 0 {
+                            // This is actually an error
+                            return Err(format!("Found if directive on same scope as another if directive. Consider changing to elif. Line {}", directive_line).into());
+                        } else {
+                            // Add 1 to the scope
+                            scope += 1;
+                        }
+                    },
+                    // If this is any other if directive
+                    DirectiveType::ELSE | DirectiveType::ENDIF | DirectiveType::ELIF | DirectiveType::ELIFN | DirectiveType::ELIFDEF | DirectiveType::ELIFNDEF => {
+                        // check if the scope is 0
+                        if scope == 0 {
+                            // If it is, return it!
+                            return Ok(inner_directive);
+                        } else {
+                            // If not, check if it is an endif
+                            if inner_directive == DirectiveType::ENDIF {
+                                // If it is an endif, subtract one from the scope
+                                scope -= 1;
+                            }
+                        }
+                    },
+                    // If it is any other directive, then just skip it because it would be part of the "body"
+                    _ => {}
+                }
+
+            }
+            // If this token isn't a directive, still consume it
+            else {
+                token_iter.next();
+            }
+        }
+
+        // If we exited the loop that means that we ran out of tokens.
+        Err(format!("If directive terminates unexpectedly in EOF. Check syntax. Line {}", directive_line).into())
+    }
+
+    pub fn evaluate_if(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, symbol_table: &SymbolTable, if_type: DirectiveType, directive_line: usize) -> Result<bool, Box<dyn Error>> {
+        let is_true;
+
+        // If it is an else, that is easy, return true.
+        if if_type == DirectiveType::ELSE {
+            is_true = true;
+        }
+        else if if_type == DirectiveType::IF || if_type == DirectiveType::ELIF || if_type == DirectiveType::IFN || if_type == DirectiveType::ELIFN {
+            let mut processed_line;
+            let mut processed_line_iter;
+            let parsed_expression;
+            let evaluated_expression;
+
+            // Process the line
+            processed_line = self.process_line(settings, token_iter, definition_table, macro_table, symbol_table)?;
+            
+            // If the line is empty or has only one token, there is a problem
+            if processed_line.len() < 2 {
+                return Err(format!("Error processing if directive, expected expression and newline. Line {}", directive_line).into());
+            }
+
+            // Check if the last token is a newline
+            if processed_line.last().unwrap().tt() != TokenType::NEWLINE {
+                return Err(format!("Error processing if directive, expected newline. Line {}", directive_line).into());
+            }
+            
+            // Remove the newline
+            processed_line.pop();
+
+            // Make an iterator for this line
+            processed_line_iter = processed_line.iter().peekable();
+
+            // Parse the rest as an expression
+            parsed_expression = match ExpressionParser::parse_expression(&mut processed_line_iter) {
+                Ok(expr) => expr,
+                Err(e) => return Err(format!("Error parsing expression: {}. Line {}", e, directive_line).into())
+            };
+
+            // Actually check if it was able to parse an expression
+            if parsed_expression.is_none() {
+                return Err(format!("Error processing if directive, expected expression after if. Line {}", directive_line).into());
+            }
+
+            // Evaluate the expression to see what the result is
+            evaluated_expression = match ExpressionEvaluator::evaluate(&parsed_expression.unwrap()) {
+                Ok(expr) => expr,
+                Err(e) => return Err(format!("Error evaluating expression: {}. Line {}", e, directive_line).into())
+            };
+
+            // Check if it is a boolean, because we are enforcing that the expression results in a boolean value
+            if evaluated_expression.valtype() != ValueType::BOOL {
+                return Err(format!("Expression after if must evaluate to a boolean. Line {}", directive_line).into());
+            }
+
+            // Actually determine if this if is true, or not
+            if if_type == DirectiveType::IF || if_type == DirectiveType::ELIF {
+                is_true = evaluated_expression.to_bool()?;
+            } else {
+                is_true = !evaluated_expression.to_bool()?;
+            }
+
+        }
+        // If this was an ifdef or ifndef
+        else {
+            // There should only be one token before a newline and it should be an identifier that is a macro or definition
+            let id;
+
+            // Check if the last token is an identifier
+            if token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
+                return Err(format!("Error processing ifdef directive, expected identifier. Line {}", directive_line).into());
+            }
+
+            // Collect the string
+            id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!() };
+
+            // Check if the last token is a newline
+            if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                return Err(format!("Error processing ifdef directive, expected newline. Line {}", directive_line).into());
+            }
+            
+            // Consume the newline
+            token_iter.next();
+
+            // If it was an ifdef, everything is fine. But if it is an ifndef, flip the output
+            if if_type == DirectiveType::IFDEF || if_type == DirectiveType::ELIFDEF {
+                // Now just see if it is defined in either, if not, then it is not true
+                is_true = definition_table.ifdef(id) || macro_table.ifdef(id);
+            } else {
+                is_true = !(definition_table.ifdef(id) || macro_table.ifdef(id));
+            }
+        }
+
+        Ok(is_true)
     }
 
     pub fn process_line(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, symbol_table: &SymbolTable) -> Result<Vec<Token>, Box<dyn Error>> {
@@ -801,6 +1069,7 @@ impl MacroTable {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum DirectiveType {
     DEFINE,
     UNDEF,
@@ -808,13 +1077,13 @@ pub enum DirectiveType {
     // ENDMACRO,
     UNMACRO,
     IF,
-    // IFN,
-    // ELIF,
-    // ELIFN,
-    // ELIFDEF,
-    // ELIFNDEF,
-    // ELSE,
-    // ENDIF,
+    IFN,
+    ELIF,
+    ELIFN,
+    ELIFDEF,
+    ELIFNDEF,
+    ELSE,
+    ENDIF,
     IFDEF,
     IFNDEF,
     REP,
@@ -834,13 +1103,13 @@ impl DirectiveType {
             "unmacro" => DirectiveType::UNMACRO,
             // "endmacro" => DirectiveType::ENDMACRO,
             "if" => DirectiveType::IF,
-            // "ifn" => DirectiveType::IFN,
-            // "elif" => DirectiveType::ELIF,
-            // "elifn" => DirectiveType::ELIFN,
-            // "else" => DirectiveType::ELSE,
-            // "endif" => DirectiveType::ENDIF,
-            // "elifdef" => DirectiveType::ELIFDEF,
-            // "elifndef" => DirectiveType::ELIFNDEF,
+            "ifn" => DirectiveType::IFN,
+            "elif" => DirectiveType::ELIF,
+            "elifn" => DirectiveType::ELIFN,
+            "else" => DirectiveType::ELSE,
+            "endif" => DirectiveType::ENDIF,
+            "elifdef" => DirectiveType::ELIFDEF,
+            "elifndef" => DirectiveType::ELIFNDEF,
             "ifdef" => DirectiveType::IFDEF,
             "ifndef" => DirectiveType::IFNDEF,
             "rep" => DirectiveType::REP,

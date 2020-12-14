@@ -1,3 +1,3 @@
 
 mod instructions;
-pub use instructions::{Instruction, Label, TextEntry};
+pub use instructions::{Instruction, Label};

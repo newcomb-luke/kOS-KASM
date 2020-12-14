@@ -12,7 +12,7 @@ pub use preprocessor::{
 };
 
 mod parser;
-pub use parser::{Instruction, Label, TextEntry};
+pub use parser::{Instruction, Label};
 
 mod output;
 pub use output::{tokens_to_text};
