@@ -17,10 +17,7 @@ pub enum OperandType {
     STRINGVALUE
 }
 
-pub struct Instruction {
-    opcode: u8,
-    operands: Vec<Value>,
-}
+pub struct Instruction {}
 
 impl Instruction {
 
@@ -91,6 +88,7 @@ impl Instruction {
         }
     }
 
+    // Returns a vector of vectors representing the different operand types that each instruction can take
     pub fn operands_from_opcode(opcode: u8) -> Vec<Vec<OperandType>> {
         match opcode {
             0x31 => vec![],

@@ -13,6 +13,7 @@ pub fn pass1(tokens: &Vec<Token>, label_manager: &mut LabelManager) -> Result<Ve
     let mut last_label_id = String::new();
     let mut location_counter = 1;
     let mut lc_string = String::new();
+    let mut instructions_valid = false;
 
     // We want to loop through all of the tokens, so don't stop until we are out
     while token_iter.peek().is_some() {
@@ -99,10 +100,12 @@ pub fn pass1(tokens: &Vec<Token>, label_manager: &mut LabelManager) -> Result<Ve
                                 return Err(format!("Duplicate Label {} already exists. Found declared again. Line {}", label_id, token.line()).into());
                             }
 
-                            // If not, just update the Label to be a label or function
+                            // If not, just update the label to be a regular label or function
                             if original_type == LabelType::UNDEF {
                                 new_label = Label::new(&label_id, LabelType::DEF, original_label.label_info(), LabelValue::STRING(label_value));
                             } else {
+                                // Now instructions are allowed
+                                instructions_valid = true;
                                 new_label = Label::new(&label_id, LabelType::FUNC, original_label.label_info(), LabelValue::STRING(label_value));
                             }
                             
@@ -124,6 +127,11 @@ pub fn pass1(tokens: &Vec<Token>, label_manager: &mut LabelManager) -> Result<Ve
 
                     // Add 1 to the LC
                     location_counter += 1;
+                }
+
+                // Due to the structure required of KSM files, we cannot have any instructions that are outside of either a function or label
+                if !instructions_valid {
+                    return Err(format!("Instruction {} is not inside of a function. Line {}", id, token.line()).into());
                 }
 
             }
