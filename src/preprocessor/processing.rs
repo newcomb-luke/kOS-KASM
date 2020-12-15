@@ -143,13 +143,17 @@ impl Preprocessor {
                         // Get the file name or path
                         include_file = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
 
+                        println!("\t\tIncluding file: {}", include_file);
+
                         // Also make sure there is nothing else
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                            return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                        if token_iter.peek().is_some() {
+                            if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                                return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                            }
+                            
+                            // Consume the newline
+                            token_iter.next();
                         }
-                        
-                        // Consume the newline
-                        token_iter.next();
 
                         // Read the file and lex it
                         included = self.include_file(include_file, input_files)?;
@@ -173,12 +177,14 @@ impl Preprocessor {
                         id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
 
                         // Also make sure there is nothing else
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                            return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                        if token_iter.peek().is_some() {
+                            if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                                return Err(format!("Found extra tokens after extern directive. Line {}", directive_line).into());
+                            }
+                            
+                            // Consume the newline
+                            token_iter.next();
                         }
-                        
-                        // Consume the newline
-                        token_iter.next();
 
                         // Test if it is already in the symbol table
                         if symbol_manager.ifdef(id) {
@@ -201,20 +207,33 @@ impl Preprocessor {
                         id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
 
                         // Also make sure there is nothing else
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                            return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                        if token_iter.peek().is_some() {
+                            if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                                return Err(format!("Found extra tokens after global directive. Line {}", directive_line).into());
+                            }
+                            
+                            // Consume the newline
+                            token_iter.next();
                         }
-                        
-                        // Consume the newline
-                        token_iter.next();
 
                         // Test if it is already in the symbol table
                         if symbol_manager.ifdef(id) {
-                            return Err(format!("Duplicate symbol {} defined. Line {}", id, directive_line).into());
+                            let found_sym = symbol_manager.get(id)?;
+                            let found_sym_type = found_sym.sym_type();
+                            let found_sym_value = found_sym.sym_value().clone();
+                            // If it is, we need to test if it is external or global, which would make no sense
+                            if found_sym.sym_info() == SymbolInfo::EXTERN || found_sym.sym_info() == SymbolInfo::GLOBAL {
+                                return Err(format!("Duplicate symbol {} defined. Line {}", id, directive_line).into());
+                            }
+                            
+                            // All this needs to do then is to modify the symbol to make it global
+                            symbol_manager.def(id, Symbol::new(id, found_sym_type, SymbolInfo::GLOBAL, found_sym_value));
                         }
-
-                        // Then define it
-                        symbol_manager.def(id, Symbol::new(id, SymbolType::UNDEF, SymbolInfo::GLOBAL, SymbolValue::NONE));
+                        // If it isn't
+                        else {
+                            // Then define it
+                            symbol_manager.def(id, Symbol::new(id, SymbolType::UNDEF, SymbolInfo::GLOBAL, SymbolValue::NONE));
+                        }
 
                     },
                     DirectiveType::LINE => {
@@ -232,12 +251,14 @@ impl Preprocessor {
                         id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
 
                         // Also make sure there is nothing else
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                            return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                        if token_iter.peek().is_some() {
+                            if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                                return Err(format!("Found extra tokens after undef directive. Line {}", directive_line).into());
+                            }
+                            
+                            // Consume the newline
+                            token_iter.next();
                         }
-                        
-                        // Consume the newline
-                        token_iter.next();
 
                         // Test if it is in the definition table
                         if definition_table.ifndef(id) {
@@ -259,12 +280,14 @@ impl Preprocessor {
                         id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
 
                         // Also make sure there is nothing else
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                            return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                        if token_iter.peek().is_some() {
+                            if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                                return Err(format!("Found extra tokens after unmacro directive. Line {}", directive_line).into());
+                            }
+                            
+                            // Consume the newline
+                            token_iter.next();
                         }
-                        
-                        // Consume the newline
-                        token_iter.next();
 
                         // Test if it is in the macro table
                         if macro_table.ifndef(id) {
@@ -291,10 +314,11 @@ impl Preprocessor {
                         let func_label;
                         let label_token;
                         let func_symbol;
+                        let symbol_info;
 
                         // There must be something after this, and it must be a newline
                         if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                            return Err(format!("Expected newline after .func directive. Line {}", directive_line).into());
+                            return Err(format!("Expected newline after func directive. Line {}", directive_line).into());
                         }
 
                         // Consume the newline
@@ -302,7 +326,7 @@ impl Preprocessor {
 
                         // Now we need to find the label, which needs to be there
                         if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::LABEL {
-                            return Err(format!("Expected function label after .func directive. Line {}", directive_line).into());
+                            return Err(format!("Expected function label after func directive. Line {}", directive_line).into());
                         }
 
                         // Now store the label token which we will push later
@@ -311,8 +335,29 @@ impl Preprocessor {
                         // Now we need to extract the function label
                         func_label = match label_token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
 
+                        // If this function was declared as global, it will already be in the symbol table
+                        // If it is in the symbol table and it isn't global though, it is a duplicate
+                        if symbol_manager.ifdef(func_label) {
+                            // Retrieve it
+                            let declared_symbol = symbol_manager.get(func_label)?;
+
+                            // Check if it isn't global
+                            if declared_symbol.sym_info() != SymbolInfo::GLOBAL {
+                                // Then it is a duplicate
+                                return Err(format!("Duplicate symbol {} already exists. Found declared again. Line {}", func_label, directive_line).into());
+                            }
+                            // If it is global, then we need to make the new symbol info global as well
+                            else {
+                                symbol_info = SymbolInfo::GLOBAL;
+                            }
+                        }
+                        // If it isn't already declared, then the new symbol's info will be local
+                        else {
+                            symbol_info = SymbolInfo::LOCAL;
+                        }
+
                         // Now we need to make a symbol for it
-                        func_symbol = Symbol::new(func_label, SymbolType::UNDEFFUNC, SymbolInfo::LOCAL, SymbolValue::NONE);
+                        func_symbol = Symbol::new(func_label, SymbolType::UNDEFFUNC, symbol_info, SymbolValue::NONE);
 
                         // Now register it in the symbol table
                         symbol_manager.def(func_label, func_symbol);
