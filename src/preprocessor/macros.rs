@@ -1,6 +1,6 @@
 use std::{error::Error, slice::Iter, iter::Peekable};
 
-use crate::{Token, TokenType, TokenData, Value};
+use crate::{Token, TokenType, TokenData};
 
 #[derive(Debug, Clone)]
 pub struct MacroArg {

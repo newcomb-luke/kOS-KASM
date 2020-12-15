@@ -23,6 +23,7 @@ This is not meant to be used by anything yet in this condition!
         - [x] If*
         - [x] Undef
         - [x] Unmacro
+        - [x] Func
         - [ ] Line
     - [x] Parser
         - [x] Expression parser

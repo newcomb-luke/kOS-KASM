@@ -10,6 +10,16 @@ Steps:
     Organize
     Emit
 
+Directives:
+define
+if*
+macro
+rep
+include
+line
+extern
+func
+
 Location counter - Counted by # of instructions, not size
 Symbol table
 
@@ -27,19 +37,8 @@ Pass 1:
     Add 1 to the LC
     Write back, modified
 
-Support adding constants and labels together
-
 Symbol table, two operations:
     Insert
     Search
 
 Store symbol table as hashes?
-
-Directives:
-define
-if*
-macro
-rep
-include
-line
-extern

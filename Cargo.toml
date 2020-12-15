@@ -12,3 +12,4 @@ homepage = "https://github.com/newcomb-luke/kOS-KASM"
 
 [dependencies]
 clap = "~2.27.0"
+kerbalobjects = "1.0.3"

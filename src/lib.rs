@@ -8,11 +8,11 @@ pub use lexer::{Lexer, Token, TokenType, TokenData};
 mod preprocessor;
 pub use preprocessor::{
     BinOp, DefinitionTable, ExpNode, ExpressionEvaluator, ExpressionParser, UnOp,
-    Value, ValueType, Definition, Macro, Preprocessor, MacroTable, SymbolTable, PreprocessorSettings
+    Value, ValueType, Definition, Macro, Preprocessor, MacroTable, SymbolManager, PreprocessorSettings, Symbol, SymbolType, SymbolInfo, SymbolValue
 };
 
 mod parser;
-pub use parser::{Instruction, Label};
+pub use parser::{Instruction, OperandType, pass1};
 
 mod output;
 pub use output::{tokens_to_text};
@@ -59,7 +59,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     let mut preprocessor = Preprocessor::new(include_path);
     let mut definition_table = DefinitionTable::new();
     let mut macro_table = MacroTable::new();
-    let mut symbol_table = SymbolTable::new();
+    let mut symbol_manager = SymbolManager::new();
     let mut input_files = InputFiles::new();
     input_files.add_file("main");
 
@@ -75,7 +75,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         println!("{}", token.as_str());
     }
 
-    let processed_tokens = preprocessor.process(&settings, main_tokens, &mut definition_table, &mut macro_table, &mut symbol_table, &mut input_files)?;
+    let processed_tokens = preprocessor.process(&settings, main_tokens, &mut definition_table, &mut macro_table, &mut symbol_manager, &mut input_files)?;
 
     println!("---------------------------------------------------------------------");
     println!("Preprocessed:\n");
@@ -89,6 +89,29 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     let mut pre_file = File::create("preprocessed.kasm")?;
 
     pre_file.write_all(&preprocessed.as_bytes())?;
+
+    let pass1_tokens = pass1(&processed_tokens, &mut symbol_manager)?;
+
+    let pass1_text = tokens_to_text(&pass1_tokens);
+
+    let mut pass1_file = File::create("pass1.kasm")?;
+
+    pass1_file.write_all(&pass1_text.as_bytes())?;
+
+    println!("---------------------------------------------------------------------");
+    println!("After pass 1:\n");
+
+    for token in &pass1_tokens {
+        println!("{}", token.as_str());
+    }
+
+    let pass1_symbols = symbol_manager.as_vec();
+
+    println!("Symbols:\n");
+
+    for sym in &pass1_symbols {
+        println!("{}", sym.as_str());
+    }
 
     // let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?.unwrap();
 
