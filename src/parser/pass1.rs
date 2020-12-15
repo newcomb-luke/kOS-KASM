@@ -1,16 +1,16 @@
 use std::{error::Error, slice::Iter, iter::Peekable};
 
-use crate::{Token, TokenType, TokenData, Value, ValueType, SymbolManager, Symbol, SymbolType, SymbolInfo, SymbolValue, Instruction, OperandType, ExpressionParser, ExpressionEvaluator};
+use crate::{Token, TokenType, TokenData, Value, ValueType, LabelManager, Label, LabelType, LabelInfo, LabelValue, Instruction, OperandType, ExpressionParser, ExpressionEvaluator};
 
 /// This function performas the first pass of a two-pass assembler.
 /// It stores and evaluates labels, and also evaluates any expressions
-pub fn pass1(tokens: &Vec<Token>, symbol_manager: &mut SymbolManager) -> Result<Vec<Token>, Box<dyn Error>> {
+pub fn pass1(tokens: &Vec<Token>, label_manager: &mut LabelManager) -> Result<Vec<Token>, Box<dyn Error>> {
     let mut token_iter = tokens.iter().peekable();
     let mut new_tokens = Vec::new();
     let mut last_newline = true;
-    let mut create_symbol_next = false;
-    let mut symbol_id = String::new();
-    let mut last_symbol_id = String::new();
+    let mut create_label_next = false;
+    let mut label_id = String::new();
+    let mut last_label_id = String::new();
     let mut location_counter = 1;
     let mut lc_string = String::new();
 
@@ -47,7 +47,7 @@ pub fn pass1(tokens: &Vec<Token>, symbol_manager: &mut SymbolManager) -> Result<
                 possible_operands = Instruction::operands_from_opcode(instr_opcode);
 
                 // Now we call a function to read all operands, verify them, and possibly evaluate them
-                new_operands = read_and_verify_operands(id, token.line(), &mut token_iter, &possible_operands, symbol_manager, &last_symbol_id)?;
+                new_operands = read_and_verify_operands(id, token.line(), &mut token_iter, &possible_operands, label_manager, &last_label_id)?;
 
                 // Now we unconditionally push both the instruction and operands, comma separated
                 new_tokens.push(token.clone());
@@ -69,57 +69,57 @@ pub fn pass1(tokens: &Vec<Token>, symbol_manager: &mut SymbolManager) -> Result<
                 // If it is a regular instruction
                 else {
 
-                    // We need to check if we are supposed to create a symbol that points to this instruction
-                    if create_symbol_next {
-                        let new_sym;
-                        let sym_value;
-                        // Then create a symbol
+                    // We need to check if we are supposed to create a Label that points to this instruction
+                    if create_label_next {
+                        let new_label;
+                        let label_value;
+                        // Then create a Label
 
                         // Check the LC string
                         if !lc_string.is_empty() {
                             // If it isn't empty, there is a special label value to use
-                            sym_value = lc_string.to_owned();
+                            label_value = lc_string.to_owned();
                         }
                         // If it is empty
                         else {
-                            // This symbol's value will be @00LC
-                            sym_value = format!("@{:0>4}", location_counter);
+                            // This Label's value will be @00LC
+                            label_value = format!("@{:0>4}", location_counter);
                         }
 
-                        // We actually only want to create a symbol in the case that no symbol exists with this id
+                        // We actually only want to create a Label in the case that no Label exists with this id
                         // We should first check if one exists
-                        if symbol_manager.ifdef(&symbol_id) {
+                        if label_manager.ifdef(&label_id) {
                             // If it does exist, then we need to check which type.
-                            let original_sym = symbol_manager.get(&symbol_id)?;
-                            let original_type = original_sym.sym_type();
+                            let original_label = label_manager.get(&label_id)?;
+                            let original_type = original_label.label_type();
 
-                            // If the symbol type is anything other than undefined, then that is an error because the same symbol has been declared somewhere else
+                            // If the Label type is anything other than undefined, then that is an error because the same Label has been declared somewhere else
                             // Also it is a duplicate if the info is external
-                            if (original_sym.sym_type() != SymbolType::UNDEF && original_sym.sym_type() != SymbolType::UNDEFFUNC) || original_sym.sym_info() == SymbolInfo::EXTERN {
-                                return Err(format!("Duplicate symbol {} already exists. Found declared again. Line {}", symbol_id, token.line()).into());
+                            if (original_label.label_type() != LabelType::UNDEF && original_label.label_type() != LabelType::UNDEFFUNC) || original_label.label_info() == LabelInfo::EXTERN {
+                                return Err(format!("Duplicate Label {} already exists. Found declared again. Line {}", label_id, token.line()).into());
                             }
 
-                            // If not, just update the symbol to be a label or function
-                            if original_type == SymbolType::UNDEF {
-                                new_sym = Symbol::new(&symbol_id, SymbolType::LABEL, original_sym.sym_info(), SymbolValue::STRING(sym_value));
+                            // If not, just update the Label to be a label or function
+                            if original_type == LabelType::UNDEF {
+                                new_label = Label::new(&label_id, LabelType::DEF, original_label.label_info(), LabelValue::STRING(label_value));
                             } else {
-                                new_sym = Symbol::new(&symbol_id, SymbolType::FUNC, original_sym.sym_info(), SymbolValue::STRING(sym_value));
+                                new_label = Label::new(&label_id, LabelType::FUNC, original_label.label_info(), LabelValue::STRING(label_value));
                             }
                             
                         }
                         // If it isn't already defined
                         else {
-                            new_sym = Symbol::new(&symbol_id, SymbolType::LABEL, SymbolInfo::LOCAL, SymbolValue::STRING(sym_value));
+                            new_label = Label::new(&label_id, LabelType::DEF, LabelInfo::LOCAL, LabelValue::STRING(label_value));
                         }
 
-                        // Finally, add the symbol to the manager
-                        symbol_manager.def(&symbol_id, new_sym);
+                        // Finally, add the Label to the manager
+                        label_manager.def(&label_id, new_label);
 
                         // Clear the lc_string
                         lc_string = String::new();
 
                         // Clear the flag
-                        create_symbol_next = false;
+                        create_label_next = false;
                     }
 
                     // Add 1 to the LC
@@ -133,45 +133,45 @@ pub fn pass1(tokens: &Vec<Token>, symbol_manager: &mut SymbolManager) -> Result<
                 let inner_label = match token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
 
                 // Check if there was a regular label before this
-                if last_symbol_id.is_empty() {
+                if last_label_id.is_empty() {
                     // That is an error
                     return Err(format!("Lone local label found {}. Line {}", inner_label, token.line()).into());
                 }
 
-                // Set symbol id to the correct value
-                symbol_id = format!("{}.{}", last_symbol_id, inner_label);
+                // Set Label id to the correct value
+                label_id = format!("{}.{}", last_label_id, inner_label);
 
-                // Set the flag to create this symbol next time
-                create_symbol_next = true;
+                // Set the flag to create this Label next time
+                create_label_next = true;
             }
             // If this is a regular label
             else if token.tt() == TokenType::LABEL {
                 // Get the label string
-                let label_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
+                let label_str = match token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
 
-                // Overwrite both the last symbol id, and this symbol id
-                last_symbol_id = label_id.to_owned();
-                symbol_id = label_id.to_owned();
+                // Overwrite both the last Label id, and this Label id
+                last_label_id = label_str.to_owned();
+                label_id = label_str.to_owned();
 
-                // Set the flag to create this symbol next time
-                create_symbol_next = true;
+                // Set the flag to create this Label next time
+                create_label_next = true;
             }
         }
     }
 
-    // The final job of pass 1 is to check for any undefined local or global symbols
-    for symbol in symbol_manager.as_vec().iter() {
+    // The final job of pass 1 is to check for any undefined local or global Labels
+    for label in label_manager.as_vec().iter() {
         // Check if it is not external and undefined
-        if symbol.sym_info() != SymbolInfo::EXTERN && (symbol.sym_type() == SymbolType::UNDEF || symbol.sym_type() == SymbolType::UNDEFFUNC) {
-            // If it is, then it is an undefined symbol and we need to throw an error
-            return Err(format!("Undefined symbol {}.", symbol.id()).into());
+        if label.label_info() != LabelInfo::EXTERN && (label.label_type() == LabelType::UNDEF || label.label_type() == LabelType::UNDEFFUNC) {
+            // If it is, then it is an undefined Label and we need to throw an error
+            return Err(format!("Undefined label {}.", label.id()).into());
         }
     }
 
     Ok(new_tokens)
 }
 
-fn read_and_verify_operands(instr_id: &str, instr_line: usize, token_iter: &mut Peekable<Iter<Token>>, possible_operands: &Vec<Vec<OperandType>>, symbol_manager: &mut SymbolManager, last_label: &String) -> Result<Vec<Token>, Box<dyn Error>> {
+fn read_and_verify_operands(instr_id: &str, instr_line: usize, token_iter: &mut Peekable<Iter<Token>>, possible_operands: &Vec<Vec<OperandType>>, label_manager: &mut LabelManager, last_label: &String) -> Result<Vec<Token>, Box<dyn Error>> {
     let mut read_operands = Vec::new();
     let mut evaluated_operands = Vec::new();
     let mut reached_end = false;
@@ -252,8 +252,8 @@ fn read_and_verify_operands(instr_id: &str, instr_line: usize, token_iter: &mut 
             // That is just a reference to a local label!
 
             // In order to fix this, actually replace it with an identifier
-            let label_id = match first_token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
-            let symbol_id;
+            let inner_label_id = match first_token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
+            let label_id;
             let new_identifier;
 
             // Because only certain instruction accept labels, we need to test this
@@ -263,23 +263,23 @@ fn read_and_verify_operands(instr_id: &str, instr_line: usize, token_iter: &mut 
                 }
             }
 
-            // Now using the last label, we need to create the full symbol id for this
-            symbol_id = format!("{}.{}", last_label, label_id);
+            // Now using the last label, we need to create the full Label id for this
+            label_id = format!("{}.{}", last_label, inner_label_id);
 
-            // We also need to make an entry in the symbol table for this
-            if !symbol_manager.ifdef(&symbol_id) {
-                symbol_manager.def(&symbol_id, Symbol::new(&symbol_id, SymbolType::UNDEF, SymbolInfo::LOCAL, SymbolValue::NONE));
+            // We also need to make an entry in the Label table for this
+            if !label_manager.ifdef(&label_id) {
+                label_manager.def(&label_id, Label::new(&label_id, LabelType::UNDEF, LabelInfo::LOCAL, LabelValue::NONE));
             }
 
             // Now we just create the identifier token
-            new_identifier = Token::new(TokenType::IDENTIFIER, TokenData::STRING(symbol_id));
+            new_identifier = Token::new(TokenType::IDENTIFIER, TokenData::STRING(label_id));
 
             // All we can do is push it now
             evaluated_operands.push(new_identifier);
 
             // We also need to check that there is nothing else here
             if operand.len() > 1 {
-                return Err(format!("Found other tokens in operand. If operand is a symbol, it must only contain the symbol. Line {}", instr_line).into());
+                return Err(format!("Found other tokens in operand. If operand is a label, it must only contain the label. Line {}", instr_line).into());
             }
 
         }
@@ -293,9 +293,9 @@ fn read_and_verify_operands(instr_id: &str, instr_line: usize, token_iter: &mut 
                 // This could either mean data or a label, but either way is acceptable.
                 operand_accepted = true;
 
-                // We do however need to make an entry in the symbol table if it doesn't already exist
-                if !symbol_manager.ifdef(identifier_id) {
-                    symbol_manager.def(identifier_id, Symbol::new(identifier_id, SymbolType::UNDEF, SymbolInfo::LOCAL, SymbolValue::NONE));
+                // We do however need to make an entry in the Label table if it doesn't already exist
+                if !label_manager.ifdef(identifier_id) {
+                    label_manager.def(identifier_id, Label::new(identifier_id, LabelType::UNDEF, LabelInfo::LOCAL, LabelValue::NONE));
                 }
 
                 // All we can do is push it
@@ -303,7 +303,7 @@ fn read_and_verify_operands(instr_id: &str, instr_line: usize, token_iter: &mut 
 
                 // We also need to check that there is nothing else here
                 if operand.len() > 1 {
-                    return Err(format!("Found other tokens in operand. If operand is a symbol, it must only contain the symbol. Line {}", instr_line).into());
+                    return Err(format!("Found other tokens in operand. If operand is a Label, it must only contain the Label. Line {}", instr_line).into());
                 }
             }
             // If it was true or false
@@ -322,7 +322,7 @@ fn read_and_verify_operands(instr_id: &str, instr_line: usize, token_iter: &mut 
             
         }
         // If it is a @ (argument marker)
-        else if first_token.tt() == TokenType::ATSYMBOL {
+        else if first_token.tt() == TokenType::ATLabel {
             // The first thing we should do is check if that is an acceptable type
             for operand_possibility in possible_operands.get(index).unwrap().iter() {
                 if *operand_possibility == OperandType::ARGMARKER {

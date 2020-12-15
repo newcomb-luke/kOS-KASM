@@ -13,5 +13,5 @@ pub use definition::{Definition};
 mod evaluator;
 pub use evaluator::{ExpressionEvaluator};
 
-mod symbols;
-pub use symbols::{SymbolManager, Symbol, SymbolType, SymbolInfo, SymbolValue};
+mod labels;
+pub use labels::{LabelManager, Label, LabelType, LabelInfo, LabelValue};

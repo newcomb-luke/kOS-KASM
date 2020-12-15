@@ -37,7 +37,7 @@ pub enum TokenType {
     COMMENT,
     DOLLAR,
     HASH,
-    ATSYMBOL
+    ATLabel
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -375,7 +375,7 @@ impl Lexer {
             ';' => Lexer::lex_comment(chars),
             '$' => (Token::new(TokenType::DOLLAR, TokenData::NONE), 1),
             '#' => (Token::new(TokenType::HASH, TokenData::NONE), 1),
-            '@' => (Token::new(TokenType::ATSYMBOL, TokenData::NONE), 1),
+            '@' => (Token::new(TokenType::ATLabel, TokenData::NONE), 1),
             '\r' => {
                 // This is a carriage return which will always be followed by a newline.
                 // Consume the newline

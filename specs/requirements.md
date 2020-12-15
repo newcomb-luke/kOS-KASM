@@ -21,13 +21,13 @@ extern
 func
 
 Location counter - Counted by # of instructions, not size
-Symbol table
+Label table
 
 Code is preprocessed
 First pass only labels are collected
 Second pass things are generated
 
-Each time a symbol is defined, look if it is already defined. If it is, that is an error
+Each time a Label is defined, look if it is already defined. If it is, that is an error
 
 Pass 1:
     Read line
@@ -37,8 +37,8 @@ Pass 1:
     Add 1 to the LC
     Write back, modified
 
-Symbol table, two operations:
+Label table, two operations:
     Insert
     Search
 
-Store symbol table as hashes?
+Store Label table as hashes?

@@ -8,7 +8,7 @@ pub use lexer::{Lexer, Token, TokenType, TokenData};
 mod preprocessor;
 pub use preprocessor::{
     BinOp, DefinitionTable, ExpNode, ExpressionEvaluator, ExpressionParser, UnOp,
-    Value, ValueType, Definition, Macro, Preprocessor, MacroTable, SymbolManager, PreprocessorSettings, Symbol, SymbolType, SymbolInfo, SymbolValue
+    Value, ValueType, Definition, Macro, Preprocessor, MacroTable, LabelManager, PreprocessorSettings, Label, LabelType, LabelInfo, LabelValue
 };
 
 mod parser;
@@ -59,7 +59,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     let mut preprocessor = Preprocessor::new(include_path);
     let mut definition_table = DefinitionTable::new();
     let mut macro_table = MacroTable::new();
-    let mut symbol_manager = SymbolManager::new();
+    let mut label_manager = LabelManager::new();
     let mut input_files = InputFiles::new();
     input_files.add_file("main");
 
@@ -75,7 +75,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         println!("{}", token.as_str());
     }
 
-    let processed_tokens = preprocessor.process(&settings, main_tokens, &mut definition_table, &mut macro_table, &mut symbol_manager, &mut input_files)?;
+    let processed_tokens = preprocessor.process(&settings, main_tokens, &mut definition_table, &mut macro_table, &mut label_manager, &mut input_files)?;
 
     println!("---------------------------------------------------------------------");
     println!("Preprocessed:\n");
@@ -90,7 +90,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
     pre_file.write_all(&preprocessed.as_bytes())?;
 
-    let pass1_tokens = pass1(&processed_tokens, &mut symbol_manager)?;
+    let pass1_tokens = pass1(&processed_tokens, &mut label_manager)?;
 
     let pass1_text = tokens_to_text(&pass1_tokens);
 
@@ -105,12 +105,12 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         println!("{}", token.as_str());
     }
 
-    let pass1_symbols = symbol_manager.as_vec();
+    let pass1_labels = label_manager.as_vec();
 
-    println!("Symbols:\n");
+    println!("Labels:\n");
 
-    for sym in &pass1_symbols {
-        println!("{}", sym.as_str());
+    for label in &pass1_labels {
+        println!("{}", label.as_str());
     }
 
     // let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?.unwrap();

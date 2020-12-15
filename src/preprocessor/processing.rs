@@ -1,6 +1,6 @@
 use std::{collections::HashMap, error::Error, slice::Iter, fs, iter::Peekable, path::Path};
 
-use crate::{Token, Lexer, Instruction, InputFiles, TokenType, TokenData, Definition, Macro, ExpressionParser, ExpressionEvaluator, ValueType, Symbol, SymbolManager, SymbolType, SymbolInfo, SymbolValue};
+use crate::{Token, Lexer, Instruction, InputFiles, TokenType, TokenData, Definition, Macro, ExpressionParser, ExpressionEvaluator, ValueType, Label, LabelManager, LabelType, LabelInfo, LabelValue};
 
 pub struct DefinitionTable {
     definitions: HashMap<String, Definition>,
@@ -29,7 +29,7 @@ impl Preprocessor {
         }
     }
 
-    pub fn process(&mut self, settings: &PreprocessorSettings, input: Vec<Token>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, symbol_manager: &mut SymbolManager, input_files: &mut InputFiles) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn process(&mut self, settings: &PreprocessorSettings, input: Vec<Token>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, label_manager: &mut LabelManager, input_files: &mut InputFiles) -> Result<Vec<Token>, Box<dyn Error>> {
         let mut new_tokens = Vec::with_capacity(input.len());
 
         let mut token_iter = input.iter().peekable();
@@ -62,7 +62,7 @@ impl Preprocessor {
                             return Err(format!("Cannot create macro {} with same name as definiton. Line {}", parsed_macro.id(), directive_line).into());
                         }
 
-                        final_contents = self.process(&macro_settings, parsed_macro.contents_cloned(), definition_table, macro_table, symbol_manager, input_files)?;
+                        final_contents = self.process(&macro_settings, parsed_macro.contents_cloned(), definition_table, macro_table, label_manager, input_files)?;
 
                         final_macro = Macro::new(&parsed_macro.id(), final_contents, parsed_macro.args_cloned(), parsed_macro.num_required_args());
 
@@ -117,7 +117,7 @@ impl Preprocessor {
                         // While there are more tokens
                         while body_iter.peek().is_some() {
                             // Process the line
-                            let mut processed_line = self.process_line(&settings, &mut body_iter, definition_table, macro_table, symbol_manager)?;
+                            let mut processed_line = self.process_line(&settings, &mut body_iter, definition_table, macro_table, label_manager)?;
                             // Add the line to processed_tokens
                             processed_body.append(&mut processed_line);
                         }
@@ -159,7 +159,7 @@ impl Preprocessor {
                         included = self.include_file(include_file, input_files)?;
 
                         // Now preprocess it like everything else
-                        included_preprocessed = self.process(&settings, included, definition_table, macro_table, symbol_manager, input_files)?;
+                        included_preprocessed = self.process(&settings, included, definition_table, macro_table, label_manager, input_files)?;
 
                         // Add it to the preprocessed tokens
                         new_tokens.append(&mut included_preprocessed);
@@ -186,13 +186,13 @@ impl Preprocessor {
                             token_iter.next();
                         }
 
-                        // Test if it is already in the symbol table
-                        if symbol_manager.ifdef(id) {
-                            return Err(format!("Duplicate symbol {} defined. Line {}", id, directive_line).into());
+                        // Test if it is already in the Label table
+                        if label_manager.ifdef(id) {
+                            return Err(format!("Duplicate Label {} defined. Line {}", id, directive_line).into());
                         }
 
                         // Then define it
-                        symbol_manager.def(id, Symbol::new(id, SymbolType::UNDEF, SymbolInfo::EXTERN, SymbolValue::NONE));
+                        label_manager.def(id, Label::new(id, LabelType::UNDEF, LabelInfo::EXTERN, LabelValue::NONE));
 
                     },
                     DirectiveType::GLOBAL => {
@@ -216,23 +216,23 @@ impl Preprocessor {
                             token_iter.next();
                         }
 
-                        // Test if it is already in the symbol table
-                        if symbol_manager.ifdef(id) {
-                            let found_sym = symbol_manager.get(id)?;
-                            let found_sym_type = found_sym.sym_type();
-                            let found_sym_value = found_sym.sym_value().clone();
+                        // Test if it is already in the Label table
+                        if label_manager.ifdef(id) {
+                            let found_label = label_manager.get(id)?;
+                            let found_label_type = found_label.label_type();
+                            let found_label_value = found_label.label_value().clone();
                             // If it is, we need to test if it is external or global, which would make no sense
-                            if found_sym.sym_info() == SymbolInfo::EXTERN || found_sym.sym_info() == SymbolInfo::GLOBAL {
-                                return Err(format!("Duplicate symbol {} defined. Line {}", id, directive_line).into());
+                            if found_label.label_info() == LabelInfo::EXTERN || found_label.label_info() == LabelInfo::GLOBAL {
+                                return Err(format!("Duplicate Label {} defined. Line {}", id, directive_line).into());
                             }
                             
-                            // All this needs to do then is to modify the symbol to make it global
-                            symbol_manager.def(id, Symbol::new(id, found_sym_type, SymbolInfo::GLOBAL, found_sym_value));
+                            // All this needs to do then is to modify the Label to make it global
+                            label_manager.def(id, Label::new(id, found_label_type, LabelInfo::GLOBAL, found_label_value));
                         }
                         // If it isn't
                         else {
                             // Then define it
-                            symbol_manager.def(id, Symbol::new(id, SymbolType::UNDEF, SymbolInfo::GLOBAL, SymbolValue::NONE));
+                            label_manager.def(id, Label::new(id, LabelType::UNDEF, LabelInfo::GLOBAL, LabelValue::NONE));
                         }
 
                     },
@@ -300,10 +300,10 @@ impl Preprocessor {
                     DirectiveType::IF | DirectiveType::IFDEF | DirectiveType::IFN | DirectiveType::IFNDEF => {
 
                         // Process the if(s)
-                        let if_tokens = self.process_if(settings, &mut token_iter, definition_table, macro_table, symbol_manager, directive, directive_line)?;
+                        let if_tokens = self.process_if(settings, &mut token_iter, definition_table, macro_table, label_manager, directive, directive_line)?;
                         
                         // Now we need to actually preprocess the input
-                        let mut preprocessed_if = self.process(settings, if_tokens, definition_table, macro_table, symbol_manager, input_files)?;
+                        let mut preprocessed_if = self.process(settings, if_tokens, definition_table, macro_table, label_manager, input_files)?;
 
                         // No matter what was returned, as long as it wasn't an error, append it
                         new_tokens.append(&mut preprocessed_if);
@@ -311,10 +311,10 @@ impl Preprocessor {
                     },
                     DirectiveType::FUNC => {
                         // This is meant to register the following label as a function
-                        let func_label;
+                        let func_label_id;
                         let label_token;
-                        let func_symbol;
-                        let symbol_info;
+                        let func_label;
+                        let label_info;
 
                         // There must be something after this, and it must be a newline
                         if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
@@ -333,34 +333,34 @@ impl Preprocessor {
                         label_token = token_iter.next().unwrap();
 
                         // Now we need to extract the function label
-                        func_label = match label_token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
+                        func_label_id = match label_token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
 
-                        // If this function was declared as global, it will already be in the symbol table
-                        // If it is in the symbol table and it isn't global though, it is a duplicate
-                        if symbol_manager.ifdef(func_label) {
+                        // If this function was declared as global, it will already be in the Label table
+                        // If it is in the Label table and it isn't global though, it is a duplicate
+                        if label_manager.ifdef(func_label_id) {
                             // Retrieve it
-                            let declared_symbol = symbol_manager.get(func_label)?;
+                            let declared_label = label_manager.get(func_label_id)?;
 
                             // Check if it isn't global
-                            if declared_symbol.sym_info() != SymbolInfo::GLOBAL {
+                            if declared_label.label_info() != LabelInfo::GLOBAL {
                                 // Then it is a duplicate
-                                return Err(format!("Duplicate symbol {} already exists. Found declared again. Line {}", func_label, directive_line).into());
+                                return Err(format!("Duplicate Label {} already exists. Found declared again. Line {}", func_label_id, directive_line).into());
                             }
-                            // If it is global, then we need to make the new symbol info global as well
+                            // If it is global, then we need to make the new Label info global as well
                             else {
-                                symbol_info = SymbolInfo::GLOBAL;
+                                label_info = LabelInfo::GLOBAL;
                             }
                         }
-                        // If it isn't already declared, then the new symbol's info will be local
+                        // If it isn't already declared, then the new Label's info will be local
                         else {
-                            symbol_info = SymbolInfo::LOCAL;
+                            label_info = LabelInfo::LOCAL;
                         }
 
-                        // Now we need to make a symbol for it
-                        func_symbol = Symbol::new(func_label, SymbolType::UNDEFFUNC, symbol_info, SymbolValue::NONE);
+                        // Now we need to make a Label for it
+                        func_label = Label::new(func_label_id, LabelType::UNDEFFUNC, label_info, LabelValue::NONE);
 
-                        // Now register it in the symbol table
-                        symbol_manager.def(func_label, func_symbol);
+                        // Now register it in the Label table
+                        label_manager.def(func_label_id, func_label);
 
                         // Finally, push back the label token as it is needed for the first pass
                         new_tokens.push(label_token.clone());
@@ -368,7 +368,7 @@ impl Preprocessor {
                     _ => unreachable!()
                 }
             } else {
-                let mut append = self.process_line(&settings, &mut token_iter, definition_table, macro_table, symbol_manager)?;
+                let mut append = self.process_line(&settings, &mut token_iter, definition_table, macro_table, label_manager)?;
 
                 new_tokens.append(&mut append);
             }
@@ -377,7 +377,7 @@ impl Preprocessor {
         Ok(new_tokens)
     }
 
-    pub fn process_if(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, symbol_manager: &mut SymbolManager, if_type: DirectiveType, directive_line: usize) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn process_if(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, label_manager: &mut LabelManager, if_type: DirectiveType, directive_line: usize) -> Result<Vec<Token>, Box<dyn Error>> {
         let mut is_true;
         let mut new_tokens: Vec<Token> = Vec::new();
         let mut if_ended = false;
@@ -386,7 +386,7 @@ impl Preprocessor {
         // Here we must support expressions
 
         // Evaluate the if expression based on the directive type
-        is_true = self.evaluate_if(settings, token_iter, definition_table, macro_table, symbol_manager, if_type, directive_line)?;
+        is_true = self.evaluate_if(settings, token_iter, definition_table, macro_table, label_manager, if_type, directive_line)?;
 
         while !if_ended {
 
@@ -473,7 +473,7 @@ impl Preprocessor {
                 }
                 // If it is neither, then it must be an if
                 else {
-                    is_true = self.evaluate_if(settings, token_iter, definition_table, macro_table, symbol_manager, next_if, directive_line)?;
+                    is_true = self.evaluate_if(settings, token_iter, definition_table, macro_table, label_manager, next_if, directive_line)?;
                 }
             }
         }
@@ -538,7 +538,7 @@ impl Preprocessor {
         Err(format!("If directive terminates unexpectedly in EOF. Check syntax. Line {}", directive_line).into())
     }
 
-    pub fn evaluate_if(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, symbol_manager: &mut SymbolManager, if_type: DirectiveType, directive_line: usize) -> Result<bool, Box<dyn Error>> {
+    pub fn evaluate_if(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, label_manager: &mut LabelManager, if_type: DirectiveType, directive_line: usize) -> Result<bool, Box<dyn Error>> {
         let is_true;
 
         // If it is an else, that is easy, return true.
@@ -552,7 +552,7 @@ impl Preprocessor {
             let evaluated_expression;
 
             // Process the line
-            processed_line = self.process_line(settings, token_iter, definition_table, macro_table, symbol_manager)?;
+            processed_line = self.process_line(settings, token_iter, definition_table, macro_table, label_manager)?;
             
             // If the line is empty or has only one token, there is a problem
             if processed_line.len() < 2 {
@@ -633,7 +633,7 @@ impl Preprocessor {
         Ok(is_true)
     }
 
-    pub fn process_line(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, symbol_manager: &mut SymbolManager) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn process_line(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, label_manager: &mut LabelManager) -> Result<Vec<Token>, Box<dyn Error>> {
         let mut new_tokens = Vec::new();
 
         // While we haven't reached the end of the line
@@ -684,14 +684,14 @@ impl Preprocessor {
                             new_tokens.push(token);
                         }
                     }
-                    // We also need to check if it is an external symbol
-                    else if symbol_manager.ifdef(id) {
+                    // We also need to check if it is an external Label
+                    else if label_manager.ifdef(id) {
                         // If it is, it will be dealt with much later on down the line, so just push it
                         new_tokens.push(token);
                     }
-                    // If it isn't a defined symbol, then assume that it is a function label or something
+                    // If it isn't a defined Label, then assume that it is a function label or something
                     else {
-                        symbol_manager.def(id, Symbol::new(id, SymbolType::UNDEF, SymbolInfo::LOCAL, SymbolValue::NONE));
+                        label_manager.def(id, Label::new(id, LabelType::UNDEF, LabelInfo::LOCAL, LabelValue::NONE));
                         // return Err(format!("Macro or definition used before declaration: {}, line {}.", id, line).into());
 
                         // If it is, this will also be dealt with much later on down the line, so just push it
