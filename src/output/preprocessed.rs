@@ -62,7 +62,7 @@ pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
             },
             TokenType::DOLLAR => String::from("$"),
             TokenType::HASH => String::from("#"),
-            TokenType::ATLabel => String::from("@"),
+            TokenType::ATSYMBOL => String::from("@"),
         };
 
         output.push_str(&st);

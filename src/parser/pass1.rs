@@ -118,12 +118,12 @@ pub fn pass1(tokens: &Vec<Token>, label_manager: &mut LabelManager) -> Result<Ve
                         // Finally, add the Label to the manager
                         label_manager.def(&label_id, new_label);
 
-                        // Clear the lc_string
-                        lc_string = String::new();
-
                         // Clear the flag
                         create_label_next = false;
                     }
+
+                    // Clear the lc_string
+                    lc_string = String::new();
 
                     // Add 1 to the LC
                     location_counter += 1;
@@ -240,7 +240,7 @@ fn read_and_verify_operands(instr_id: &str, instr_line: usize, token_iter: &mut 
 
             // The first thing we should do is check if that is an acceptable type
             for operand_possibility in possible_operands.get(index).unwrap().iter() {
-                if *operand_possibility == OperandType::STRINGVALUE {
+                if *operand_possibility == OperandType::STRINGVALUE || *operand_possibility == OperandType::STRING {
                     operand_accepted = true;
                 }
             }
@@ -266,7 +266,7 @@ fn read_and_verify_operands(instr_id: &str, instr_line: usize, token_iter: &mut 
 
             // Because only certain instruction accept labels, we need to test this
             for operand_possibility in possible_operands.get(index).unwrap().iter() {
-                if *operand_possibility == OperandType::STRINGVALUE {
+                if *operand_possibility == OperandType::STRINGVALUE || *operand_possibility == OperandType::STRING {
                     operand_accepted = true;
                 }
             }
@@ -330,7 +330,7 @@ fn read_and_verify_operands(instr_id: &str, instr_line: usize, token_iter: &mut 
             
         }
         // If it is a @ (argument marker)
-        else if first_token.tt() == TokenType::ATLabel {
+        else if first_token.tt() == TokenType::ATSYMBOL {
             // The first thing we should do is check if that is an acceptable type
             for operand_possibility in possible_operands.get(index).unwrap().iter() {
                 if *operand_possibility == OperandType::ARGMARKER {
@@ -446,6 +446,7 @@ fn is_expression_acceptable(operand_result: &Value, index: usize, possible_opera
                 OperandType::SCALARINT => true,
                 OperandType::SCALARDOUBLE => false,
                 OperandType::BOOLEANVALUE => false,
+                OperandType::STRING => false,
                 OperandType::STRINGVALUE => false,
             }
         }

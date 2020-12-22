@@ -4,7 +4,9 @@ use std::{collections::HashMap, error::Error};
 pub enum LabelType {
     DEF,
     FUNC,
+    INIT,
     UNDEFFUNC,
+    UNDEFINIT,
     UNDEF
 }
 
@@ -15,7 +17,7 @@ pub enum LabelInfo {
     EXTERN
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LabelValue {
     NONE,
     STRING(String)
@@ -95,5 +97,20 @@ impl LabelManager {
         }
 
         all_values
+    }
+
+    /// Returns an option containing the label which contains the given value, if one is found
+    pub fn contains_value(&self, value: LabelValue) -> Option<Label> {
+
+        // Loop through each value
+        for label in self.labels.values() {
+            // If it does
+            if *label.label_value() == value {
+                // Return that
+                return Some(label.clone());
+            }
+        }
+
+        None
     }
 }

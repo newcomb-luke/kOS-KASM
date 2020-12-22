@@ -12,12 +12,14 @@ pub use preprocessor::{
 };
 
 mod parser;
-pub use parser::{Instruction, OperandType, pass1};
+pub use parser::{Instruction, OperandType, pass1, pass2};
 
 mod output;
 pub use output::{tokens_to_text};
 
-pub static VERSION: &'static str = "0.1.0";
+use kerbalobjects::{KOFileWriter};
+
+pub static VERSION: &'static str = "0.9.0";
 
 pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     if !config.file_path.ends_with(".kasm") {
@@ -71,18 +73,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
     let main_tokens = lexer.lex(&main_contents, "main", 0)?;
 
-    for token in &main_tokens {
-        println!("{}", token.as_str());
-    }
-
     let processed_tokens = preprocessor.process(&settings, main_tokens, &mut definition_table, &mut macro_table, &mut label_manager, &mut input_files)?;
-
-    println!("---------------------------------------------------------------------");
-    println!("Preprocessed:\n");
-
-    for token in &processed_tokens {
-        println!("{}", token.as_str());
-    }
 
     let preprocessed = tokens_to_text(&processed_tokens);
 
@@ -92,44 +83,13 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
     let pass1_tokens = pass1(&processed_tokens, &mut label_manager)?;
 
-    let pass1_text = tokens_to_text(&pass1_tokens);
+    let mut writer = KOFileWriter::new(&output_path);
 
-    let mut pass1_file = File::create("pass1.kasm")?;
+    let mut kofile = pass2(&pass1_tokens, &mut label_manager)?;
 
-    pass1_file.write_all(&pass1_text.as_bytes())?;
+    kofile.write(&mut writer)?;
 
-    println!("---------------------------------------------------------------------");
-    println!("After pass 1:\n");
-
-    for token in &pass1_tokens {
-        println!("{}", token.as_str());
-    }
-
-    let pass1_labels = label_manager.as_vec();
-
-    println!("Labels:\n");
-
-    for label in &pass1_labels {
-        println!("{}", label.as_str());
-    }
-
-    // let exp = ExpressionParser::parse_expression(&mut tokens.iter().peekable())?.unwrap();
-
-    // let mut def_table = DefinitionTable::new();
-
-    // def_table.def(
-    //     "NUM_SWORDS",
-    //     Definition::Constant(ExpNode::Constant(Value::Int(2))),
-    // );
-
-    // def_table.def(
-    //     "NUM_HOLDERS",
-    //     Definition::Constant(ExpNode::Constant(Value::Int(20))),
-    // );
-
-    // let result = ExpressionEvaluator::evaluate(&mut def_table, &exp)?;
-
-    // println!("{:?}", result);
+    writer.write_to_file()?;
 
     Ok(())
 }

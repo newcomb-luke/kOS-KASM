@@ -365,6 +365,62 @@ impl Preprocessor {
                         // Finally, push back the label token as it is needed for the first pass
                         new_tokens.push(label_token.clone());
                     },
+                    DirectiveType::INIT => {
+                        // This is meant to register the following label as initialization code
+                        let init_label_id;
+                        let label_token;
+                        let init_label;
+                        let label_info;
+
+                        // There must be something after this, and it must be a newline
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                            return Err(format!("Expected newline after init directive. Line {}", directive_line).into());
+                        }
+
+                        // Consume the newline
+                        token_iter.next();
+
+                        // Now we need to find the label, which needs to be there
+                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::LABEL {
+                            return Err(format!("Expected label after init directive. Line {}", directive_line).into());
+                        }
+
+                        // Now store the label token which we will push later
+                        label_token = token_iter.next().unwrap();
+
+                        // Now we need to extract the label
+                        init_label_id = match label_token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
+
+                        // If this section was declared as global, it will already be in the Label table
+                        // If it is in the Label table and it isn't global though, it is a duplicate
+                        if label_manager.ifdef(init_label_id) {
+                            // Retrieve it
+                            let declared_label = label_manager.get(init_label_id)?;
+
+                            // Check if it isn't global
+                            if declared_label.label_info() != LabelInfo::GLOBAL {
+                                // Then it is a duplicate
+                                return Err(format!("Duplicate Label {} already exists. Found declared again. Line {}", init_label_id, directive_line).into());
+                            }
+                            // If it is global, then we need to make the new Label info global as well
+                            else {
+                                label_info = LabelInfo::GLOBAL;
+                            }
+                        }
+                        // If it isn't already declared, then the new Label's info will be local
+                        else {
+                            label_info = LabelInfo::LOCAL;
+                        }
+
+                        // Now we need to make a Label for it
+                        init_label = Label::new(init_label_id, LabelType::UNDEFINIT, label_info, LabelValue::NONE);
+
+                        // Now register it in the Label table
+                        label_manager.def(init_label_id, init_label);
+
+                        // Finally, push back the label token as it is needed for the first pass
+                        new_tokens.push(label_token.clone());
+                    },
                     _ => unreachable!()
                 }
             } else {
@@ -683,6 +739,11 @@ impl Preprocessor {
                         else {
                             new_tokens.push(token);
                         }
+                    }
+                    // If it is a boolean value
+                    else if id == "true" || id == "false" {
+                        // Push it right along
+                        new_tokens.push(token);
                     }
                     // We also need to check if it is an external Label
                     else if label_manager.ifdef(id) {
@@ -1127,7 +1188,8 @@ pub enum DirectiveType {
     LINE,
     EXTERN,
     GLOBAL,
-    FUNC
+    FUNC,
+    INIT
 }
 
 impl DirectiveType {
@@ -1155,6 +1217,7 @@ impl DirectiveType {
             "extern" => DirectiveType::EXTERN,
             "global" => DirectiveType::GLOBAL,
             "func" => DirectiveType::FUNC,
+            "init" => DirectiveType::INIT,
             _ => {
                 return Err(format!("Invalid directive found: {}", s).into());
             }
