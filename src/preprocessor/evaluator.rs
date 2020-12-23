@@ -1,11 +1,10 @@
-use std::{error::Error};
+use std::error::Error;
 
 use crate::{BinOp, ExpNode, UnOp, Value, ValueType};
 
 pub struct ExpressionEvaluator {}
 
 impl ExpressionEvaluator {
-
     pub fn evaluate(exp: &ExpNode) -> Result<Value, Box<dyn Error>> {
         match exp {
             ExpNode::Constant(c) => match c {

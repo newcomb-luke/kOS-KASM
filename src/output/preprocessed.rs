@@ -1,4 +1,4 @@
-use crate::{Token, TokenType, TokenData};
+use crate::{Token, TokenData, TokenType};
 
 /// Converts tokens back to source as best as it can
 pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
@@ -12,17 +12,21 @@ pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
         let st = match tt {
             TokenType::OPENPAREN => String::from("( "),
             TokenType::CLOSEPAREN => String::from(") "),
-            TokenType::IDENTIFIER => {
-                match data { TokenData::STRING(s) => format!("{} ", s), _ => unreachable!() }
+            TokenType::IDENTIFIER => match data {
+                TokenData::STRING(s) => format!("{} ", s),
+                _ => unreachable!(),
             },
-            TokenType::INT => {
-                match data { TokenData::INT(i) => format!("{} ", i), _ => unreachable!() }
+            TokenType::INT => match data {
+                TokenData::INT(i) => format!("{} ", i),
+                _ => unreachable!(),
             },
-            TokenType::DOUBLE => {
-                match data { TokenData::DOUBLE(d) => format!("{} ", d), _ => unreachable!() }
+            TokenType::DOUBLE => match data {
+                TokenData::DOUBLE(d) => format!("{} ", d),
+                _ => unreachable!(),
             },
-            TokenType::STRING => {
-                match data { TokenData::STRING(s) => format!("\"{}\" ", s), _ => unreachable!() }
+            TokenType::STRING => match data {
+                TokenData::STRING(s) => format!("\"{}\" ", s),
+                _ => unreachable!(),
             },
             TokenType::MINUS => String::from("- "),
             TokenType::COMP => String::from("~"),
@@ -44,21 +48,26 @@ pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
             TokenType::COMMA => String::from(", "),
             TokenType::NEWLINE => String::from("\n"),
             TokenType::AMPERSAND => String::from("&"),
-            TokenType::LABEL => {
-                match data { TokenData::STRING(s) => format!("{}:", s), _ => unreachable!() }
+            TokenType::LABEL => match data {
+                TokenData::STRING(s) => format!("{}:", s),
+                _ => unreachable!(),
             },
-            TokenType::INNERLABEL => {
-                match data { TokenData::STRING(s) => format!(".{}:", s), _ => unreachable!() }
+            TokenType::INNERLABEL => match data {
+                TokenData::STRING(s) => format!(".{}:", s),
+                _ => unreachable!(),
             },
-            TokenType::DIRECTIVE => {
-                match data { TokenData::STRING(s) => format!(".{}", s), _ => unreachable!() }
+            TokenType::DIRECTIVE => match data {
+                TokenData::STRING(s) => format!(".{}", s),
+                _ => unreachable!(),
             },
             TokenType::LINECONTINUE => String::from("\\"),
-            TokenType::PLACEHOLDER => {
-                match data { TokenData::INT(i) => format!("{} ", i), _ => unreachable!() }
+            TokenType::PLACEHOLDER => match data {
+                TokenData::INT(i) => format!("{} ", i),
+                _ => unreachable!(),
             },
-            TokenType::COMMENT => {
-                match data { TokenData::STRING(s) => format!("; {}", s), _ => unreachable!() }
+            TokenType::COMMENT => match data {
+                TokenData::STRING(s) => format!("; {}", s),
+                _ => unreachable!(),
             },
             TokenType::DOLLAR => String::from("$"),
             TokenType::HASH => String::from("#"),

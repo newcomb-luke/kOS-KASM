@@ -1,6 +1,6 @@
 use std::{error::Error, iter::Peekable, slice::Iter};
 
-use crate::{Token, TokenType, TokenData};
+use crate::{Token, TokenData, TokenType};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Value {
@@ -21,7 +21,7 @@ impl Value {
         match self {
             Value::Int(i) => Ok(*i > 0),
             Value::Double(_) => Ok(true),
-            Value::Bool(b) => Ok(*b)
+            Value::Bool(b) => Ok(*b),
         }
     }
 
@@ -29,7 +29,7 @@ impl Value {
         match self {
             Value::Int(i) => Ok(*i as f64),
             Value::Double(d) => Ok(*d),
-            Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 })
+            Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
         }
     }
 
@@ -37,7 +37,7 @@ impl Value {
         match self {
             Value::Int(i) => Ok(*i),
             Value::Double(d) => Ok(*d as i32),
-            Value::Bool(b) => Ok(if *b { 1 } else { 0 })
+            Value::Bool(b) => Ok(if *b { 1 } else { 0 }),
         }
     }
 
@@ -378,7 +378,8 @@ impl ExpressionParser {
 
                 let exp = exp_option.unwrap();
 
-                if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::CLOSEPAREN
+                if token_iter.peek().is_some()
+                    && token_iter.peek().unwrap().tt() == TokenType::CLOSEPAREN
                 {
                     // Consume the )
                     token_iter.next();
@@ -402,21 +403,30 @@ impl ExpressionParser {
             }
             TokenType::INT => {
                 // Get the int value out of it
-                let v = match next_token.data() { TokenData::INT(v) => v, _ => unreachable!() };
+                let v = match next_token.data() {
+                    TokenData::INT(v) => v,
+                    _ => unreachable!(),
+                };
                 // Consume it
                 token_iter.next();
                 return Ok(ExpNode::Constant(Value::Int(*v)).into());
             }
             TokenType::DOUBLE => {
                 // Get the double value out of it
-                let v = match next_token.data() { TokenData::DOUBLE(v) => v, _ => unreachable!() };
+                let v = match next_token.data() {
+                    TokenData::DOUBLE(v) => v,
+                    _ => unreachable!(),
+                };
                 // Consume it
                 token_iter.next();
                 return Ok(ExpNode::Constant(Value::Double(*v)).into());
             }
             TokenType::IDENTIFIER => {
                 // Get the string value out of it
-                let v = match next_token.data() { TokenData::STRING(v) => v, _ => unreachable!() };
+                let v = match next_token.data() {
+                    TokenData::STRING(v) => v,
+                    _ => unreachable!(),
+                };
                 // Consume it
                 token_iter.next();
 

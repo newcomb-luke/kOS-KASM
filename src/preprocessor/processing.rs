@@ -1,6 +1,9 @@
-use std::{collections::HashMap, error::Error, slice::Iter, fs, iter::Peekable, path::Path};
+use std::{collections::HashMap, error::Error, fs, iter::Peekable, path::Path, slice::Iter};
 
-use crate::{Token, Lexer, Instruction, InputFiles, TokenType, TokenData, Definition, Macro, ExpressionParser, ExpressionEvaluator, ValueType, Label, LabelManager, LabelType, LabelInfo, LabelValue};
+use crate::{
+    Definition, ExpressionEvaluator, ExpressionParser, InputFiles, Instruction, Label, LabelInfo,
+    LabelManager, LabelType, LabelValue, Lexer, Macro, Token, TokenData, TokenType, ValueType,
+};
 
 pub struct DefinitionTable {
     definitions: HashMap<String, Definition>,
@@ -17,11 +20,10 @@ pub struct PreprocessorSettings {
 
 pub struct Preprocessor {
     include_path: String,
-    macro_invocation_map: HashMap<String, u32>
+    macro_invocation_map: HashMap<String, u32>,
 }
 
 impl Preprocessor {
-
     pub fn new(include_path: String) -> Preprocessor {
         Preprocessor {
             include_path,
@@ -29,16 +31,27 @@ impl Preprocessor {
         }
     }
 
-    pub fn process(&mut self, settings: &PreprocessorSettings, input: Vec<Token>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, label_manager: &mut LabelManager, input_files: &mut InputFiles) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn process(
+        &mut self,
+        settings: &PreprocessorSettings,
+        input: Vec<Token>,
+        definition_table: &mut DefinitionTable,
+        macro_table: &mut MacroTable,
+        label_manager: &mut LabelManager,
+        input_files: &mut InputFiles,
+    ) -> Result<Vec<Token>, Box<dyn Error>> {
         let mut new_tokens = Vec::with_capacity(input.len());
 
         let mut token_iter = input.iter().peekable();
-        
+
         while token_iter.peek().is_some() {
             let token = token_iter.peek().unwrap();
 
             if token.tt() == TokenType::DIRECTIVE {
-                let directive = DirectiveType::from_str(match token.data() { TokenData::STRING(s) => s, _ => unreachable!()})?;
+                let directive = DirectiveType::from_str(match token.data() {
+                    TokenData::STRING(s) => s,
+                    _ => unreachable!(),
+                })?;
                 let directive_line = token.line();
                 token_iter.next();
 
@@ -47,27 +60,52 @@ impl Preprocessor {
                         let definition = Definition::parse_definition(&mut token_iter)?;
 
                         if macro_table.ifdef(&definition.id()) {
-                            return Err(format!("Cannot create definiton {} with same name as macro. Line {}", definition.id(), directive_line).into());
+                            return Err(format!(
+                                "Cannot create definiton {} with same name as macro. Line {}",
+                                definition.id(),
+                                directive_line
+                            )
+                            .into());
                         }
 
                         definition_table.def(&definition.id(), definition);
-                    },
+                    }
                     DirectiveType::MACRO => {
                         let parsed_macro = Macro::parse_macro(directive_line, &mut token_iter)?;
                         let final_macro;
                         let final_contents;
-                        let macro_settings = PreprocessorSettings { expand_definitions: false, expand_macros: true };
+                        let macro_settings = PreprocessorSettings {
+                            expand_definitions: false,
+                            expand_macros: true,
+                        };
 
                         if definition_table.ifdef(&parsed_macro.id()) {
-                            return Err(format!("Cannot create macro {} with same name as definiton. Line {}", parsed_macro.id(), directive_line).into());
+                            return Err(format!(
+                                "Cannot create macro {} with same name as definiton. Line {}",
+                                parsed_macro.id(),
+                                directive_line
+                            )
+                            .into());
                         }
 
-                        final_contents = self.process(&macro_settings, parsed_macro.contents_cloned(), definition_table, macro_table, label_manager, input_files)?;
+                        final_contents = self.process(
+                            &macro_settings,
+                            parsed_macro.contents_cloned(),
+                            definition_table,
+                            macro_table,
+                            label_manager,
+                            input_files,
+                        )?;
 
-                        final_macro = Macro::new(&parsed_macro.id(), final_contents, parsed_macro.args_cloned(), parsed_macro.num_required_args());
+                        final_macro = Macro::new(
+                            &parsed_macro.id(),
+                            final_contents,
+                            parsed_macro.args_cloned(),
+                            parsed_macro.num_required_args(),
+                        );
 
                         macro_table.def(&parsed_macro.id(), final_macro);
-                    },
+                    }
                     DirectiveType::REP => {
                         let times;
                         let mut body = Vec::new();
@@ -85,9 +123,16 @@ impl Preprocessor {
                             }
 
                             // Set the number of times accordingly
-                            times = match times_token.data() { TokenData::INT(i) => *i, _ => unreachable!()};
+                            times = match times_token.data() {
+                                TokenData::INT(i) => *i,
+                                _ => unreachable!(),
+                            };
                         } else {
-                            return Err(format!("Expected number of times after repetition directive. Line {}", directive_line).into());
+                            return Err(format!(
+                                "Expected number of times after repetition directive. Line {}",
+                                directive_line
+                            )
+                            .into());
                         }
 
                         // We will break out of this other ways
@@ -95,7 +140,14 @@ impl Preprocessor {
                             let rep_token = token_iter.next().unwrap();
 
                             // .endrep directives not on a newline will not be recognized.
-                            if rep_token.tt() == TokenType::DIRECTIVE && was_last_newline && "endrep" == match rep_token.data() { TokenData::STRING(s) => s, _ => unreachable!()} {
+                            if rep_token.tt() == TokenType::DIRECTIVE
+                                && was_last_newline
+                                && "endrep"
+                                    == match rep_token.data() {
+                                        TokenData::STRING(s) => s,
+                                        _ => unreachable!(),
+                                    }
+                            {
                                 break;
                             } else {
                                 body.push(rep_token.clone());
@@ -103,12 +155,15 @@ impl Preprocessor {
 
                             // If this was a newline, set the variable for next time
                             was_last_newline = rep_token.tt() == TokenType::NEWLINE;
-
                         }
 
                         // If this loop ended because we ran out of tokens, that is a problem
                         if token_iter.peek().is_none() {
-                            return Err(format!("Repetition ended unexpectedly without closing .endrep. Line {}", directive_line).into());
+                            return Err(format!(
+                                "Repetition ended unexpectedly without closing .endrep. Line {}",
+                                directive_line
+                            )
+                            .into());
                         }
 
                         // Now we preprocess each line before we expand it
@@ -117,7 +172,13 @@ impl Preprocessor {
                         // While there are more tokens
                         while body_iter.peek().is_some() {
                             // Process the line
-                            let mut processed_line = self.process_line(&settings, &mut body_iter, definition_table, macro_table, label_manager)?;
+                            let mut processed_line = self.process_line(
+                                &settings,
+                                &mut body_iter,
+                                definition_table,
+                                macro_table,
+                                label_manager,
+                            )?;
                             // Add the line to processed_tokens
                             processed_body.append(&mut processed_line);
                         }
@@ -128,29 +189,41 @@ impl Preprocessor {
                                 new_tokens.push(p_token.clone());
                             }
                         }
-
-                    },
+                    }
                     DirectiveType::INCLUDE => {
                         let include_file;
                         let included;
                         let mut included_preprocessed;
-                        
+
                         // After .include there must be a string.
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::STRING {
-                            return Err(format!("Expected string after .include. Line {}", directive_line).into());
+                        if token_iter.peek().is_none()
+                            || token_iter.peek().unwrap().tt() != TokenType::STRING
+                        {
+                            return Err(format!(
+                                "Expected string after .include. Line {}",
+                                directive_line
+                            )
+                            .into());
                         }
 
                         // Get the file name or path
-                        include_file = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
+                        include_file = match token_iter.next().unwrap().data() {
+                            TokenData::STRING(s) => s,
+                            _ => unreachable!(),
+                        };
 
                         println!("\t\tIncluding file: {}", include_file);
 
                         // Also make sure there is nothing else
                         if token_iter.peek().is_some() {
                             if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                                return Err(format!("Found extra tokens after include directive. Line {}", directive_line).into());
+                                return Err(format!(
+                                    "Found extra tokens after include directive. Line {}",
+                                    directive_line
+                                )
+                                .into());
                             }
-                            
+
                             // Consume the newline
                             token_iter.next();
                         }
@@ -159,59 +232,97 @@ impl Preprocessor {
                         included = self.include_file(include_file, input_files)?;
 
                         // Now preprocess it like everything else
-                        included_preprocessed = self.process(&settings, included, definition_table, macro_table, label_manager, input_files)?;
+                        included_preprocessed = self.process(
+                            &settings,
+                            included,
+                            definition_table,
+                            macro_table,
+                            label_manager,
+                            input_files,
+                        )?;
 
                         // Add it to the preprocessed tokens
                         new_tokens.append(&mut included_preprocessed);
-
-                    },
+                    }
                     DirectiveType::EXTERN => {
                         let id;
 
                         // There must be something after this, and it must be an identifier
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
-                            return Err(format!("Expected identifier after .extern. Line {}", directive_line).into());
+                        if token_iter.peek().is_none()
+                            || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER
+                        {
+                            return Err(format!(
+                                "Expected identifier after .extern. Line {}",
+                                directive_line
+                            )
+                            .into());
                         }
 
                         // Read in the identifier
-                        id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
+                        id = match token_iter.next().unwrap().data() {
+                            TokenData::STRING(s) => s,
+                            _ => unreachable!(),
+                        };
 
                         // Also make sure there is nothing else
                         if token_iter.peek().is_some() {
                             if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                                return Err(format!("Found extra tokens after extern directive. Line {}", directive_line).into());
+                                return Err(format!(
+                                    "Found extra tokens after extern directive. Line {}",
+                                    directive_line
+                                )
+                                .into());
                             }
-                            
+
                             // Consume the newline
                             token_iter.next();
                         }
 
                         // Test if it is already in the Label table
                         if label_manager.ifdef(id) {
-                            return Err(format!("Duplicate Label {} defined. Line {}", id, directive_line).into());
+                            return Err(format!(
+                                "Duplicate Label {} defined. Line {}",
+                                id, directive_line
+                            )
+                            .into());
                         }
 
                         // Then define it
-                        label_manager.def(id, Label::new(id, LabelType::UNDEF, LabelInfo::EXTERN, LabelValue::NONE));
-
-                    },
+                        label_manager.def(
+                            id,
+                            Label::new(id, LabelType::UNDEF, LabelInfo::EXTERN, LabelValue::NONE),
+                        );
+                    }
                     DirectiveType::GLOBAL => {
                         let id;
 
                         // There must be something after this, and it must be an identifier
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
-                            return Err(format!("Expected identifier after .extern. Line {}", directive_line).into());
+                        if token_iter.peek().is_none()
+                            || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER
+                        {
+                            return Err(format!(
+                                "Expected identifier after .extern. Line {}",
+                                directive_line
+                            )
+                            .into());
                         }
 
                         // Read in the identifier
-                        id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
+                        id = match token_iter.next().unwrap().data() {
+                            TokenData::STRING(s) => s,
+                            _ => unreachable!(),
+                        };
 
                         // Also make sure there is nothing else
                         if token_iter.peek().is_some() {
                             if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                                return Err(format!("Found extra tokens after global directive. Line {}", directive_line).into());
+                                return Err(format!(
+                                    "Found extra tokens after global directive. Line {}",
+                                    directive_line
+                                )
+                                .into());
                             }
-                            
+
                             // Consume the newline
                             token_iter.next();
                         }
@@ -222,93 +333,166 @@ impl Preprocessor {
                             let found_label_type = found_label.label_type();
                             let found_label_value = found_label.label_value().clone();
                             // If it is, we need to test if it is external or global, which would make no sense
-                            if found_label.label_info() == LabelInfo::EXTERN || found_label.label_info() == LabelInfo::GLOBAL {
-                                return Err(format!("Duplicate Label {} defined. Line {}", id, directive_line).into());
+                            if found_label.label_info() == LabelInfo::EXTERN
+                                || found_label.label_info() == LabelInfo::GLOBAL
+                            {
+                                return Err(format!(
+                                    "Duplicate Label {} defined. Line {}",
+                                    id, directive_line
+                                )
+                                .into());
                             }
-                            
+
                             // All this needs to do then is to modify the Label to make it global
-                            label_manager.def(id, Label::new(id, found_label_type, LabelInfo::GLOBAL, found_label_value));
+                            label_manager.def(
+                                id,
+                                Label::new(
+                                    id,
+                                    found_label_type,
+                                    LabelInfo::GLOBAL,
+                                    found_label_value,
+                                ),
+                            );
                         }
                         // If it isn't
                         else {
                             // Then define it
-                            label_manager.def(id, Label::new(id, LabelType::UNDEF, LabelInfo::GLOBAL, LabelValue::NONE));
+                            label_manager.def(
+                                id,
+                                Label::new(
+                                    id,
+                                    LabelType::UNDEF,
+                                    LabelInfo::GLOBAL,
+                                    LabelValue::NONE,
+                                ),
+                            );
                         }
-
-                    },
+                    }
                     DirectiveType::LINE => {
-                        return Err("Line directive currently unsupported in this version of kasm.".into());
-                    },
+                        return Err(
+                            "Line directive currently unsupported in this version of kasm.".into(),
+                        );
+                    }
                     DirectiveType::UNDEF => {
                         let id;
 
                         // There must be something after this, and it must be an identifier
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
-                            return Err(format!("Expected identifier after .undef. Line {}", directive_line).into());
+                        if token_iter.peek().is_none()
+                            || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER
+                        {
+                            return Err(format!(
+                                "Expected identifier after .undef. Line {}",
+                                directive_line
+                            )
+                            .into());
                         }
 
                         // Read in the identifier
-                        id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
+                        id = match token_iter.next().unwrap().data() {
+                            TokenData::STRING(s) => s,
+                            _ => unreachable!(),
+                        };
 
                         // Also make sure there is nothing else
                         if token_iter.peek().is_some() {
                             if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                                return Err(format!("Found extra tokens after undef directive. Line {}", directive_line).into());
+                                return Err(format!(
+                                    "Found extra tokens after undef directive. Line {}",
+                                    directive_line
+                                )
+                                .into());
                             }
-                            
+
                             // Consume the newline
                             token_iter.next();
                         }
 
                         // Test if it is in the definition table
                         if definition_table.ifndef(id) {
-                            return Err(format!("Definition {} does not exist, and cannot be undefined. Line {}", id, directive_line).into());
+                            return Err(format!(
+                                "Definition {} does not exist, and cannot be undefined. Line {}",
+                                id, directive_line
+                            )
+                            .into());
                         }
 
                         // If it is in there, undefine it
                         definition_table.undef(id);
-                    },
+                    }
                     DirectiveType::UNMACRO => {
                         let id;
 
                         // There must be something after this, and it must be an identifier
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
-                            return Err(format!("Expected identifier after .unmacro. Line {}", directive_line).into());
+                        if token_iter.peek().is_none()
+                            || token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER
+                        {
+                            return Err(format!(
+                                "Expected identifier after .unmacro. Line {}",
+                                directive_line
+                            )
+                            .into());
                         }
 
                         // Read in the identifier
-                        id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
+                        id = match token_iter.next().unwrap().data() {
+                            TokenData::STRING(s) => s,
+                            _ => unreachable!(),
+                        };
 
                         // Also make sure there is nothing else
                         if token_iter.peek().is_some() {
                             if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                                return Err(format!("Found extra tokens after unmacro directive. Line {}", directive_line).into());
+                                return Err(format!(
+                                    "Found extra tokens after unmacro directive. Line {}",
+                                    directive_line
+                                )
+                                .into());
                             }
-                            
+
                             // Consume the newline
                             token_iter.next();
                         }
 
                         // Test if it is in the macro table
                         if macro_table.ifndef(id) {
-                            return Err(format!("Macro {} does not exist, and cannot be undefined. Line {}", id, directive_line).into());
+                            return Err(format!(
+                                "Macro {} does not exist, and cannot be undefined. Line {}",
+                                id, directive_line
+                            )
+                            .into());
                         }
 
                         // If it is in there, undefine it
                         macro_table.undef(id);
-                    },
-                    DirectiveType::IF | DirectiveType::IFDEF | DirectiveType::IFN | DirectiveType::IFNDEF => {
-
+                    }
+                    DirectiveType::IF
+                    | DirectiveType::IFDEF
+                    | DirectiveType::IFN
+                    | DirectiveType::IFNDEF => {
                         // Process the if(s)
-                        let if_tokens = self.process_if(settings, &mut token_iter, definition_table, macro_table, label_manager, directive, directive_line)?;
-                        
+                        let if_tokens = self.process_if(
+                            settings,
+                            &mut token_iter,
+                            definition_table,
+                            macro_table,
+                            label_manager,
+                            directive,
+                            directive_line,
+                        )?;
+
                         // Now we need to actually preprocess the input
-                        let mut preprocessed_if = self.process(settings, if_tokens, definition_table, macro_table, label_manager, input_files)?;
+                        let mut preprocessed_if = self.process(
+                            settings,
+                            if_tokens,
+                            definition_table,
+                            macro_table,
+                            label_manager,
+                            input_files,
+                        )?;
 
                         // No matter what was returned, as long as it wasn't an error, append it
                         new_tokens.append(&mut preprocessed_if);
-
-                    },
+                    }
                     DirectiveType::FUNC => {
                         // This is meant to register the following label as a function
                         let func_label_id;
@@ -317,23 +501,38 @@ impl Preprocessor {
                         let label_info;
 
                         // There must be something after this, and it must be a newline
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                            return Err(format!("Expected newline after func directive. Line {}", directive_line).into());
+                        if token_iter.peek().is_none()
+                            || token_iter.peek().unwrap().tt() != TokenType::NEWLINE
+                        {
+                            return Err(format!(
+                                "Expected newline after func directive. Line {}",
+                                directive_line
+                            )
+                            .into());
                         }
 
                         // Consume the newline
                         token_iter.next();
 
                         // Now we need to find the label, which needs to be there
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::LABEL {
-                            return Err(format!("Expected function label after func directive. Line {}", directive_line).into());
+                        if token_iter.peek().is_none()
+                            || token_iter.peek().unwrap().tt() != TokenType::LABEL
+                        {
+                            return Err(format!(
+                                "Expected function label after func directive. Line {}",
+                                directive_line
+                            )
+                            .into());
                         }
 
                         // Now store the label token which we will push later
                         label_token = token_iter.next().unwrap();
 
                         // Now we need to extract the function label
-                        func_label_id = match label_token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
+                        func_label_id = match label_token.data() {
+                            TokenData::STRING(s) => s,
+                            _ => unreachable!(),
+                        };
 
                         // If this function was declared as global, it will already be in the Label table
                         // If it is in the Label table and it isn't global though, it is a duplicate
@@ -357,74 +556,29 @@ impl Preprocessor {
                         }
 
                         // Now we need to make a Label for it
-                        func_label = Label::new(func_label_id, LabelType::UNDEFFUNC, label_info, LabelValue::NONE);
+                        func_label = Label::new(
+                            func_label_id,
+                            LabelType::UNDEFFUNC,
+                            label_info,
+                            LabelValue::NONE,
+                        );
 
                         // Now register it in the Label table
                         label_manager.def(func_label_id, func_label);
 
                         // Finally, push back the label token as it is needed for the first pass
                         new_tokens.push(label_token.clone());
-                    },
-                    DirectiveType::INIT => {
-                        // This is meant to register the following label as initialization code
-                        let init_label_id;
-                        let label_token;
-                        let init_label;
-                        let label_info;
-
-                        // There must be something after this, and it must be a newline
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                            return Err(format!("Expected newline after init directive. Line {}", directive_line).into());
-                        }
-
-                        // Consume the newline
-                        token_iter.next();
-
-                        // Now we need to find the label, which needs to be there
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::LABEL {
-                            return Err(format!("Expected label after init directive. Line {}", directive_line).into());
-                        }
-
-                        // Now store the label token which we will push later
-                        label_token = token_iter.next().unwrap();
-
-                        // Now we need to extract the label
-                        init_label_id = match label_token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
-
-                        // If this section was declared as global, it will already be in the Label table
-                        // If it is in the Label table and it isn't global though, it is a duplicate
-                        if label_manager.ifdef(init_label_id) {
-                            // Retrieve it
-                            let declared_label = label_manager.get(init_label_id)?;
-
-                            // Check if it isn't global
-                            if declared_label.label_info() != LabelInfo::GLOBAL {
-                                // Then it is a duplicate
-                                return Err(format!("Duplicate Label {} already exists. Found declared again. Line {}", init_label_id, directive_line).into());
-                            }
-                            // If it is global, then we need to make the new Label info global as well
-                            else {
-                                label_info = LabelInfo::GLOBAL;
-                            }
-                        }
-                        // If it isn't already declared, then the new Label's info will be local
-                        else {
-                            label_info = LabelInfo::LOCAL;
-                        }
-
-                        // Now we need to make a Label for it
-                        init_label = Label::new(init_label_id, LabelType::UNDEFINIT, label_info, LabelValue::NONE);
-
-                        // Now register it in the Label table
-                        label_manager.def(init_label_id, init_label);
-
-                        // Finally, push back the label token as it is needed for the first pass
-                        new_tokens.push(label_token.clone());
-                    },
-                    _ => unreachable!()
+                    }
+                    _ => unreachable!(),
                 }
             } else {
-                let mut append = self.process_line(&settings, &mut token_iter, definition_table, macro_table, label_manager)?;
+                let mut append = self.process_line(
+                    &settings,
+                    &mut token_iter,
+                    definition_table,
+                    macro_table,
+                    label_manager,
+                )?;
 
                 new_tokens.append(&mut append);
             }
@@ -433,7 +587,16 @@ impl Preprocessor {
         Ok(new_tokens)
     }
 
-    pub fn process_if(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, label_manager: &mut LabelManager, if_type: DirectiveType, directive_line: usize) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn process_if(
+        &mut self,
+        settings: &PreprocessorSettings,
+        token_iter: &mut Peekable<Iter<Token>>,
+        definition_table: &mut DefinitionTable,
+        macro_table: &mut MacroTable,
+        label_manager: &mut LabelManager,
+        if_type: DirectiveType,
+        directive_line: usize,
+    ) -> Result<Vec<Token>, Box<dyn Error>> {
         let mut is_true;
         let mut new_tokens: Vec<Token> = Vec::new();
         let mut if_ended = false;
@@ -442,10 +605,17 @@ impl Preprocessor {
         // Here we must support expressions
 
         // Evaluate the if expression based on the directive type
-        is_true = self.evaluate_if(settings, token_iter, definition_table, macro_table, label_manager, if_type, directive_line)?;
+        is_true = self.evaluate_if(
+            settings,
+            token_iter,
+            definition_table,
+            macro_table,
+            label_manager,
+            if_type,
+            directive_line,
+        )?;
 
         while !if_ended {
-
             // If any of the if's is found to be true
             if is_true {
                 let mut endif = false;
@@ -457,19 +627,32 @@ impl Preprocessor {
                     // If this token is a directive
                     if if_token.tt() == TokenType::DIRECTIVE {
                         // Find the directive type for easier classification
-                        let inner_directive = DirectiveType::from_str(match if_token.data() { TokenData::STRING(s) => s, _ => unreachable!()})?;
+                        let inner_directive = DirectiveType::from_str(match if_token.data() {
+                            TokenData::STRING(s) => s,
+                            _ => unreachable!(),
+                        })?;
 
                         match inner_directive {
                             // If it is an if directive
-                            DirectiveType::IF | DirectiveType::IFDEF | DirectiveType::IFN | DirectiveType::IFNDEF => {
+                            DirectiveType::IF
+                            | DirectiveType::IFDEF
+                            | DirectiveType::IFN
+                            | DirectiveType::IFNDEF => {
                                 scope_level += 1;
-                            },
+                            }
                             // If it is an if else
-                            DirectiveType::ELIF | DirectiveType::ELIFDEF | DirectiveType::ELIFN | DirectiveType::ELIFNDEF | DirectiveType::ELSE => {
+                            DirectiveType::ELIF
+                            | DirectiveType::ELIFDEF
+                            | DirectiveType::ELIFN
+                            | DirectiveType::ELIFNDEF
+                            | DirectiveType::ELSE => {
                                 // And on our scope
                                 if scope_level == 0 {
                                     // If we haven't reached the end yet, find the next one
-                                    while self.find_next_if(token_iter, directive_line)? != DirectiveType::ENDIF {}
+                                    while self.find_next_if(token_iter, directive_line)?
+                                        != DirectiveType::ENDIF
+                                    {
+                                    }
 
                                     // Now that we are done, end this outer loop and set endif to true
                                     endif = true;
@@ -479,7 +662,7 @@ impl Preprocessor {
                                 else {
                                     new_tokens.push(if_token.clone());
                                 }
-                            },
+                            }
                             // If this is an endif
                             DirectiveType::ENDIF => {
                                 // Check if the scope is zero
@@ -495,7 +678,7 @@ impl Preprocessor {
                                     scope_level -= 1;
                                     new_tokens.push(if_token.clone());
                                 }
-                            },
+                            }
                             // If it is anything else, just push it
                             _ => {
                                 new_tokens.push(if_token.clone());
@@ -510,7 +693,11 @@ impl Preprocessor {
 
                 // If this ended because we ran out of tokens, that is an error
                 if !endif {
-                    return Err(format!("Unexpected end of file while parsing if directive of line {}.", directive_line).into());
+                    return Err(format!(
+                        "Unexpected end of file while parsing if directive of line {}.",
+                        directive_line
+                    )
+                    .into());
                 }
             }
             // If it is false
@@ -529,7 +716,15 @@ impl Preprocessor {
                 }
                 // If it is neither, then it must be an if
                 else {
-                    is_true = self.evaluate_if(settings, token_iter, definition_table, macro_table, label_manager, next_if, directive_line)?;
+                    is_true = self.evaluate_if(
+                        settings,
+                        token_iter,
+                        definition_table,
+                        macro_table,
+                        label_manager,
+                        next_if,
+                        directive_line,
+                    )?;
                 }
             }
         }
@@ -543,7 +738,11 @@ impl Preprocessor {
         Ok(new_tokens)
     }
 
-    pub fn find_next_if(&self, token_iter: &mut Peekable<Iter<Token>>, directive_line: usize) -> Result<DirectiveType, Box<dyn Error>> {
+    pub fn find_next_if(
+        &self,
+        token_iter: &mut Peekable<Iter<Token>>,
+        directive_line: usize,
+    ) -> Result<DirectiveType, Box<dyn Error>> {
         let mut scope = 0;
 
         // The only time this should end is if there is a return
@@ -551,11 +750,18 @@ impl Preprocessor {
             // If the token is a directive
             if token_iter.peek().unwrap().tt() == TokenType::DIRECTIVE {
                 // Find the directive type for easier classification
-                let inner_directive = DirectiveType::from_str(match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()})?;
+                let inner_directive =
+                    DirectiveType::from_str(match token_iter.next().unwrap().data() {
+                        TokenData::STRING(s) => s,
+                        _ => unreachable!(),
+                    })?;
 
                 match inner_directive {
                     // If it is an "if*"
-                    DirectiveType::IF | DirectiveType::IFDEF | DirectiveType::IFN | DirectiveType::IFNDEF => {
+                    DirectiveType::IF
+                    | DirectiveType::IFDEF
+                    | DirectiveType::IFN
+                    | DirectiveType::IFNDEF => {
                         // Check if the scope is 0
                         if scope == 0 {
                             // This is actually an error
@@ -564,9 +770,14 @@ impl Preprocessor {
                             // Add 1 to the scope
                             scope += 1;
                         }
-                    },
+                    }
                     // If this is any other if directive
-                    DirectiveType::ELSE | DirectiveType::ENDIF | DirectiveType::ELIF | DirectiveType::ELIFN | DirectiveType::ELIFDEF | DirectiveType::ELIFNDEF => {
+                    DirectiveType::ELSE
+                    | DirectiveType::ENDIF
+                    | DirectiveType::ELIF
+                    | DirectiveType::ELIFN
+                    | DirectiveType::ELIFDEF
+                    | DirectiveType::ELIFNDEF => {
                         // check if the scope is 0
                         if scope == 0 {
                             // If it is, return it!
@@ -578,11 +789,10 @@ impl Preprocessor {
                                 scope -= 1;
                             }
                         }
-                    },
+                    }
                     // If it is any other directive, then just skip it because it would be part of the "body"
                     _ => {}
                 }
-
             }
             // If this token isn't a directive, still consume it
             else {
@@ -591,35 +801,65 @@ impl Preprocessor {
         }
 
         // If we exited the loop that means that we ran out of tokens.
-        Err(format!("If directive terminates unexpectedly in EOF. Check syntax. Line {}", directive_line).into())
+        Err(format!(
+            "If directive terminates unexpectedly in EOF. Check syntax. Line {}",
+            directive_line
+        )
+        .into())
     }
 
-    pub fn evaluate_if(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, label_manager: &mut LabelManager, if_type: DirectiveType, directive_line: usize) -> Result<bool, Box<dyn Error>> {
+    pub fn evaluate_if(
+        &mut self,
+        settings: &PreprocessorSettings,
+        token_iter: &mut Peekable<Iter<Token>>,
+        definition_table: &mut DefinitionTable,
+        macro_table: &mut MacroTable,
+        label_manager: &mut LabelManager,
+        if_type: DirectiveType,
+        directive_line: usize,
+    ) -> Result<bool, Box<dyn Error>> {
         let is_true;
 
         // If it is an else, that is easy, return true.
         if if_type == DirectiveType::ELSE {
             is_true = true;
-        }
-        else if if_type == DirectiveType::IF || if_type == DirectiveType::ELIF || if_type == DirectiveType::IFN || if_type == DirectiveType::ELIFN {
+        } else if if_type == DirectiveType::IF
+            || if_type == DirectiveType::ELIF
+            || if_type == DirectiveType::IFN
+            || if_type == DirectiveType::ELIFN
+        {
             let mut processed_line;
             let mut processed_line_iter;
             let parsed_expression;
             let evaluated_expression;
 
             // Process the line
-            processed_line = self.process_line(settings, token_iter, definition_table, macro_table, label_manager)?;
-            
+            processed_line = self.process_line(
+                settings,
+                token_iter,
+                definition_table,
+                macro_table,
+                label_manager,
+            )?;
+
             // If the line is empty or has only one token, there is a problem
             if processed_line.len() < 2 {
-                return Err(format!("Error processing if directive, expected expression and newline. Line {}", directive_line).into());
+                return Err(format!(
+                    "Error processing if directive, expected expression and newline. Line {}",
+                    directive_line
+                )
+                .into());
             }
 
             // Check if the last token is a newline
             if processed_line.last().unwrap().tt() != TokenType::NEWLINE {
-                return Err(format!("Error processing if directive, expected newline. Line {}", directive_line).into());
+                return Err(format!(
+                    "Error processing if directive, expected newline. Line {}",
+                    directive_line
+                )
+                .into());
             }
-            
+
             // Remove the newline
             processed_line.pop();
 
@@ -629,23 +869,42 @@ impl Preprocessor {
             // Parse the rest as an expression
             parsed_expression = match ExpressionParser::parse_expression(&mut processed_line_iter) {
                 Ok(expr) => expr,
-                Err(e) => return Err(format!("Error parsing expression: {}. Line {}", e, directive_line).into())
+                Err(e) => {
+                    return Err(
+                        format!("Error parsing expression: {}. Line {}", e, directive_line).into(),
+                    )
+                }
             };
 
             // Actually check if it was able to parse an expression
             if parsed_expression.is_none() {
-                return Err(format!("Error processing if directive, expected expression after if. Line {}", directive_line).into());
+                return Err(format!(
+                    "Error processing if directive, expected expression after if. Line {}",
+                    directive_line
+                )
+                .into());
             }
 
             // Evaluate the expression to see what the result is
-            evaluated_expression = match ExpressionEvaluator::evaluate(&parsed_expression.unwrap()) {
+            evaluated_expression = match ExpressionEvaluator::evaluate(&parsed_expression.unwrap())
+            {
                 Ok(expr) => expr,
-                Err(e) => return Err(format!("Error evaluating expression: {}. Line {}", e, directive_line).into())
+                Err(e) => {
+                    return Err(format!(
+                        "Error evaluating expression: {}. Line {}",
+                        e, directive_line
+                    )
+                    .into())
+                }
             };
 
             // Check if it is a boolean, because we are enforcing that the expression results in a boolean value
             if evaluated_expression.valtype() != ValueType::BOOL {
-                return Err(format!("Expression after if must evaluate to a boolean. Line {}", directive_line).into());
+                return Err(format!(
+                    "Expression after if must evaluate to a boolean. Line {}",
+                    directive_line
+                )
+                .into());
             }
 
             // Actually determine if this if is true, or not
@@ -654,7 +913,6 @@ impl Preprocessor {
             } else {
                 is_true = !evaluated_expression.to_bool()?;
             }
-
         }
         // If this was an ifdef or ifndef
         else {
@@ -663,17 +921,28 @@ impl Preprocessor {
 
             // Check if the last token is an identifier
             if token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
-                return Err(format!("Error processing ifdef directive, expected identifier. Line {}", directive_line).into());
+                return Err(format!(
+                    "Error processing ifdef directive, expected identifier. Line {}",
+                    directive_line
+                )
+                .into());
             }
 
             // Collect the string
-            id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!() };
+            id = match token_iter.next().unwrap().data() {
+                TokenData::STRING(s) => s,
+                _ => unreachable!(),
+            };
 
             // Check if the last token is a newline
             if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                return Err(format!("Error processing ifdef directive, expected newline. Line {}", directive_line).into());
+                return Err(format!(
+                    "Error processing ifdef directive, expected newline. Line {}",
+                    directive_line
+                )
+                .into());
             }
-            
+
             // Consume the newline
             token_iter.next();
 
@@ -689,17 +958,26 @@ impl Preprocessor {
         Ok(is_true)
     }
 
-    pub fn process_line(&mut self, settings: &PreprocessorSettings, token_iter: &mut Peekable<Iter<Token>>, definition_table: &mut DefinitionTable, macro_table: &mut MacroTable, label_manager: &mut LabelManager) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn process_line(
+        &mut self,
+        settings: &PreprocessorSettings,
+        token_iter: &mut Peekable<Iter<Token>>,
+        definition_table: &mut DefinitionTable,
+        macro_table: &mut MacroTable,
+        label_manager: &mut LabelManager,
+    ) -> Result<Vec<Token>, Box<dyn Error>> {
         let mut new_tokens = Vec::new();
 
         // While we haven't reached the end of the line
         while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-
             let token = token_iter.next().unwrap().clone();
 
             if token.tt() == TokenType::IDENTIFIER {
-                let id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
-                let line =  token.line();
+                let id = match token.data() {
+                    TokenData::STRING(s) => s,
+                    _ => unreachable!(),
+                };
+                let line = token.line();
 
                 // 0 means that it is not a valid mnemonic
                 if Instruction::opcode_from_mnemonic(id) == 0 {
@@ -707,7 +985,12 @@ impl Preprocessor {
                     if macro_table.ifdef(id) {
                         // And if we want it to be expanded
                         if settings.expand_macros {
-                            let mut expanded = match self.expand_macro(id, token_iter, definition_table, macro_table)  {
+                            let mut expanded = match self.expand_macro(
+                                id,
+                                token_iter,
+                                definition_table,
+                                macro_table,
+                            ) {
                                 Ok(expanded) => expanded,
                                 Err(e) => {
                                     return Err(format!("{}. Line {}", e, line).into());
@@ -726,13 +1009,14 @@ impl Preprocessor {
                     else if definition_table.ifdef(id) {
                         // And if we want it to be expanded
                         if settings.expand_definitions {
-                            let mut expanded = match self.expand_definition(id, token_iter, definition_table) {
-                                Ok(expanded) => expanded,
-                                Err(e) => {
-                                    return Err(format!("{}. Line {}", e, line).into());
-                                }
-                            };
-    
+                            let mut expanded =
+                                match self.expand_definition(id, token_iter, definition_table) {
+                                    Ok(expanded) => expanded,
+                                    Err(e) => {
+                                        return Err(format!("{}. Line {}", e, line).into());
+                                    }
+                                };
+
                             new_tokens.append(&mut expanded);
                         }
                         // If not, just append it
@@ -752,7 +1036,10 @@ impl Preprocessor {
                     }
                     // If it isn't a defined Label, then assume that it is a function label or something
                     else {
-                        label_manager.def(id, Label::new(id, LabelType::UNDEF, LabelInfo::LOCAL, LabelValue::NONE));
+                        label_manager.def(
+                            id,
+                            Label::new(id, LabelType::UNDEF, LabelInfo::LOCAL, LabelValue::NONE),
+                        );
                         // return Err(format!("Macro or definition used before declaration: {}, line {}.", id, line).into());
 
                         // If it is, this will also be dealt with much later on down the line, so just push it
@@ -766,7 +1053,6 @@ impl Preprocessor {
             } else {
                 new_tokens.push(token);
             }
-
         }
 
         // If the line ended because of a new line
@@ -778,7 +1064,13 @@ impl Preprocessor {
         Ok(new_tokens)
     }
 
-    pub fn expand_macro(&mut self, id: &str, token_iter: &mut Peekable<Iter<Token>>, definition_table: &DefinitionTable, macro_table: &MacroTable) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn expand_macro(
+        &mut self,
+        id: &str,
+        token_iter: &mut Peekable<Iter<Token>>,
+        definition_table: &DefinitionTable,
+        macro_table: &MacroTable,
+    ) -> Result<Vec<Token>, Box<dyn Error>> {
         let macro_ref = macro_table.get(id)?;
         let macro_args = macro_ref.args();
         let num_required_args = macro_ref.num_required_args();
@@ -794,7 +1086,7 @@ impl Preprocessor {
         // __WRITE_2
         // This way, a local label ".loop" would be:
         // __WRITE_2.loop
-        
+
         // If this is the first time
         if self.macro_invocation_map.get(id).is_none() {
             // Create the entry
@@ -812,9 +1104,11 @@ impl Preprocessor {
 
         // We need to collect all arguments before the newline
         while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-
             // We will stop the current argument if there is a comma
-            while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::COMMA && token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+            while token_iter.peek().is_some()
+                && token_iter.peek().unwrap().tt() != TokenType::COMMA
+                && token_iter.peek().unwrap().tt() != TokenType::NEWLINE
+            {
                 let mut arg_tokens = Vec::new();
 
                 // Get the token
@@ -823,10 +1117,14 @@ impl Preprocessor {
                 // If this token is a definiition expansion
                 if token.tt() == TokenType::IDENTIFIER && definition_table.ifdef(id) {
                     // Get the id
-                    let inner_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!()};
+                    let inner_id = match token.data() {
+                        TokenData::STRING(s) => s,
+                        _ => unreachable!(),
+                    };
 
                     // Expand it
-                    let mut inner = self.expand_definition(inner_id, token_iter, definition_table)?;
+                    let mut inner =
+                        self.expand_definition(inner_id, token_iter, definition_table)?;
 
                     // Append it to this argument's tokens
                     arg_tokens.append(&mut inner);
@@ -872,7 +1170,10 @@ impl Preprocessor {
 
             // If the token is a placeholder
             if token.tt() == TokenType::PLACEHOLDER {
-                let arg_index = match token.data() { TokenData::INT(i) => *i as usize, _ => unreachable!()};
+                let arg_index = match token.data() {
+                    TokenData::INT(i) => *i as usize,
+                    _ => unreachable!(),
+                };
 
                 // Replace it with the tokens of that argument
                 for token in args.get(arg_index - 1).unwrap() {
@@ -882,12 +1183,16 @@ impl Preprocessor {
             // If it is a local label, then we need to prepend the invocation id
             else if token.tt() == TokenType::INNERLABEL {
                 // Extract the local label's name
-                let label_name = match token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
+                let label_name = match token.data() {
+                    TokenData::STRING(s) => s,
+                    _ => unreachable!(),
+                };
                 // Create the combined name
                 let new_name = format!("{}.{}", invocation_id, label_name);
 
                 // So this acts correctly in global contexts, make it a regular label
-                without_placeholders.push(Token::new(TokenType::LABEL, TokenData::STRING(new_name)));
+                without_placeholders
+                    .push(Token::new(TokenType::LABEL, TokenData::STRING(new_name)));
             }
             // If it isn't either
             else {
@@ -906,13 +1211,19 @@ impl Preprocessor {
             // If this token is a definition expansion
             if token.tt() == TokenType::IDENTIFIER {
                 // Get the id
-                let inner_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!()};
+                let inner_id = match token.data() {
+                    TokenData::STRING(s) => s,
+                    _ => unreachable!(),
+                };
 
                 if definition_table.ifdef(inner_id) {
-
                     // Expand it
-                    let mut inner = self.expand_definition(inner_id, &mut without_placeholders_iter, definition_table)?;
-    
+                    let mut inner = self.expand_definition(
+                        inner_id,
+                        &mut without_placeholders_iter,
+                        definition_table,
+                    )?;
+
                     // Append it to the expanded tokens list
                     expanded_tokens.append(&mut inner);
                 } else {
@@ -932,7 +1243,12 @@ impl Preprocessor {
         Ok(expanded_tokens)
     }
 
-    pub fn expand_definition(&self, id: &str, token_iter: &mut Peekable<Iter<Token>>, definition_table: &DefinitionTable) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn expand_definition(
+        &self,
+        id: &str,
+        token_iter: &mut Peekable<Iter<Token>>,
+        definition_table: &DefinitionTable,
+    ) -> Result<Vec<Token>, Box<dyn Error>> {
         let def_ref = definition_table.get(id)?;
         let mut content_iter = def_ref.get_contents_iter();
         let mut without_placeholders = Vec::new();
@@ -947,26 +1263,34 @@ impl Preprocessor {
 
         // If the next token is an open parenthesis, then we have some arguments
         if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::OPENPAREN {
-
             // This will help us collect all of the arguments, because all we need to look for is the closing parenthesis
-            while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::CLOSEPAREN {
+            while token_iter.peek().is_some()
+                && token_iter.peek().unwrap().tt() != TokenType::CLOSEPAREN
+            {
                 let mut arg_tokens = Vec::new();
 
                 // Consume either the opening parenthesis, or the preceeding comma
                 token_iter.next();
 
                 // We want to collect all tokens before there is a comma, or close parenthesis.
-                while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::COMMA && token_iter.peek().unwrap().tt() != TokenType::CLOSEPAREN {
+                while token_iter.peek().is_some()
+                    && token_iter.peek().unwrap().tt() != TokenType::COMMA
+                    && token_iter.peek().unwrap().tt() != TokenType::CLOSEPAREN
+                {
                     // Get the token
                     let token = token_iter.next().unwrap();
 
                     // If this token is another definiition expansion...
                     if token.tt() == TokenType::IDENTIFIER && definition_table.ifdef(id) {
                         // Get the id
-                        let inner_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!()};
+                        let inner_id = match token.data() {
+                            TokenData::STRING(s) => s,
+                            _ => unreachable!(),
+                        };
 
                         // Expand it
-                        let mut inner = self.expand_definition(inner_id, token_iter, definition_table)?;
+                        let mut inner =
+                            self.expand_definition(inner_id, token_iter, definition_table)?;
 
                         // Append it to this argument's tokens
                         arg_tokens.append(&mut inner);
@@ -985,9 +1309,12 @@ impl Preprocessor {
             // If the loop is over, that means there is a closing parenthesis, or no more tokens...
             // If the case is no more tokens, that is an error
             match token_iter.next() {
-                Some(_token) => {},
+                Some(_token) => {}
                 None => {
-                    return Err("Error reading arguments, expected closing parenthesis. Found end of file.".into());
+                    return Err(
+                        "Error reading arguments, expected closing parenthesis. Found end of file."
+                            .into(),
+                    );
                 }
             }
         }
@@ -1005,7 +1332,10 @@ impl Preprocessor {
 
             // If the token is a placeholder
             if token.tt() == TokenType::PLACEHOLDER {
-                let arg_index = match token.data() { TokenData::INT(i) => *i as usize, _ => unreachable!()};
+                let arg_index = match token.data() {
+                    TokenData::INT(i) => *i as usize,
+                    _ => unreachable!(),
+                };
 
                 // Replace it with the tokens of that argument
                 for token in args.get(arg_index).unwrap() {
@@ -1029,15 +1359,24 @@ impl Preprocessor {
             // If this token is another definition expansion...
             if token.tt() == TokenType::IDENTIFIER && definition_table.ifdef(id) {
                 // Get the id
-                let inner_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!()};
+                let inner_id = match token.data() {
+                    TokenData::STRING(s) => s,
+                    _ => unreachable!(),
+                };
 
                 // We don't want recursive expansion, that would be bad.
                 if *id == *inner_id {
-                    return Err(format!("Cannot have recursive definition expansion: {}", id).into());
+                    return Err(
+                        format!("Cannot have recursive definition expansion: {}", id).into(),
+                    );
                 }
 
                 // Expand it
-                let mut inner = self.expand_definition(inner_id, &mut without_placeholders_iter, definition_table)?;
+                let mut inner = self.expand_definition(
+                    inner_id,
+                    &mut without_placeholders_iter,
+                    definition_table,
+                )?;
 
                 // Append it to the expanded tokens list
                 expanded_tokens.append(&mut inner);
@@ -1054,7 +1393,11 @@ impl Preprocessor {
         Ok(expanded_tokens)
     }
 
-    pub fn include_file(&self, file_path: &str, input_files: &mut InputFiles) -> Result<Vec<Token>, Box<dyn Error>> {
+    pub fn include_file(
+        &self,
+        file_path: &str,
+        input_files: &mut InputFiles,
+    ) -> Result<Vec<Token>, Box<dyn Error>> {
         let mut file_path = Path::new(file_path);
         let file_name;
         let file_id;
@@ -1067,12 +1410,20 @@ impl Preprocessor {
 
         // If the file does not exist, error out here
         if !file_path.exists() {
-            return Err(format!("Could not include {}, file does not exist.", file_path.to_str().unwrap()).into());
+            return Err(format!(
+                "Could not include {}, file does not exist.",
+                file_path.to_str().unwrap()
+            )
+            .into());
         }
 
         // If the file isn't a file, there is a problem
         if !file_path.is_file() {
-            return Err(format!("Could not include {}, directories cannot be included.", file_path.to_str().unwrap()).into());
+            return Err(format!(
+                "Could not include {}, directories cannot be included.",
+                file_path.to_str().unwrap()
+            )
+            .into());
         }
 
         // If it is an absolute path, we don't need to do anything. If it is not, make it one by adding the include path
@@ -1091,11 +1442,9 @@ impl Preprocessor {
 
         // Lex the contents
         tokens = lexer.lex(&contents, &file_name, file_id)?;
-        
+
         Ok(tokens)
-
     }
-
 }
 
 impl DefinitionTable {
@@ -1133,15 +1482,15 @@ impl DefinitionTable {
 }
 
 impl MacroTable {
-
     pub fn new() -> MacroTable {
-        MacroTable { macros: HashMap::new() }
+        MacroTable {
+            macros: HashMap::new(),
+        }
     }
 
     pub fn def(&mut self, identifier: &str, new_macro: Macro) {
         // This already does what it needs to do. If it exists, the value is updated, if not, the value is created.
-        self.macros
-            .insert(String::from(identifier), new_macro);
+        self.macros.insert(String::from(identifier), new_macro);
     }
 
     pub fn ifdef(&self, identifier: &str) -> bool {
@@ -1189,7 +1538,6 @@ pub enum DirectiveType {
     EXTERN,
     GLOBAL,
     FUNC,
-    INIT
 }
 
 impl DirectiveType {
@@ -1217,7 +1565,6 @@ impl DirectiveType {
             "extern" => DirectiveType::EXTERN,
             "global" => DirectiveType::GLOBAL,
             "func" => DirectiveType::FUNC,
-            "init" => DirectiveType::INIT,
             _ => {
                 return Err(format!("Invalid directive found: {}", s).into());
             }

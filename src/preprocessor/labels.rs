@@ -6,21 +6,20 @@ pub enum LabelType {
     FUNC,
     INIT,
     UNDEFFUNC,
-    UNDEFINIT,
-    UNDEF
+    UNDEF,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LabelInfo {
     GLOBAL,
     LOCAL,
-    EXTERN
+    EXTERN,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LabelValue {
     NONE,
-    STRING(String)
+    STRING(String),
 }
 
 #[derive(Debug, Clone)]
@@ -41,7 +40,7 @@ impl Label {
             id: identifier.to_owned(),
             lt,
             li,
-            lv
+            lv,
         }
     }
 
@@ -68,13 +67,14 @@ impl Label {
 
 impl LabelManager {
     pub fn new() -> LabelManager {
-        LabelManager { labels: HashMap::new() }
+        LabelManager {
+            labels: HashMap::new(),
+        }
     }
 
     pub fn def(&mut self, identifier: &str, label: Label) {
         // This already does what it needs to do. If it exists, the value is updated, if not, the value is created.
-        self.labels
-        .insert(String::from(identifier), label);
+        self.labels.insert(String::from(identifier), label);
     }
 
     pub fn ifdef(&self, identifier: &str) -> bool {
@@ -101,7 +101,6 @@ impl LabelManager {
 
     /// Returns an option containing the label which contains the given value, if one is found
     pub fn contains_value(&self, value: LabelValue) -> Option<Label> {
-
         // Loop through each value
         for label in self.labels.values() {
             // If it does

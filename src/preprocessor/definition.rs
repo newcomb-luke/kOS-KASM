@@ -1,36 +1,40 @@
-use std::{error::Error, slice::Iter, iter::Peekable};
+use std::{error::Error, iter::Peekable, slice::Iter};
 
-use crate::{Token, TokenType, TokenData};
+use crate::{Token, TokenData, TokenType};
 
 pub struct Definition {
     contents: Vec<Token>,
     num_args: usize,
-    id: String
+    id: String,
 }
 
 impl Definition {
-
     /// Creates a new Definition
     pub fn new(id: &str, contents: Vec<Token>, num_args: usize) -> Definition {
         Definition {
             contents,
             num_args,
-            id: id.to_owned()
+            id: id.to_owned(),
         }
     }
 
     /// Parses a definition from the provided token interator
-    pub fn parse_definition(token_iter: &mut Peekable<Iter<Token>>) -> Result<Definition, Box<dyn Error>> {
-        
+    pub fn parse_definition(
+        token_iter: &mut Peekable<Iter<Token>>,
+    ) -> Result<Definition, Box<dyn Error>> {
         // Check to see if we have a token, and it is an identifier
         if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::IDENTIFIER {
-            let id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!() };
+            let id = match token_iter.next().unwrap().data() {
+                TokenData::STRING(s) => s,
+                _ => unreachable!(),
+            };
             let mut contents = Vec::new();
             let mut num_args = 0;
             let mut arg_ids = Vec::new();
 
             // Check to see if it is an "empty" definition
-            if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+            if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::NEWLINE
+            {
                 // If the definition has tokens
 
                 // Check if it has arguments
@@ -40,21 +44,31 @@ impl Definition {
 
                     // If there is a parenthesis, it is required to have at least on argument
                     loop {
-
                         // Read the argument
-                        
+
                         // If there is no token, throw an error
                         if token_iter.peek().is_none() {
-                            return Err(format!("Unexpected end of file while parsing definition {}", id).into());
+                            return Err(format!(
+                                "Unexpected end of file while parsing definition {}",
+                                id
+                            )
+                            .into());
                         }
                         // If it is not an identifier throw an error
                         else if token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
-                            return Err(format!("Expected argument in definition, found: {}",token_iter.peek().unwrap().as_str()).into());
+                            return Err(format!(
+                                "Expected argument in definition, found: {}",
+                                token_iter.peek().unwrap().as_str()
+                            )
+                            .into());
                         }
                         // If everything is fine
                         else {
                             // Consume the token, but also add it to the  argument identifiers list
-                            arg_ids.push( match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()} );
+                            arg_ids.push(match token_iter.next().unwrap().data() {
+                                TokenData::STRING(s) => s,
+                                _ => unreachable!(),
+                            });
                             // Increment the number of arguments
                             num_args += 1;
                         }
@@ -62,7 +76,11 @@ impl Definition {
                         // If there are no tokens left
                         if token_iter.peek().is_none() {
                             // That is an error.
-                            return Err(format!("Expected closing parenthesis on definition {}", id).into());
+                            return Err(format!(
+                                "Expected closing parenthesis on definition {}",
+                                id
+                            )
+                            .into());
                         }
                         // Or if there is a closing parenthesis
                         else if token_iter.peek().unwrap().tt() == TokenType::CLOSEPAREN {
@@ -78,21 +96,28 @@ impl Definition {
                         }
                         // If it isn't a comma, there is a problem
                         else {
-                            return Err(format!("Expected comma or closing parenthesis, found {:?}", token_iter.peek().unwrap().as_str()).into());
+                            return Err(format!(
+                                "Expected comma or closing parenthesis, found {:?}",
+                                token_iter.peek().unwrap().as_str()
+                            )
+                            .into());
                         }
-
                     }
-
                 }
-                
+
                 // Now we read the contents of the definition
-                while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                while token_iter.peek().is_some()
+                    && token_iter.peek().unwrap().tt() != TokenType::NEWLINE
+                {
                     // Get the token
                     let token = token_iter.next().unwrap();
 
                     // If the token is an identifer
                     if token.tt() == TokenType::IDENTIFIER {
-                        let token_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!()};
+                        let token_id = match token.data() {
+                            TokenData::STRING(s) => s,
+                            _ => unreachable!(),
+                        };
                         let mut argument_index = 0;
                         let mut is_argument = false;
                         // Check to see if it is in the arg ids
@@ -106,15 +131,18 @@ impl Definition {
 
                         if is_argument {
                             // Replace the token with a placeholder token
-                            contents.push( Token::new(TokenType::PLACEHOLDER, TokenData::INT( argument_index as i32 )) );
+                            contents.push(Token::new(
+                                TokenType::PLACEHOLDER,
+                                TokenData::INT(argument_index as i32),
+                            ));
                         } else {
                             // Just push the token as it is
-                            contents.push( token.clone() );
+                            contents.push(token.clone());
                         }
                     }
                     // If the token is not an identifier, then just append it
                     else {
-                        contents.push( token.clone() );
+                        contents.push(token.clone());
                     }
                 }
 
@@ -134,7 +162,6 @@ impl Definition {
         else {
             Err("Expected definition identifier".into())
         }
-
     }
 
     /// Returns the string id of this definition

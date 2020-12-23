@@ -6,7 +6,7 @@ This is not meant to be used by anything yet in this condition!
 
 ### Feature list:
 
-- [ ] Parsing KASM
+- [x] Parsing KASM
     - [x] Lexer/Tokenizer
     - [x] Preprocessor
         - [x] Definitions
@@ -14,7 +14,6 @@ This is not meant to be used by anything yet in this condition!
             - [x] Expansion
         - [x] Macros
             - [x] Parsing
-                - [ ] Ability to use definitions and expressions as macro argument numbers?
             - [x] Expansion
         - [x] Rep
         - [x] Include
@@ -28,7 +27,7 @@ This is not meant to be used by anything yet in this condition!
     - [x] Parser
         - [x] Expression parser
         - [x] Expression evaluator
-        - [ ] Instruction parser
-- [ ] First pass
-- [ ] Second pass
-    - [ ] Generating KO files
+        - [x] Instruction parser
+- [x] First pass
+- [x] Second pass
+    - [x] Generating KO files

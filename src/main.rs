@@ -22,17 +22,24 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("debug")
-                .help("Displays debugging information during the assembly process.")
-                .short("d")
-                .long("debug"),
-        )
-        .arg(
             Arg::with_name("include_path")
                 .help("Specifies the include path for the assembler. Defaults to the current working directory.")
                 .short("i")
                 .long("include-path")
                 .require_equals(true)
+                .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("preprocess_only")
+                .help("Instead of outputting an object file, emits KASM after the preprocessing step.")
+                .short("p")
+                .long("preprocess-only")
+        )
+        .arg(
+            Arg::with_name("comment")
+                .help("Sets the comment field of the output object file to the value of this. Defaults to not setting it")
+                .short("c")
+                .long("comment")
                 .takes_value(true)
         )
         .get_matches();

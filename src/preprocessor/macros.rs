@@ -1,11 +1,11 @@
-use std::{error::Error, slice::Iter, iter::Peekable};
+use std::{error::Error, iter::Peekable, slice::Iter};
 
-use crate::{Token, TokenType, TokenData};
+use crate::{Token, TokenData, TokenType};
 
 #[derive(Debug, Clone)]
 pub struct MacroArg {
     required: bool,
-    default: Vec<Token>
+    default: Vec<Token>,
 }
 
 impl MacroArg {
@@ -29,46 +29,67 @@ pub struct Macro {
     id: String,
     contents: Vec<Token>,
     args: Vec<MacroArg>,
-    num_required_args: usize
+    num_required_args: usize,
 }
 
 impl Macro {
-
     /// Creates a new macro
-    pub fn new(id: &str, contents: Vec<Token>, args: Vec<MacroArg>, num_required_args: usize) -> Macro {
+    pub fn new(
+        id: &str,
+        contents: Vec<Token>,
+        args: Vec<MacroArg>,
+        num_required_args: usize,
+    ) -> Macro {
         Macro {
             id: id.to_owned(),
             contents,
             args,
-            num_required_args
+            num_required_args,
         }
     }
 
     /// Parses a macro from the provided token iterator
-    pub fn parse_macro(start_line: usize, token_iter: &mut Peekable<Iter<Token>>) -> Result<Macro, Box<dyn Error>> {
+    pub fn parse_macro(
+        start_line: usize,
+        token_iter: &mut Peekable<Iter<Token>>,
+    ) -> Result<Macro, Box<dyn Error>> {
         // Check to see if we have a token, and it is an identifier
         if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::IDENTIFIER {
-            let id = match token_iter.next().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!() };
+            let id = match token_iter.next().unwrap().data() {
+                TokenData::STRING(s) => s,
+                _ => unreachable!(),
+            };
             let mut contents = Vec::new();
             let mut args = Vec::new();
             let mut clean_exit = false;
-            let mut min_args= 0;
+            let mut min_args = 0;
             let mut max_args = 0;
 
             // There needs to be an .endmacro directive, so no more tokens is an error
             if token_iter.peek().is_none() {
-                return Err(format!("Incomplete macro definition {}, expected macro body. Line {}", id, start_line).into())
+                return Err(format!(
+                    "Incomplete macro definition {}, expected macro body. Line {}",
+                    id, start_line
+                )
+                .into());
             }
             // If there are arguments to this macro
             else if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                
                 // Now we either have a number of arguments, or a range.
 
                 // It has to be an int
                 if token_iter.peek().unwrap().tt() != TokenType::INT {
-                    return Err(format!("Expected number of macro arguments, found: {}. Line: {}", token_iter.peek().unwrap().as_str(), start_line).into());
+                    return Err(format!(
+                        "Expected number of macro arguments, found: {}. Line: {}",
+                        token_iter.peek().unwrap().as_str(),
+                        start_line
+                    )
+                    .into());
                 }
-                min_args = match token_iter.next().unwrap().data() { TokenData::INT(i) => *i, _ => unreachable!()};
+                min_args = match token_iter.next().unwrap().data() {
+                    TokenData::INT(i) => *i,
+                    _ => unreachable!(),
+                };
                 max_args = min_args;
 
                 // The next token can either be a newline or a -
@@ -87,9 +108,17 @@ impl Macro {
 
                     // Next has to be an int
                     if token_iter.peek().unwrap().tt() != TokenType::INT {
-                        return Err(format!("Expected max number of macro arguments, found: {}. Line: {}", token_iter.peek().unwrap().as_str(), start_line).into());
+                        return Err(format!(
+                            "Expected max number of macro arguments, found: {}. Line: {}",
+                            token_iter.peek().unwrap().as_str(),
+                            start_line
+                        )
+                        .into());
                     }
-                    max_args = match token_iter.next().unwrap().data() { TokenData::INT(i) => *i, _ => unreachable!()};
+                    max_args = match token_iter.next().unwrap().data() {
+                        TokenData::INT(i) => *i,
+                        _ => unreachable!(),
+                    };
 
                     // Test if the range makes sense...
                     if min_args >= max_args {
@@ -108,12 +137,21 @@ impl Macro {
                         let mut argument_contents = Vec::new();
 
                         // We need to have all of the macro argument default values, if one is missing, there is a problem.
-                        if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() == TokenType::NEWLINE {
-                            return Err(format!("Macro {} definition missing required default value. Line {}", id, start_line).into());
+                        if token_iter.peek().is_none()
+                            || token_iter.peek().unwrap().tt() == TokenType::NEWLINE
+                        {
+                            return Err(format!(
+                                "Macro {} definition missing required default value. Line {}",
+                                id, start_line
+                            )
+                            .into());
                         }
 
                         // Go until we run out or hit a comma or newline
-                        while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() != TokenType::COMMA && token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
+                        while token_iter.peek().is_some()
+                            && token_iter.peek().unwrap().tt() != TokenType::COMMA
+                            && token_iter.peek().unwrap().tt() != TokenType::NEWLINE
+                        {
                             let token = token_iter.next().unwrap();
 
                             argument_contents.push(token.clone());
@@ -126,20 +164,28 @@ impl Macro {
 
                         // Now that we have the argument contents, add it to the list
                         args.push(MacroArg::new(false, argument_contents));
-
                     }
 
                     // There MUST be a newline here
-                    if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                        return Err(format!("Expected newline after macro arguments in definition {}. Line {}", id, start_line).into());
+                    if token_iter.peek().is_none()
+                        || token_iter.peek().unwrap().tt() != TokenType::NEWLINE
+                    {
+                        return Err(format!(
+                            "Expected newline after macro arguments in definition {}. Line {}",
+                            id, start_line
+                        )
+                        .into());
                     }
-
                 }
                 // If it isn't either, that is an error
                 else {
-                    return Err(format!("Expected newline or argument range. Found {}. Line {}", token_iter.peek().unwrap().as_str(), start_line).into());
+                    return Err(format!(
+                        "Expected newline or argument range. Found {}. Line {}",
+                        token_iter.peek().unwrap().as_str(),
+                        start_line
+                    )
+                    .into());
                 }
-
             }
             // If there are no arguments, we just move on, but consume the newline
             token_iter.next();
@@ -148,7 +194,10 @@ impl Macro {
             while token_iter.peek().is_some() {
                 // If the next token on the line is a directive, then test if it is the .endmacro directive
                 if token_iter.peek().unwrap().tt() == TokenType::DIRECTIVE {
-                    let directive = match token_iter.peek().unwrap().data() { TokenData::STRING(s) => s, _ => unreachable!()};
+                    let directive = match token_iter.peek().unwrap().data() {
+                        TokenData::STRING(s) => s,
+                        _ => unreachable!(),
+                    };
 
                     if *directive == "endmacro" {
                         // Consume the directive
@@ -171,21 +220,34 @@ impl Macro {
                     token_iter.next();
 
                     // Now we MUST have an integer follow this
-                    if token_iter.peek().is_none() || token_iter.peek().unwrap().tt() != TokenType::INT {
-                        return Err(format!("Expected int value after & in macro definition").into());
+                    if token_iter.peek().is_none()
+                        || token_iter.peek().unwrap().tt() != TokenType::INT
+                    {
+                        return Err(
+                            format!("Expected int value after & in macro definition").into()
+                        );
                     }
 
                     // Get the number of the argument
-                    argument_number = match token_iter.next().unwrap().data() { TokenData::INT(i) => *i, _ => unreachable!() };
+                    argument_number = match token_iter.next().unwrap().data() {
+                        TokenData::INT(i) => *i,
+                        _ => unreachable!(),
+                    };
 
                     // Make sure it isn't out of bounds
                     if argument_number > max_args {
-                        return Err(format!("Argument number {} is out of bounds for macro definition", argument_number).into());
+                        return Err(format!(
+                            "Argument number {} is out of bounds for macro definition",
+                            argument_number
+                        )
+                        .into());
                     }
 
                     // Now replace it with a placeholder
-                    contents.push(Token::new(TokenType::PLACEHOLDER, TokenData::INT(argument_number)));
-
+                    contents.push(Token::new(
+                        TokenType::PLACEHOLDER,
+                        TokenData::INT(argument_number),
+                    ));
                 }
                 // If it isn't either, just push the token
                 else {
@@ -229,5 +291,4 @@ impl Macro {
     pub fn num_required_args(&self) -> usize {
         self.num_required_args
     }
-
 }
