@@ -19,7 +19,7 @@ pub use parser::{pass1, pass2, Instruction, OperandType};
 mod output;
 pub use output::tokens_to_text;
 
-use kerbalobjects::{KOFileWriter, StringTable};
+use kerbalobjects::{KOFileWriter, KOSValue, StringTable, Symbol, SymbolInfo, SymbolType};
 
 pub static VERSION: &'static str = "0.9.5";
 
@@ -35,7 +35,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     let mut output_path = config.output_path_value.clone();
 
     // If the output path was not specified
-    if output_path.is_empty() {
+    if output_path == "!" {
         // Create a new string the same as file_path
         output_path = config.file_path.clone();
 
@@ -63,7 +63,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     let mut include_path = config.include_path.clone();
 
     // If no include path has been specified
-    if include_path.is_empty() {
+    if include_path == "!" {
         // Get it from the current working directory
         let cwd = env::current_dir()?;
 
@@ -116,34 +116,41 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         // Run pass 1
         let pass1_tokens = pass1(&processed_tokens, &mut label_manager)?;
 
-        for label in label_manager.as_vec().iter() {
-            println!("Label: {}", label.as_str());
-        }
-
-        println!("-----------------------------");
-
         // Run pass 2
         let mut kofile = pass2(&pass1_tokens, &mut label_manager)?;
 
-        // We will always add a comment
-        let comment_str;
 
-        // Check if there is a comment to add
+        // Check if an empty comment was specified
         if !config.comment.is_empty() {
-            comment_str = config.comment.to_owned();
+            // If it isn't, then check if any comment was specified
+            let comment_str = if config.comment != "!" {
+                config.comment.to_owned()
+            } else {
+                format!("Assembled by KASM v{}", VERSION)
+            };
+    
+            let mut comment_strtab = StringTable::new(".comment");
+            // Add the comment as the first and only string
+            comment_strtab.add(&comment_str);
+            // Add the comment section
+            kofile.add_string_table(comment_strtab);
         }
-        // If there isn't, then write that this file was created using this assembler
-        else {
-            comment_str = format!("Assembled by KASM v{}", VERSION);
+
+        // Check if a non-empty file name has been specified
+        if !config.file.is_empty() {
+            // We need to get the file name we will put as the FILE symbol in the object file
+            let file_name = if config.file == "!" {
+                Path::new(&config.file_path).file_name().unwrap().to_str().unwrap()
+            } else {
+                &config.file
+            };
+
+            // Create the symbol
+            let file_sym = Symbol::new(file_name, KOSValue::NULL, 0, SymbolInfo::LOCAL, SymbolType::FILE, 0);
+
+            // Add it
+            kofile.add_symbol(file_sym);
         }
-
-        let mut comment_strtab = StringTable::new(".comment");
-
-        // Add the comment as the first and only string
-        comment_strtab.add(&comment_str);
-
-        // Add the comment section
-        kofile.add_string_table(comment_strtab);
 
         // Create a KO file writer
         let mut writer = KOFileWriter::new(&output_path);
@@ -162,28 +169,18 @@ pub struct CLIConfig {
     pub preprocess_only: bool,
     pub include_path: String,
     pub comment: String,
+    pub file: String,
 }
 
 impl CLIConfig {
     pub fn new(matches: ArgMatches) -> CLIConfig {
         CLIConfig {
             file_path: String::from(matches.value_of("INPUT").unwrap()),
-            output_path_value: if matches.is_present("output_path") {
-                String::from(matches.value_of("output_path").unwrap())
-            } else {
-                String::new()
-            },
+            output_path_value: String::from(matches.value_of("output_path").unwrap_or("!")),
             preprocess_only: matches.is_present("preprocess_only"),
-            include_path: if matches.is_present("include_path") {
-                String::from(matches.value_of("include_path").unwrap())
-            } else {
-                String::new()
-            },
-            comment: if matches.is_present("comment") {
-                String::from(matches.value_of("comment").unwrap())
-            } else {
-                String::new()
-            },
+            include_path: String::from(matches.value_of("include_path").unwrap_or("!")),
+            comment: String::from(matches.value_of("comment").unwrap_or("!")),
+            file: String::from(matches.value_of("file").unwrap_or("!")),
         }
     }
 }

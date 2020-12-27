@@ -131,7 +131,14 @@ pub fn pass2(
 
                             if label.label_info() == LabelInfo::EXTERN {
                                 // If it is external then we need to make a new symbol for it
-                                let extern_symbol = Symbol::new(label.id(), KOSValue::NULL, 0, SymbolInfo::EXTERN, SymbolType::FUNC, 0);
+                                let extern_symbol = Symbol::new(
+                                    label.id(),
+                                    KOSValue::NULL,
+                                    0,
+                                    SymbolInfo::EXTERN,
+                                    SymbolType::FUNC,
+                                    0,
+                                );
 
                                 // Add it
                                 symbol_index = kofile.add_symbol(extern_symbol);
@@ -157,7 +164,7 @@ pub fn pass2(
 
                             // Store the symbol in the symbol table and get the index
                             symbol_index = kofile.add_symbol(new_symbol);
-                        },
+                        }
                         _ => unreachable!(),
                     }
                 } else {
@@ -258,7 +265,7 @@ fn best_operand_type(
                 // We will also use a string if it is undefined
                 if label_manager.ifdef(value)
                     && (label_manager.get(value).unwrap().label_type() == LabelType::FUNC
-                    || label_manager.get(value).unwrap().label_type() == LabelType::UNDEF)
+                        || label_manager.get(value).unwrap().label_type() == LabelType::UNDEF)
                 {
                     // It will only be defined if it is a function
                     // In that case, we can only use strings
@@ -354,11 +361,11 @@ fn token_to_kosvalue(
                 // If it is, we need to get the label's value
                 let label_value = label_manager.get(str_value.unwrap())?.label_value();
                 let label_str;
-                
+
                 match label_value {
                     LabelValue::STRING(s) => {
                         label_str = s;
-                    },
+                    }
                     LabelValue::NONE => {
                         label_str = str_value.unwrap();
                     }
@@ -437,18 +444,13 @@ fn is_in_new_func(location_counter: u32, label_manager: &mut LabelManager) -> (b
                         LabelValue::STRING(label.id().to_owned()),
                     );
 
-                    println!("Label: {}", new_label.as_str());
-
                     // Redefine the label
                     label_manager.def(label.id(), new_label);
-                } else {
-                    println!("Label: {}", label.as_str());
                 }
 
                 // If it is start, or we are done changing the label then just return true
                 (true, label.id().to_owned())
             } else {
-                println!("Label: {}", label.as_str());
                 (false, String::new())
             }
         }

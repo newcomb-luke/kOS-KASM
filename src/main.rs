@@ -37,9 +37,16 @@ fn main() {
         )
         .arg(
             Arg::with_name("comment")
-                .help("Sets the comment field of the output object file to the value of this. Defaults to not setting it")
+                .help("Sets the comment field of the output object file to the value of this. Defaults to KASM and the current version.")
                 .short("c")
                 .long("comment")
+                .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("file")
+                .help("Adds a file symbol to the generated object file with the given name. Defaults to input file name.")
+                .short("f")
+                .long("file")
                 .takes_value(true)
         )
         .get_matches();

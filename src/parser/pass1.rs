@@ -521,11 +521,13 @@ fn operand_to_expression_result(
     // Parse the expression
     expression = match ExpressionParser::parse_expression(&mut expression_iter) {
         Ok(expression) => expression.unwrap(),
-        Err(e) => return Err(format!(
+        Err(e) => {
+            return Err(format!(
             "Expected expression as argument {} for instruction {}. Expression parsing failed: {}",
             index, mnemonic, e
         )
-        .into()),
+            .into())
+        }
     };
 
     // Then evaluate it
