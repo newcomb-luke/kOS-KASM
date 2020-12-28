@@ -117,7 +117,7 @@ impl Instruction {
             0x4b => vec![],
             0x4c => vec![
                 vec![OperandType::STRING],
-                vec![OperandType::STRING, OperandType::INT16, OperandType::INT32],
+                vec![OperandType::STRING, OperandType::INT16, OperandType::INT32, OperandType::NULL],
             ],
             0x4d => vec![vec![OperandType::INT16]],
             0x4e => vec![vec![
