@@ -21,7 +21,7 @@ pub use output::tokens_to_text;
 
 use kerbalobjects::{KOFileWriter, KOSValue, StringTable, Symbol, SymbolInfo, SymbolType};
 
-pub static VERSION: &'static str = "0.9.8";
+pub static VERSION: &'static str = "0.9.9";
 
 pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     if !config.file_path.ends_with(".kasm") {

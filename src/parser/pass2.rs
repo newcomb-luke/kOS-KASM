@@ -287,7 +287,13 @@ fn best_operand_type(
                 }
             }
         }
-        TokenType::DOUBLE => OperandType::SCALARDOUBLE,
+        TokenType::DOUBLE => {
+            if possible_types.contains(&OperandType::DOUBLE) {
+                OperandType::DOUBLE
+            } else {
+                OperandType::SCALARDOUBLE
+            }
+        },
         TokenType::ATSYMBOL => OperandType::ARGMARKER,
         TokenType::HASH => OperandType::NULL,
         TokenType::INT => {
@@ -392,6 +398,7 @@ fn token_to_kosvalue(
             }
         }
         OperandType::SCALARDOUBLE => KOSValue::SCALARDOUBLE(double_value.unwrap()),
+        OperandType::DOUBLE => KOSValue::DOUBLE(double_value.unwrap()),
         OperandType::ARGMARKER => KOSValue::ARGMARKER,
         OperandType::NULL => KOSValue::NULL,
         OperandType::BYTE => KOSValue::BYTE(int_value.unwrap() as i8),

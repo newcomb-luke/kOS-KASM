@@ -499,7 +499,7 @@ fn read_and_verify_operands(
                 }
             }
 
-            return Err(format!("Operand {} for instruction {} is of the wrong type. Accepted types are:{}. Line {}", index, instr_id, accepted_list_str, instr_line).into());
+            return Err(format!("Operand {} for instruction {} is of the wrong type. Accepted types are:{}. Line {}", index+1, instr_id, accepted_list_str, instr_line).into());
         }
 
         // If it was accepted we just move on to the next iteration
@@ -570,11 +570,12 @@ fn is_expression_acceptable(
                 OperandType::BOOLEANVALUE => false,
                 OperandType::STRING => false,
                 OperandType::STRINGVALUE => false,
+                OperandType::DOUBLE => false,
             }
         }
         // If the result is a double
         else if operand_result.valtype() == ValueType::DOUBLE {
-            if *operand_possibility == OperandType::SCALARDOUBLE {
+            if *operand_possibility == OperandType::SCALARDOUBLE || *operand_possibility == OperandType::DOUBLE {
                 operand_accepted = true;
             }
         }
