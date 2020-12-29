@@ -85,7 +85,7 @@ pub fn pass2(
                 _ => unreachable!(),
             };
 
-            let opcode = Instruction::opcode_from_mnemonic(mnemonic);
+            let mut opcode = Instruction::opcode_from_mnemonic(mnemonic);
             let possible_types_list = Instruction::operands_from_opcode(opcode);
 
             let mut operand_tokens = Vec::new();
@@ -185,6 +185,12 @@ pub fn pass2(
 
                 // Add the symbol index to the list
                 operand_symbols.push(symbol_index as u32);
+            }
+
+            // Because of our instruction fakery in instructions.rs, we need to check if this is a "pushv" instruction
+            if opcode == 0xfa {
+                // All we need to do is change the opcode to 0x4e, or the regular push instruction
+                opcode = 0x4e;
             }
 
             // Finally we need to create an instruction from this, and push it to the current list

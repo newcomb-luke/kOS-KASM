@@ -81,6 +81,11 @@ impl Instruction {
             "pdrl" => 0xcd,
             "lbrt" => 0xf0,
 
+            // This had to be added to be able to do anything in kOS that you can do with normal kerbalscript
+            // It is a "fake" instruction that will push the "value" type of any compatible type
+            // Opcode fa for fake :)
+            "pushv" => 0xfa,
+
             _ => 0x00,
         }
     }
@@ -125,10 +130,8 @@ impl Instruction {
                 OperandType::BOOL,
                 OperandType::BYTE,
                 OperandType::INT16,
-                OperandType::SCALARINT,
-                OperandType::SCALARDOUBLE,
+                OperandType::INT32,
                 OperandType::STRING,
-                OperandType::STRINGVALUE,
                 OperandType::ARGMARKER,
             ]],
             0x4f => vec![],
@@ -159,6 +162,9 @@ impl Instruction {
             0xce => vec![vec![OperandType::STRING]],
             0xcd => vec![vec![OperandType::STRING], vec![OperandType::BOOL]],
             0xf0 => vec![vec![OperandType::STRING]],
+
+            // Fake instruction
+            0xfa => vec![vec![OperandType::STRINGVALUE, OperandType::BOOLEANVALUE, OperandType::SCALARINT, OperandType::SCALARDOUBLE,]],
             _ => vec![],
         }
     }
