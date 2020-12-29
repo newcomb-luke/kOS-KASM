@@ -122,7 +122,7 @@ impl Instruction {
             0x4d => vec![vec![OperandType::INT16]],
             0x4e => vec![vec![
                 OperandType::NULL,
-                OperandType::BOOLEANVALUE,
+                OperandType::BOOL,
                 OperandType::BYTE,
                 OperandType::INT16,
                 OperandType::SCALARINT,
