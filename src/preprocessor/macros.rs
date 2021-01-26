@@ -72,8 +72,9 @@ impl Macro {
                 return Err(PreprocessError::MacroParseError(
                     id.to_owned(),
                     start_line,
-                    MacroError::IncompleteMacroDefinition.into()
-                ).into());
+                    MacroError::IncompleteMacroDefinition.into(),
+                )
+                .into());
             }
             // If there are arguments to this macro
             else if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
@@ -84,8 +85,10 @@ impl Macro {
                     return Err(PreprocessError::MacroParseError(
                         id.to_owned(),
                         start_line,
-                        MacroError::InvalidNumberOfArguments(token_iter.peek().unwrap().as_str()).into()
-                    ).into());
+                        MacroError::InvalidNumberOfArguments(token_iter.peek().unwrap().as_str())
+                            .into(),
+                    )
+                    .into());
                 }
                 min_args = match token_iter.next().unwrap().data() {
                     TokenData::INT(i) => *i,
@@ -112,8 +115,10 @@ impl Macro {
                         return Err(PreprocessError::MacroParseError(
                             id.to_owned(),
                             start_line,
-                            MacroError::ExpectedArgumentRange(token_iter.peek().unwrap().as_str()).into(),
-                        ).into());
+                            MacroError::ExpectedArgumentRange(token_iter.peek().unwrap().as_str())
+                                .into(),
+                        )
+                        .into());
                     }
                     max_args = match token_iter.next().unwrap().data() {
                         TokenData::INT(i) => *i,
@@ -125,8 +130,9 @@ impl Macro {
                         return Err(PreprocessError::MacroParseError(
                             id.to_owned(),
                             start_line,
-                            MacroError::InvalidArgumentRange((min_args, max_args)).into()
-                        ).into());
+                            MacroError::InvalidArgumentRange((min_args, max_args)).into(),
+                        )
+                        .into());
                     }
 
                     num_required_default_values = max_args - min_args;
@@ -146,14 +152,15 @@ impl Macro {
                         {
                             let token_str = match token_iter.peek() {
                                 Some(t) => t.as_str(),
-                                None => String::new()
+                                None => String::new(),
                             };
 
                             return Err(PreprocessError::MacroParseError(
                                 id.to_owned(),
                                 start_line,
-                                MacroError::MissingDefaultArgumentValue.into()
-                            ).into());
+                                MacroError::MissingDefaultArgumentValue.into(),
+                            )
+                            .into());
                         }
 
                         // Go until we run out or hit a comma or newline
@@ -181,25 +188,27 @@ impl Macro {
                     {
                         let token_str = match token_iter.peek() {
                             Some(t) => t.as_str(),
-                            None => String::new()
+                            None => String::new(),
                         };
 
                         return Err(PreprocessError::MacroParseError(
                             id.to_owned(),
                             start_line,
-                            MacroError::TokenAfterMacroArguments(token_str).into()
-                        ).into());
+                            MacroError::TokenAfterMacroArguments(token_str).into(),
+                        )
+                        .into());
                     }
                 }
                 // If it isn't either, that is an error
                 else {
                     let invalid_token = token_iter.peek().unwrap();
-                    
+
                     return Err(PreprocessError::MacroParseError(
                         id.to_owned(),
                         start_line,
-                        MacroError::InvalidTokenInDeclaration(invalid_token.as_str()).into()
-                    ).into());
+                        MacroError::InvalidTokenInDeclaration(invalid_token.as_str()).into(),
+                    )
+                    .into());
                 }
             }
             // If there are no arguments, we just move on, but consume the newline
@@ -243,7 +252,7 @@ impl Macro {
                             Some(t) => {
                                 line = t.line();
                                 t.as_str()
-                            },
+                            }
                             None => {
                                 line = start_line;
                                 String::new()
@@ -253,8 +262,9 @@ impl Macro {
                         return Err(PreprocessError::MacroParseError(
                             id.to_owned(),
                             line,
-                            MacroError::InvalidArgumentReference(token_str).into()
-                        ).into());
+                            MacroError::InvalidArgumentReference(token_str).into(),
+                        )
+                        .into());
                     } else {
                         line = token_iter.peek().unwrap().line();
                     }
@@ -270,8 +280,9 @@ impl Macro {
                         return Err(PreprocessError::MacroParseError(
                             id.to_owned(),
                             line,
-                            MacroError::ArgumentReferenceOutOfBounds(argument_number).into()
-                        ).into());
+                            MacroError::ArgumentReferenceOutOfBounds(argument_number).into(),
+                        )
+                        .into());
                     }
 
                     // Now replace it with a placeholder
@@ -291,8 +302,9 @@ impl Macro {
                 Err(PreprocessError::MacroParseError(
                     id.to_owned(),
                     start_line,
-                    MacroError::EndedWithoutClosing.into()
-                ).into())
+                    MacroError::EndedWithoutClosing.into(),
+                )
+                .into())
             } else {
                 Ok(Macro::new(id, contents, args, min_args as usize))
             }
@@ -302,8 +314,9 @@ impl Macro {
             Err(PreprocessError::MacroParseError(
                 String::new(),
                 start_line,
-                MacroError::MissingIdentifier.into()
-            ).into())
+                MacroError::MissingIdentifier.into(),
+            )
+            .into())
         }
     }
 

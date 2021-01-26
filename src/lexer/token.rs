@@ -33,10 +33,9 @@ pub enum TokenType {
     LINECONTINUE,
     PLACEHOLDER,
     COMMENT,
-    DOLLAR,
     HASH,
     ATSYMBOL,
-    BOOL
+    BOOL,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -92,20 +91,23 @@ impl Token {
     }
 
     pub fn as_str(&self) -> String {
-
         let data_str = match &self.data {
             TokenData::DOUBLE(d) => {
                 format!("{}", d)
-            },
+            }
             TokenData::INT(i) => {
                 format!("{}", i)
-            },
+            }
             TokenData::STRING(v) => {
                 format!("\"{}\"", v)
-            },
+            }
             TokenData::BOOL(v) => {
-                if *v { String::from("true") } else { String::from("false") }
-            },
+                if *v {
+                    String::from("true")
+                } else {
+                    String::from("false")
+                }
+            }
             TokenData::NONE => {
                 return format!("{:?}", self.tt);
             }

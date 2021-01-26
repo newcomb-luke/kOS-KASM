@@ -2,7 +2,7 @@ use std::{iter::Peekable, slice::Iter};
 
 use crate::{Token, TokenData, TokenType};
 
-use super::errors::{ExpressionResult, ExpressionError};
+use super::errors::{ExpressionError, ExpressionResult};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Value {
@@ -31,7 +31,13 @@ impl Value {
         match self {
             Value::Int(i) => *i as f64,
             Value::Double(d) => *d,
-            Value::Bool(b) => if *b { 1.0 } else { 0.0 },
+            Value::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
         }
     }
 
@@ -39,7 +45,13 @@ impl Value {
         match self {
             Value::Int(i) => *i,
             Value::Double(d) => *d as i32,
-            Value::Bool(b) => if *b { 1 } else { 0 },
+            Value::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
         }
     }
 
@@ -212,15 +224,11 @@ pub enum ExpNode {
 pub struct ExpressionParser {}
 
 impl ExpressionParser {
-    pub fn parse_expression(
-        token_iter: &mut Peekable<Iter<Token>>,
-    ) -> ExpressionResult<ExpNode> {
+    pub fn parse_expression(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
         ExpressionParser::parse_logical_or(token_iter)
     }
 
-    pub fn parse_logical_or(
-        token_iter: &mut Peekable<Iter<Token>>,
-    ) -> ExpressionResult<ExpNode> {
+    pub fn parse_logical_or(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
         let mut lhs = ExpressionParser::parse_logical_and(token_iter)?;
 
         while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::OR {
@@ -234,9 +242,7 @@ impl ExpressionParser {
         Ok(lhs)
     }
 
-    pub fn parse_logical_and(
-        token_iter: &mut Peekable<Iter<Token>>,
-    ) ->ExpressionResult<ExpNode> {
+    pub fn parse_logical_and(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
         let mut lhs = ExpressionParser::parse_equality_exp(token_iter)?;
 
         while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::AND {
@@ -250,9 +256,7 @@ impl ExpressionParser {
         Ok(lhs)
     }
 
-    pub fn parse_equality_exp(
-        token_iter: &mut Peekable<Iter<Token>>,
-    ) -> ExpressionResult<ExpNode> {
+    pub fn parse_equality_exp(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
         let mut lhs = ExpressionParser::parse_relational_exp(token_iter)?;
 
         while token_iter.peek().is_some()
@@ -306,9 +310,7 @@ impl ExpressionParser {
         Ok(lhs)
     }
 
-    pub fn parse_additive_exp(
-        token_iter: &mut Peekable<Iter<Token>>,
-    ) -> ExpressionResult<ExpNode> {
+    pub fn parse_additive_exp(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
         let mut lhs = ExpressionParser::parse_term(token_iter)?;
 
         while token_iter.peek().is_some()
@@ -358,7 +360,10 @@ impl ExpressionParser {
 
     pub fn parse_factor(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
         if token_iter.peek().is_none() {
-            return Err(ExpressionError::IncompleteExpression(String::from("Expression incomplete, expected more tokens")).into());
+            return Err(ExpressionError::IncompleteExpression(String::from(
+                "Expression incomplete, expected more tokens",
+            ))
+            .into());
         }
 
         let next_token = token_iter.peek().unwrap();
@@ -378,7 +383,10 @@ impl ExpressionParser {
 
                     return Ok(exp);
                 } else {
-                    return Err(ExpressionError::IncompleteExpression(String::from("Expected closing ) on expression with (")).into());
+                    return Err(ExpressionError::IncompleteExpression(String::from(
+                        "Expected closing ) on expression with (",
+                    ))
+                    .into());
                 }
             }
             TokenType::NEGATE | TokenType::COMP | TokenType::MINUS => {
@@ -429,7 +437,9 @@ impl ExpressionParser {
                 }
             }
             t => {
-                return Err(ExpressionError::InvalidToken(next_token.as_str().to_owned()));
+                return Err(ExpressionError::InvalidToken(
+                    next_token.as_str().to_owned(),
+                ));
             }
         }
     }

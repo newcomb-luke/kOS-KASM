@@ -73,7 +73,6 @@ pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
                 TokenData::BOOL(b) => format!("{}", if *b { "true" } else { "false" }),
                 _ => unreachable!(),
             },
-            TokenType::DOLLAR => String::from("$"),
             TokenType::HASH => String::from("#"),
             TokenType::ATSYMBOL => String::from("@"),
         };

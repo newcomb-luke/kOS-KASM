@@ -30,7 +30,7 @@ pub enum PreprocessError {
     UnableToReadFile(String, Box<dyn Error>),
     IncludedLexError(String),
     InvalidDirective(String),
-    LabelDoesNotExist(String)
+    LabelDoesNotExist(String),
 }
 
 #[derive(Debug)]
@@ -44,7 +44,7 @@ pub enum DefinitionError {
     EmptyDefinition(String),
     EndedWithoutAllArgs,
     InvalidNumberOfArgumentsProvided(usize, usize),
-    RecursiveExpansion
+    RecursiveExpansion,
 }
 
 #[derive(Debug)]
@@ -64,7 +64,7 @@ pub enum MacroError {
     // Expansion
     MacroNotFound(String),
     InvalidNumberOfArgumentsProvided(usize, usize, usize),
-    InnerDefinitionExpansionError(String, usize, DefinitionError)
+    InnerDefinitionExpansionError(String, usize, DefinitionError),
 }
 
 #[derive(Debug)]
@@ -72,7 +72,7 @@ pub enum ExpressionError {
     OperatorOnlyValid(String, String),
     OperatorNotValid(String, String),
     IncompleteExpression(String),
-    InvalidToken(String)
+    InvalidToken(String),
 }
 
 impl Error for PreprocessError {}
@@ -86,188 +86,140 @@ impl Display for PreprocessError {
             PreprocessError::DefinitionParseError(id, e) => {
                 // If the id is empty, then we don't print it
                 if id.is_empty() {
-                    write!(
-                        f,
-                        "Error parsing definition: {}",
-                        e
-                    )
+                    write!(f, "Error parsing definition: {}", e)
                 } else {
-                    write!(
-                        f,
-                        "Error parsing definition {}: {}",
-                        id, e
-                    )
+                    write!(f, "Error parsing definition {}: {}", id, e)
                 }
-            },
+            }
             PreprocessError::MacroParseError(id, line, e) => {
                 // If the id is empty, then we don't print it
                 if id.is_empty() {
-                    write!(
-                        f,
-                        "Error parsing macro: {}",
-                        e
-                    )
+                    write!(f, "Error parsing macro: {}", e)
                 } else {
-                    write!(
-                        f,
-                        "Error parsing macro {}: {}. Line {}",
-                        id, e, line
-                    )
+                    write!(f, "Error parsing macro {}: {}. Line {}", id, e, line)
                 }
-            },
+            }
             PreprocessError::DefinitionNameCollision(s, line) => {
                 write!(
                     f,
                     "Cannot create definition {} with same name as macro. Line {}",
                     s, line
                 )
-            },
+            }
             PreprocessError::MacroNameCollision(s, line) => {
                 write!(
                     f,
                     "Cannot create macro {} with same name as definition. Line {}",
                     s, line
                 )
-            },
+            }
             PreprocessError::InvalidDirectiveTokenType(token, directive, line) => {
                 write!(
                     f,
                     "Invalid token {} for parameter to {} directive. Line {}",
                     token, directive, line
                 )
-            },
+            }
             PreprocessError::ExpectedAfterDirective(expected, directive, line) => {
                 write!(
                     f,
                     "Expected {} after {} directive. Line {}",
                     expected, directive, line
                 )
-            },
+            }
             PreprocessError::EndedWithoutClosing(directive, close_directive, line) => {
                 write!(
                     f,
                     "{} directive ended unexpectedly without closing {}. Line {}",
                     directive, close_directive, line
                 )
-            },
+            }
             PreprocessError::ExtraTokensAfterDirective(directive, line) => {
                 write!(
                     f,
                     "Found extra tokens after {} directive. Line {}",
                     directive, line
                 )
-            },
+            }
             PreprocessError::DuplicateLabel(label, line) => {
-                write!(
-                    f,
-                    "Duplicate label {} defined. Line {}",
-                    label, line
-                )
-            },
+                write!(f, "Duplicate label {} defined. Line {}", label, line)
+            }
             PreprocessError::DirectiveCurrentlyUnsupported(directive, line) => {
                 write!(
                     f,
                     "{} directive is not currently supported in this version of KASM. Line {}",
                     directive, line
                 )
-            },
+            }
             PreprocessError::CannotUndefine(id, line) => {
                 write!(
                     f,
                     "Definition {} does not exist, and cannot be undefined. Line {}",
                     id, line
                 )
-            },
+            }
             PreprocessError::CannotUnmacro(id, line) => {
                 write!(
                     f,
                     "Macro {} does not exist, and cannot be undefined. Line {}",
                     id, line
                 )
-            },
+            }
             PreprocessError::InvalidStartOfIf(line) => {
                 write!(
                     f,
                     "Found if directive on same scope as another if directive. Consider changing to elif or checking nested if's. Line {}",
                     line
                 )
-            },
+            }
             PreprocessError::ExpressionParseError(e, line) => {
-                write!(
-                    f,
-                    "Error while parsing expression: {}. Line {}",
-                    e, line
-                )
-            },
+                write!(f, "Error while parsing expression: {}. Line {}", e, line)
+            }
             PreprocessError::ExpressionEvaluationError(e, line) => {
-                write!(
-                    f,
-                    "Error while evaluating expression: {}. Line {}",
-                    e, line
-                )
-            },
+                write!(f, "Error while evaluating expression: {}. Line {}", e, line)
+            }
             PreprocessError::InvalidExpressionResultType(value_for, expected, line) => {
                 write!(
                     f,
                     "Expression for {} must evaluate to a {}. Line {}",
                     value_for, expected, line
                 )
-            },
+            }
             PreprocessError::MacroExpansionError(id, line, e) => {
                 write!(
                     f,
                     "Error while expanding macro {}: {}. Line {}",
                     id, e, line
                 )
-            },
+            }
             PreprocessError::DefinitionExpansionError(id, line, e) => {
                 write!(
                     f,
                     "Error while expanding definition {}: {}. Line {}",
                     id, e, line
                 )
-            },
+            }
             PreprocessError::InvalidIncludeFile(path) => {
-                write!(
-                    f,
-                    "Could not include {}, file does not exist.",
-                    path
-                )
-            },
+                write!(f, "Could not include {}, file does not exist.", path)
+            }
             PreprocessError::DirectoryIncludeError(path) => {
                 write!(
                     f,
                     "Could not include {}, directories cannot be included",
                     path
                 )
-            },
+            }
             PreprocessError::UnableToReadFile(path, e) => {
-                write!(
-                    f,
-                    "Unable to read file {}: {}",
-                    path, e
-                )
-            },
+                write!(f, "Unable to read file {}: {}", path, e)
+            }
             PreprocessError::IncludedLexError(path) => {
-                write!(
-                    f,
-                    "Error lexing included file {}",
-                    path
-                )
-            },
+                write!(f, "Error lexing included file {}", path)
+            }
             PreprocessError::InvalidDirective(s) => {
-                write!(
-                    f,
-                    "Invalid directive found: {}",
-                    s
-                )
-            },
+                write!(f, "Invalid directive found: {}", s)
+            }
             PreprocessError::LabelDoesNotExist(s) => {
-                write!(
-                    f,
-                    "Tried to get label {}, but no such label exists",
-                    s
-                )
+                write!(f, "Tried to get label {}, but no such label exists", s)
             }
         }
     }
@@ -275,71 +227,47 @@ impl Display for PreprocessError {
 
 impl Display for DefinitionError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-       match self {
+        match self {
             DefinitionError::UnexpectedEOF => {
-                 write!(
-                     f,
-                     "Unexpected EOF while parsing definition"
-                 )
-            },
+                write!(f, "Unexpected EOF while parsing definition")
+            }
             DefinitionError::ExpectedArgument(found) => {
-                write!(
-                    f,
-                    "Expected argument, found {}",
-                    found
-                )
-            },
+                write!(f, "Expected argument, found {}", found)
+            }
             DefinitionError::ExpectedClosingParen => {
-                write!(
-                    f,
-                    "Expected closing parenthesis, EOF encountered"
-                )
-            },
+                write!(f, "Expected closing parenthesis, EOF encountered")
+            }
             DefinitionError::ExpectedArgumentsEnd(found) => {
                 write!(
                     f,
                     "Expected comma or closing parenthesis, found {} instead",
                     found
                 )
-            },
+            }
             DefinitionError::MissingIdentifier => {
-                write!(
-                    f,
-                    "Declaration missing identifier"
-                )
-            },
+                write!(f, "Declaration missing identifier")
+            }
             DefinitionError::DefinitionNotFound(id) => {
-                write!(
-                    f,
-                    "Definition {} referenced before creation",
-                    id
-                )
-            },
+                write!(f, "Definition {} referenced before creation", id)
+            }
             DefinitionError::EmptyDefinition(id) => {
-                write!(
-                    f,
-                    "Definition {} is empty, and cannot be expanded",
-                    id
-                )
-            },
+                write!(f, "Definition {} is empty, and cannot be expanded", id)
+            }
             DefinitionError::EndedWithoutAllArgs => {
                 write!(
                     f,
                     "Error reading arguments, expected closing parenthesis. Found end of file."
                 )
-            },
+            }
             DefinitionError::InvalidNumberOfArgumentsProvided(provided, expected) => {
                 write!(
                     f,
                     "Invalid number of arguments, invocation has {}, expected {}",
                     provided, expected
                 )
-            },
+            }
             DefinitionError::RecursiveExpansion => {
-                write!(
-                    f,
-                    "Cannot have recursive definition expansion"
-                )
+                write!(f, "Cannot have recursive definition expansion")
             }
         }
     }
@@ -349,44 +277,27 @@ impl Display for MacroError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             MacroError::IncompleteMacroDefinition => {
-                write!(
-                    f,
-                    "Incomplete macro definition, expected macro body"
-                )
-            },
+                write!(f, "Incomplete macro definition, expected macro body")
+            }
             MacroError::InvalidNumberOfArguments(t) => {
-                write!(
-                    f,
-                    "Expected number of macro arguments, found {}",
-                    t
-                )
-            },
+                write!(f, "Expected number of macro arguments, found {}", t)
+            }
             MacroError::ExpectedArgumentRange(t) => {
-                write!(
-                    f,
-                    "Expected macro argument range, found {}",
-                    t
-                )
-            },
+                write!(f, "Expected macro argument range, found {}", t)
+            }
             MacroError::InvalidArgumentRange((start, end)) => {
                 write!(
                     f,
                     "Invalid macro argument range. Range {}-{} makes no sense",
                     start, end
                 )
-            },
+            }
             MacroError::MissingDefaultArgumentValue => {
-                write!(
-                    f,
-                    "Missing required default argument value"
-                )
-            },
+                write!(f, "Missing required default argument value")
+            }
             MacroError::TokenAfterMacroArguments(t) => {
                 if t.is_empty() {
-                    write!(
-                        f,
-                        "Expected newline after macro arguments, found EOF",
-                    )
+                    write!(f, "Expected newline after macro arguments, found EOF",)
                 } else {
                     write!(
                         f,
@@ -394,14 +305,10 @@ impl Display for MacroError {
                         t
                     )
                 }
-            },
+            }
             MacroError::InvalidTokenInDeclaration(t) => {
-                write!(
-                    f,
-                    "Expected newline or argument range. Found {}",
-                    t
-                )
-            },
+                write!(f, "Expected newline or argument range. Found {}", t)
+            }
             MacroError::InvalidArgumentReference(t) => {
                 if t.is_empty() {
                     write!(
@@ -415,40 +322,33 @@ impl Display for MacroError {
                         t
                     )
                 }
-            },
+            }
             MacroError::ArgumentReferenceOutOfBounds(v) => {
                 write!(
                     f,
                     "Argument number {} is out of bounds for macro definition",
                     v
                 )
-            },
+            }
             MacroError::EndedWithoutClosing => {
                 write!(
                     f,
                     "Macro definition requires closing .endmacro directive. Reached EOF"
                 )
-            },
+            }
             MacroError::MissingIdentifier => {
-                write!(
-                    f,
-                    "Macro missing identifier"
-                )
-            },
+                write!(f, "Macro missing identifier")
+            }
             MacroError::MacroNotFound(id) => {
-                write!(
-                    f,
-                    "Macro {} referenced before creation",
-                    id
-                )
-            },
+                write!(f, "Macro {} referenced before creation", id)
+            }
             MacroError::InvalidNumberOfArgumentsProvided(provided, required, line) => {
                 write!(
                     f,
                     "Invalid number of arguments for macro expansion. Invocation has {}, at least {} required. Line {}",
                     provided, required, line
                 )
-            },
+            }
             MacroError::InnerDefinitionExpansionError(id, line, e) => {
                 write!(
                     f,
@@ -467,31 +367,17 @@ impl Display for ExpressionError {
                 write!(
                     f,
                     "{} operator only valid on the type {}",
-                    operator,
-                    correct
+                    operator, correct
                 )
-            },
+            }
             ExpressionError::OperatorNotValid(operator, wrong) => {
-                write!(
-                    f,
-                    "{} operator not valid on the type {}",
-                    operator,
-                    wrong
-                )
-            },
+                write!(f, "{} operator not valid on the type {}", operator, wrong)
+            }
             ExpressionError::IncompleteExpression(s) => {
-                write!(
-                    f,
-                    "{}",
-                    s
-                )
-            },
+                write!(f, "{}", s)
+            }
             ExpressionError::InvalidToken(t) => {
-                write!(
-                    f,
-                    "Invalid token in expression: {:?}",
-                    t
-                )
+                write!(f, "Invalid token in expression: {:?}", t)
             }
         }
     }

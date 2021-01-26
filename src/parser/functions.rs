@@ -1,24 +1,22 @@
 use std::{iter::Peekable, slice::Iter};
 
-use crate::{Token, TokenType};
 use super::errors::{ParseError, ParseResult};
+use crate::{Token, TokenType};
 
 pub struct Function {
     name: String,
-    tokens: Vec<Token>
+    tokens: Vec<Token>,
 }
 
 impl Function {
-
     pub fn new(name: &str, tokens: Vec<Token>) -> Function {
         Function {
             name: name.to_owned(),
-            tokens
+            tokens,
         }
     }
 
     pub fn parse(token_iter: &mut Peekable<Iter<Token>>) -> ParseResult<Function> {
-        
         // let func_name;
 
         while token_iter.peek().is_some() {
@@ -27,10 +25,8 @@ impl Function {
                 // Just consume it
                 token_iter.next();
             }
-            
         }
 
         Err(ParseError::Test)
     }
-
 }

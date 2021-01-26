@@ -18,7 +18,10 @@ impl ExpressionEvaluator {
 
                     match c {
                         Value::Int(i) => Ok(Value::Int(!i)),
-                        _ => Err(ExpressionError::OperatorOnlyValid(String::from("~"), String::from("integer")))
+                        _ => Err(ExpressionError::OperatorOnlyValid(
+                            String::from("~"),
+                            String::from("integer"),
+                        )),
                     }
                 }
                 UnOp::NEGATE => {
@@ -27,7 +30,10 @@ impl ExpressionEvaluator {
                     match c {
                         Value::Int(i) => Ok(Value::Int(-i)),
                         Value::Double(d) => Ok(Value::Double(-d)),
-                        _ => Err(ExpressionError::OperatorNotValid(String::from("-"), String::from("bool")))
+                        _ => Err(ExpressionError::OperatorNotValid(
+                            String::from("-"),
+                            String::from("bool"),
+                        )),
                     }
                 }
                 UnOp::NOT => {
@@ -57,37 +63,27 @@ impl ExpressionEvaluator {
                 match op {
                     BinOp::ADD => match math_return {
                         ValueType::INT => Ok(Value::Int(lval.to_int() + rval.to_int())),
-                        ValueType::DOUBLE => {
-                            Ok(Value::Double(lval.to_double() + rval.to_double()))
-                        }
+                        ValueType::DOUBLE => Ok(Value::Double(lval.to_double() + rval.to_double())),
                         _ => unreachable!(),
                     },
                     BinOp::SUB => match math_return {
                         ValueType::INT => Ok(Value::Int(lval.to_int() - rval.to_int())),
-                        ValueType::DOUBLE => {
-                            Ok(Value::Double(lval.to_double() - rval.to_double()))
-                        }
+                        ValueType::DOUBLE => Ok(Value::Double(lval.to_double() - rval.to_double())),
                         _ => unreachable!(),
                     },
                     BinOp::MULT => match math_return {
                         ValueType::INT => Ok(Value::Int(lval.to_int() * rval.to_int())),
-                        ValueType::DOUBLE => {
-                            Ok(Value::Double(lval.to_double() * rval.to_double()))
-                        }
+                        ValueType::DOUBLE => Ok(Value::Double(lval.to_double() * rval.to_double())),
                         _ => unreachable!(),
                     },
                     BinOp::DIV => match math_return {
                         ValueType::INT => Ok(Value::Int(lval.to_int() / rval.to_int())),
-                        ValueType::DOUBLE => {
-                            Ok(Value::Double(lval.to_double() / rval.to_double()))
-                        }
+                        ValueType::DOUBLE => Ok(Value::Double(lval.to_double() / rval.to_double())),
                         _ => unreachable!(),
                     },
                     BinOp::MOD => match math_return {
                         ValueType::INT => Ok(Value::Int(lval.to_int() % rval.to_int())),
-                        ValueType::DOUBLE => {
-                            Ok(Value::Double(lval.to_double() % rval.to_double()))
-                        }
+                        ValueType::DOUBLE => Ok(Value::Double(lval.to_double() % rval.to_double())),
                         _ => unreachable!(),
                     },
                     BinOp::AND => Ok(Value::Bool(lval.to_bool() && rval.to_bool())),

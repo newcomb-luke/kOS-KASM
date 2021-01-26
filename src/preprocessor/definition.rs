@@ -52,7 +52,7 @@ impl Definition {
                         if token_iter.peek().is_none() {
                             return Err(PreprocessError::DefinitionParseError(
                                 id.to_owned(),
-                                DefinitionError::UnexpectedEOF.into()
+                                DefinitionError::UnexpectedEOF.into(),
                             ));
                         }
                         // If it is not an identifier throw an error
@@ -60,8 +60,9 @@ impl Definition {
                             return Err(PreprocessError::DefinitionParseError(
                                 id.to_owned(),
                                 DefinitionError::ExpectedArgument(
-                                    token_iter.peek().unwrap().as_str()
-                                ).into()
+                                    token_iter.peek().unwrap().as_str(),
+                                )
+                                .into(),
                             ));
                         }
                         // If everything is fine
@@ -80,7 +81,7 @@ impl Definition {
                             // That is an error.
                             return Err(PreprocessError::DefinitionParseError(
                                 id.to_owned(),
-                                DefinitionError::ExpectedClosingParen.into()
+                                DefinitionError::ExpectedClosingParen.into(),
                             ));
                         }
                         // Or if there is a closing parenthesis
@@ -100,8 +101,8 @@ impl Definition {
                             return Err(PreprocessError::DefinitionParseError(
                                 id.to_owned(),
                                 Box::new(DefinitionError::ExpectedArgumentsEnd(
-                                    token_iter.peek().unwrap().as_str()
-                                ))
+                                    token_iter.peek().unwrap().as_str(),
+                                )),
                             ));
                         }
                     }
@@ -164,7 +165,7 @@ impl Definition {
         else {
             Err(PreprocessError::DefinitionParseError(
                 String::new(),
-                Box::new(DefinitionError::MissingIdentifier)
+                Box::new(DefinitionError::MissingIdentifier),
             ))
         }
     }

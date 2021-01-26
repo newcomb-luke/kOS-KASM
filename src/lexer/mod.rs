@@ -23,12 +23,7 @@ impl Lexer {
     }
 
     /// Lexes the given source and returns a vector of token structs
-    pub fn lex(
-        &mut self,
-        input: &str,
-        file_name: &str,
-        file_id: usize,
-    ) -> LexResult<Vec<Token>> {
+    pub fn lex(&mut self, input: &str, file_name: &str, file_id: usize) -> LexResult<Vec<Token>> {
         // The vector that will contain all of the tokens
         let mut tokens: Vec<Token> = Vec::new();
 
@@ -46,7 +41,12 @@ impl Lexer {
             let (mut token, length) = match self.lex_token(&mut chars) {
                 Ok(ret) => ret,
                 Err(e) => {
-                    return Err(LexError::ErrorWrapper(file_name.to_owned(), self.line_map.len(), e.into()).into());
+                    return Err(LexError::ErrorWrapper(
+                        file_name.to_owned(),
+                        self.line_map.len(),
+                        e.into(),
+                    )
+                    .into());
                 }
             };
 
@@ -130,7 +130,9 @@ impl Lexer {
             if !skip_next {
                 if tokens[index].tt() == TokenType::LINECONTINUE {
                     if index < tokens.len() - 1 && tokens[index + 1].tt() != TokenType::NEWLINE {
-                        return Err(LexError::TokenAfterLineContinue(tokens[index + 1].to_owned()).into());
+                        return Err(
+                            LexError::TokenAfterLineContinue(tokens[index + 1].to_owned()).into(),
+                        );
                     } else {
                         // Skip the newline token
                         skip_next = true;
@@ -224,13 +226,19 @@ impl Lexer {
             '=' => {
                 if !chars.peek().is_none() {
                     if *chars.peek().unwrap() != '=' {
-                        return Err(LexError::ExpectedChar(format!("={}", chars.peek().unwrap()), String::from("==")).into());
+                        return Err(LexError::ExpectedChar(
+                            format!("={}", chars.peek().unwrap()),
+                            String::from("=="),
+                        )
+                        .into());
                     } else {
                         chars.next();
                         (Token::new(TokenType::EQ, TokenData::NONE), 2)
                     }
                 } else {
-                    return Err(LexError::ExpectedChar(String::from("="), String::from("==")).into());
+                    return Err(
+                        LexError::ExpectedChar(String::from("="), String::from("==")).into(),
+                    );
                 }
             }
             '&' => {
@@ -243,13 +251,19 @@ impl Lexer {
             '|' => {
                 if !chars.peek().is_none() {
                     if *chars.peek().unwrap() != '|' {
-                        return Err(LexError::ExpectedChar(format!("|{}", chars.peek().unwrap()), String::from("||")).into());
+                        return Err(LexError::ExpectedChar(
+                            format!("|{}", chars.peek().unwrap()),
+                            String::from("||"),
+                        )
+                        .into());
                     } else {
                         chars.next();
                         (Token::new(TokenType::OR, TokenData::NONE), 2)
                     }
                 } else {
-                    return Err(LexError::ExpectedChar(String::from("|"), String::from("||")).into());
+                    return Err(
+                        LexError::ExpectedChar(String::from("|"), String::from("||")).into(),
+                    );
                 }
             }
             '?' => (Token::new(TokenType::QUESTION, TokenData::NONE), 1),
@@ -257,7 +271,6 @@ impl Lexer {
             '\n' => (Token::new(TokenType::NEWLINE, TokenData::NONE), 1),
             ',' => (Token::new(TokenType::COMMA, TokenData::NONE), 1),
             ';' => Lexer::lex_comment(chars),
-            '$' => (Token::new(TokenType::DOLLAR, TokenData::NONE), 1),
             '#' => (Token::new(TokenType::HASH, TokenData::NONE), 1),
             '@' => (Token::new(TokenType::ATSYMBOL, TokenData::NONE), 1),
             '\r' => {
@@ -273,7 +286,7 @@ impl Lexer {
         })
     }
 
-    fn interpret_string(s: &str) -> LexResult<String>{
+    fn interpret_string(s: &str) -> LexResult<String> {
         (EscapedStringInterpreter { s: s.chars() }).collect()
     }
 
@@ -326,7 +339,7 @@ impl Lexer {
             Ok(s) => s,
             Err(e) => {
                 return Err(e);
-            },
+            }
         };
 
         // Return the token, and the size of it
@@ -364,10 +377,7 @@ impl Lexer {
     }
 
     // Parses any type of number from the input, and produces either an int or double token
-    fn lex_number(
-        first_char: char,
-        chars: &mut Peekable<Chars>,
-    ) -> LexResult<(Token, usize)> {
+    fn lex_number(first_char: char, chars: &mut Peekable<Chars>) -> LexResult<(Token, usize)> {
         // This function works by reading in the number as a string and parsing it later
         let mut parsable = String::from(first_char);
 
@@ -396,7 +406,7 @@ impl Lexer {
             Lexer::parse_decimal_number(&parsable)
         } {
             Ok(v) => Ok(v),
-            Err(e) => Err(LexError::LiteralError(e))
+            Err(e) => Err(LexError::LiteralError(e)),
         }
     }
 
@@ -409,7 +419,7 @@ impl Lexer {
             Err(_) => {
                 return match i64::from_str(input) {
                     Ok(_) => Err(LiteralParseError::IntTooLarge(input.to_owned())),
-                    Err(_) => Err(LiteralParseError::InvalidInt(input.to_owned()))
+                    Err(_) => Err(LiteralParseError::InvalidInt(input.to_owned())),
                 }
             }
         }
@@ -424,9 +434,7 @@ impl Lexer {
                 Token::new(TokenType::DOUBLE, TokenData::DOUBLE(value)),
                 size,
             )),
-            Err(_) => {
-                Err(LiteralParseError::InvalidDouble(input.to_owned()))
-            }
+            Err(_) => Err(LiteralParseError::InvalidDouble(input.to_owned())),
         }
     }
 
@@ -445,7 +453,7 @@ impl Lexer {
                 Err(_) => {
                     return match i64::from_str_radix(number_str, 16) {
                         Ok(_) => Err(LiteralParseError::BinaryTooLarge(input.to_owned())),
-                        Err(_) => Err(LiteralParseError::InvalidBinary(input.to_owned()))
+                        Err(_) => Err(LiteralParseError::InvalidBinary(input.to_owned())),
                     }
                 }
             }
@@ -467,7 +475,7 @@ impl Lexer {
                 Err(_) => {
                     return match i64::from_str_radix(number_str, 16) {
                         Ok(_) => Err(LiteralParseError::HexTooLarge(input.to_owned())),
-                        Err(_) => Err(LiteralParseError::InvalidHex(input.to_owned()))
+                        Err(_) => Err(LiteralParseError::InvalidHex(input.to_owned())),
                     }
                 }
             }
@@ -509,8 +517,8 @@ impl Lexer {
             // We should check if it is supposed to be a boolean "true" or "false"
             if id == "true" || id == "false" {
                 (
-                    Token::new(TokenType::BOOL, TokenData::BOOL( id == "true" )),
-                    size
+                    Token::new(TokenType::BOOL, TokenData::BOOL(id == "true")),
+                    size,
                 )
             } else {
                 (

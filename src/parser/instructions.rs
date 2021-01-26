@@ -122,7 +122,12 @@ impl Instruction {
             0x4b => vec![],
             0x4c => vec![
                 vec![OperandType::STRING],
-                vec![OperandType::STRING, OperandType::INT16, OperandType::INT32, OperandType::NULL],
+                vec![
+                    OperandType::STRING,
+                    OperandType::INT16,
+                    OperandType::INT32,
+                    OperandType::NULL,
+                ],
             ],
             0x4d => vec![vec![OperandType::INT16]],
             0x4e => vec![vec![
@@ -165,7 +170,12 @@ impl Instruction {
             0xf0 => vec![vec![OperandType::STRING]],
 
             // Fake instruction
-            0xfa => vec![vec![OperandType::STRINGVALUE, OperandType::BOOLEANVALUE, OperandType::SCALARINT, OperandType::SCALARDOUBLE,]],
+            0xfa => vec![vec![
+                OperandType::STRINGVALUE,
+                OperandType::BOOLEANVALUE,
+                OperandType::SCALARINT,
+                OperandType::SCALARDOUBLE,
+            ]],
             _ => vec![],
         }
     }

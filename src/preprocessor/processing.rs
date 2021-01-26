@@ -5,7 +5,10 @@ use crate::{
     LabelManager, LabelType, LabelValue, Lexer, Macro, Token, TokenData, TokenType, ValueType,
 };
 
-use super::{PreprocessResult, PreprocessError, MacroExpansionResult, MacroError, DefinitionError, DefinitionExpansionResult};
+use super::{
+    DefinitionError, DefinitionExpansionResult, MacroError, MacroExpansionResult, PreprocessError,
+    PreprocessResult,
+};
 
 pub struct DefinitionTable {
     definitions: HashMap<String, Definition>,
@@ -62,7 +65,11 @@ impl Preprocessor {
                         let definition = Definition::parse_definition(&mut token_iter)?;
 
                         if macro_table.ifdef(&definition.id()) {
-                            return Err(PreprocessError::DefinitionNameCollision(definition.id(), directive_line).into());
+                            return Err(PreprocessError::DefinitionNameCollision(
+                                definition.id(),
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         definition_table.def(&definition.id(), definition);
@@ -77,7 +84,11 @@ impl Preprocessor {
                         };
 
                         if definition_table.ifdef(&parsed_macro.id()) {
-                            return Err(PreprocessError::MacroNameCollision(parsed_macro.id(), directive_line).into());
+                            return Err(PreprocessError::MacroNameCollision(
+                                parsed_macro.id(),
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         final_contents = self.process(
@@ -111,7 +122,12 @@ impl Preprocessor {
 
                             // At this time, only ints are allowed
                             if times_token.tt() != TokenType::INT {
-                                return Err(PreprocessError::InvalidDirectiveTokenType(times_token.as_str(), String::from(".times"), directive_line).into());
+                                return Err(PreprocessError::InvalidDirectiveTokenType(
+                                    times_token.as_str(),
+                                    String::from(".times"),
+                                    directive_line,
+                                )
+                                .into());
                             }
 
                             // Set the number of times accordingly
@@ -120,7 +136,12 @@ impl Preprocessor {
                                 _ => unreachable!(),
                             };
                         } else {
-                            return Err(PreprocessError::ExpectedAfterDirective(String::from("number of times"), String::from(".rep"), directive_line).into());
+                            return Err(PreprocessError::ExpectedAfterDirective(
+                                String::from("number of times"),
+                                String::from(".rep"),
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // We will break out of this other ways
@@ -147,7 +168,12 @@ impl Preprocessor {
 
                         // If this loop ended because we ran out of tokens, that is a problem
                         if token_iter.peek().is_none() {
-                            return Err(PreprocessError::EndedWithoutClosing(String::from("Rep"), String::from(".endrep"), directive_line).into());
+                            return Err(PreprocessError::EndedWithoutClosing(
+                                String::from("Rep"),
+                                String::from(".endrep"),
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // Now we preprocess each line before we expand it
@@ -186,8 +212,9 @@ impl Preprocessor {
                             return Err(PreprocessError::ExpectedAfterDirective(
                                 String::from("string"),
                                 String::from(".include"),
-                                directive_line
-                            ).into());
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // Get the file name or path
@@ -201,8 +228,9 @@ impl Preprocessor {
                             if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
                                 return Err(PreprocessError::ExtraTokensAfterDirective(
                                     String::from(".include"),
-                                    directive_line
-                                ).into());
+                                    directive_line,
+                                )
+                                .into());
                             }
 
                             // Consume the newline
@@ -235,8 +263,9 @@ impl Preprocessor {
                             return Err(PreprocessError::ExpectedAfterDirective(
                                 String::from("identifer"),
                                 String::from(".extern"),
-                                directive_line
-                            ).into());
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // Read in the identifier
@@ -250,8 +279,9 @@ impl Preprocessor {
                             if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
                                 return Err(PreprocessError::ExtraTokensAfterDirective(
                                     String::from(".extern"),
-                                    directive_line
-                                ).into());
+                                    directive_line,
+                                )
+                                .into());
                             }
 
                             // Consume the newline
@@ -262,8 +292,9 @@ impl Preprocessor {
                         if label_manager.ifdef(id) {
                             return Err(PreprocessError::DuplicateLabel(
                                 id.to_owned(),
-                                directive_line
-                            ).into());
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // Then define it
@@ -282,8 +313,9 @@ impl Preprocessor {
                             return Err(PreprocessError::ExpectedAfterDirective(
                                 String::from("identifier"),
                                 String::from(".extern"),
-                                directive_line
-                            ).into());
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // Read in the identifier
@@ -297,8 +329,9 @@ impl Preprocessor {
                             if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
                                 return Err(PreprocessError::ExtraTokensAfterDirective(
                                     String::from(".global"),
-                                    directive_line
-                                ).into());
+                                    directive_line,
+                                )
+                                .into());
                             }
 
                             // Consume the newline
@@ -309,7 +342,7 @@ impl Preprocessor {
                         if label_manager.ifdef(id) {
                             let found_label = match label_manager.get(id) {
                                 Some(label) => label,
-                                None => unreachable!()
+                                None => unreachable!(),
                             };
                             let found_label_type = found_label.label_type();
                             let found_label_value = found_label.label_value().clone();
@@ -319,8 +352,9 @@ impl Preprocessor {
                             {
                                 return Err(PreprocessError::DuplicateLabel(
                                     id.to_owned(),
-                                    directive_line
-                                ).into());
+                                    directive_line,
+                                )
+                                .into());
                             }
 
                             // All this needs to do then is to modify the Label to make it global
@@ -351,8 +385,9 @@ impl Preprocessor {
                     DirectiveType::LINE => {
                         return Err(PreprocessError::DirectiveCurrentlyUnsupported(
                             String::from(".line"),
-                            directive_line
-                        ).into());
+                            directive_line,
+                        )
+                        .into());
                     }
                     DirectiveType::UNDEF => {
                         let id;
@@ -364,8 +399,9 @@ impl Preprocessor {
                             return Err(PreprocessError::ExpectedAfterDirective(
                                 String::from("identifier"),
                                 String::from(".undef"),
-                                directive_line
-                            ).into());
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // Read in the identifier
@@ -379,8 +415,9 @@ impl Preprocessor {
                             if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
                                 return Err(PreprocessError::ExtraTokensAfterDirective(
                                     String::from(".undef"),
-                                    directive_line
-                                ).into());
+                                    directive_line,
+                                )
+                                .into());
                             }
 
                             // Consume the newline
@@ -391,8 +428,9 @@ impl Preprocessor {
                         if definition_table.ifndef(id) {
                             return Err(PreprocessError::CannotUndefine(
                                 id.to_owned(),
-                                directive_line
-                            ).into());
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // If it is in there, undefine it
@@ -408,8 +446,9 @@ impl Preprocessor {
                             return Err(PreprocessError::ExpectedAfterDirective(
                                 String::from("identifier"),
                                 String::from(".unmacro"),
-                                directive_line
-                            ).into());
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // Read in the identifier
@@ -423,8 +462,9 @@ impl Preprocessor {
                             if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
                                 return Err(PreprocessError::ExtraTokensAfterDirective(
                                     String::from(".unmacro"),
-                                    directive_line
-                                ).into());
+                                    directive_line,
+                                )
+                                .into());
                             }
 
                             // Consume the newline
@@ -435,8 +475,9 @@ impl Preprocessor {
                         if macro_table.ifndef(id) {
                             return Err(PreprocessError::CannotUnmacro(
                                 id.to_owned(),
-                                directive_line
-                            ).into());
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // If it is in there, undefine it
@@ -484,8 +525,9 @@ impl Preprocessor {
                             return Err(PreprocessError::ExpectedAfterDirective(
                                 String::from("newline"),
                                 String::from(".func"),
-                                directive_line
-                            ).into());
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // Consume the newline
@@ -498,8 +540,9 @@ impl Preprocessor {
                             return Err(PreprocessError::ExpectedAfterDirective(
                                 String::from("function label"),
                                 String::from(".func"),
-                                directive_line
-                            ).into());
+                                directive_line,
+                            )
+                            .into());
                         }
 
                         // Now store the label token which we will push later
@@ -522,8 +565,9 @@ impl Preprocessor {
                                 // Then it is a duplicate
                                 return Err(PreprocessError::DuplicateLabel(
                                     func_label_id.to_owned(),
-                                    directive_line
-                                ).into());
+                                    directive_line,
+                                )
+                                .into());
                             }
                             // If it is global, then we need to make the new Label info global as well
                             else {
@@ -676,8 +720,9 @@ impl Preprocessor {
                     return Err(PreprocessError::EndedWithoutClosing(
                         String::from(".if"),
                         String::from(".endif"),
-                        directive_line
-                    ).into());
+                        directive_line,
+                    )
+                    .into());
                 }
             }
             // If it is false
@@ -746,9 +791,9 @@ impl Preprocessor {
                         // Check if the scope is 0
                         if scope == 0 {
                             // This is actually an error
-                            return Err(PreprocessError::InvalidStartOfIf(
-                                inner_directive_line
-                            ).into());
+                            return Err(
+                                PreprocessError::InvalidStartOfIf(inner_directive_line).into()
+                            );
                         } else {
                             // Add 1 to the scope
                             scope += 1;
@@ -787,8 +832,9 @@ impl Preprocessor {
         Err(PreprocessError::EndedWithoutClosing(
             String::from(".if"),
             String::from(".endif"),
-            directive_line
-        ).into())
+            directive_line,
+        )
+        .into())
     }
 
     pub fn evaluate_if(
@@ -830,8 +876,9 @@ impl Preprocessor {
                 return Err(PreprocessError::ExpectedAfterDirective(
                     String::from("expression and newline"),
                     String::from(".if"),
-                    directive_line
-                ).into());
+                    directive_line,
+                )
+                .into());
             }
 
             // Check if the last token is a newline
@@ -839,8 +886,9 @@ impl Preprocessor {
                 return Err(PreprocessError::ExpectedAfterDirective(
                     String::from("newline"),
                     String::from(".if"),
-                    directive_line
-                ).into());
+                    directive_line,
+                )
+                .into());
             }
 
             // Remove the newline
@@ -853,22 +901,17 @@ impl Preprocessor {
             parsed_expression = match ExpressionParser::parse_expression(&mut processed_line_iter) {
                 Ok(expr) => expr,
                 Err(e) => {
-                    return Err(PreprocessError::ExpressionParseError(
-                        e,
-                        directive_line
-                    ).into());
+                    return Err(PreprocessError::ExpressionParseError(e, directive_line).into());
                 }
             };
 
             // Evaluate the expression to see what the result is
-            evaluated_expression = match ExpressionEvaluator::evaluate(&parsed_expression)
-            {
+            evaluated_expression = match ExpressionEvaluator::evaluate(&parsed_expression) {
                 Ok(expr) => expr,
                 Err(e) => {
-                    return Err(PreprocessError::ExpressionEvaluationError(
-                        e,
-                        directive_line
-                    ).into());
+                    return Err(
+                        PreprocessError::ExpressionEvaluationError(e, directive_line).into(),
+                    );
                 }
             };
 
@@ -877,8 +920,9 @@ impl Preprocessor {
                 return Err(PreprocessError::InvalidExpressionResultType(
                     String::from("if directive"),
                     String::from("boolean"),
-                    directive_line
-                ).into());
+                    directive_line,
+                )
+                .into());
             }
 
             // Actually determine if this if is true, or not
@@ -898,8 +942,9 @@ impl Preprocessor {
                 return Err(PreprocessError::ExpectedAfterDirective(
                     String::from("identifier"),
                     String::from(".ifdef"),
-                    directive_line
-                ).into());
+                    directive_line,
+                )
+                .into());
             }
 
             // Collect the string
@@ -913,8 +958,9 @@ impl Preprocessor {
                 return Err(PreprocessError::ExpectedAfterDirective(
                     String::from("newline"),
                     String::from(".ifdef"),
-                    directive_line
-                ).into());
+                    directive_line,
+                )
+                .into());
             }
 
             // Consume the newline
@@ -971,8 +1017,9 @@ impl Preprocessor {
                                     return Err(PreprocessError::MacroExpansionError(
                                         id.to_owned(),
                                         line,
-                                        e
-                                    ).into());
+                                        e,
+                                    )
+                                    .into());
                                 }
                             };
 
@@ -995,8 +1042,9 @@ impl Preprocessor {
                                         return Err(PreprocessError::DefinitionExpansionError(
                                             id.to_owned(),
                                             line,
-                                            e
-                                        ).into());
+                                            e,
+                                        )
+                                        .into());
                                     }
                                 };
 
@@ -1112,14 +1160,14 @@ impl Preprocessor {
                     };
 
                     // Expand it
-                    let mut inner = match
-                        self.expand_definition(inner_id, token_iter, definition_table) {
+                    let mut inner =
+                        match self.expand_definition(inner_id, token_iter, definition_table) {
                             Ok(inner) => inner,
                             Err(e) => {
                                 return Err(MacroError::InnerDefinitionExpansionError(
                                     inner_id.to_owned(),
                                     token.line(),
-                                    e
+                                    e,
                                 ));
                             }
                         };
@@ -1156,7 +1204,6 @@ impl Preprocessor {
                 args.len(),
                 line,
                 num_required_args,
-                
             ));
         }
 
@@ -1233,7 +1280,7 @@ impl Preprocessor {
                             return Err(MacroError::InnerDefinitionExpansionError(
                                 inner_id.to_owned(),
                                 inner_line,
-                                e
+                                e,
                             ));
                         }
                     };
@@ -1265,11 +1312,7 @@ impl Preprocessor {
     ) -> DefinitionExpansionResult<Vec<Token>> {
         let def_ref = match definition_table.get(id) {
             Some(r) => r,
-            None => {
-                return Err(
-                    DefinitionError::DefinitionNotFound(id.to_owned())
-                )
-            }
+            None => return Err(DefinitionError::DefinitionNotFound(id.to_owned())),
         };
         let mut content_iter = def_ref.get_contents_iter();
         let mut without_placeholders = Vec::new();
@@ -1279,9 +1322,7 @@ impl Preprocessor {
 
         // We can't really expand a definition if it is in fact, empty
         if def_ref.is_empty() {
-            return Err(
-                DefinitionError::EmptyDefinition(id.to_owned())
-            );
+            return Err(DefinitionError::EmptyDefinition(id.to_owned()));
         }
 
         // If the next token is an open parenthesis, then we have some arguments
@@ -1341,12 +1382,10 @@ impl Preprocessor {
 
         // Before we go on we need to test if we have the correct number of arguments
         if def_ref.num_args() != args.len() {
-            return Err(
-                DefinitionError::InvalidNumberOfArgumentsProvided(
-                    args.len(),
-                    def_ref.num_args()
-                )
-            );
+            return Err(DefinitionError::InvalidNumberOfArgumentsProvided(
+                args.len(),
+                def_ref.num_args(),
+            ));
         }
 
         // Now that we are done with the arguments if there were any, we can begin expansion
@@ -1433,20 +1472,16 @@ impl Preprocessor {
 
         // If the file does not exist, error out here
         if !file_path.exists() {
-            return Err(
-                PreprocessError::InvalidIncludeFile(
-                    file_path.to_str().unwrap().to_owned()
-                )
-            );
+            return Err(PreprocessError::InvalidIncludeFile(
+                file_path.to_str().unwrap().to_owned(),
+            ));
         }
 
         // If the file isn't a file, there is a problem
         if !file_path.is_file() {
-            return Err(
-                PreprocessError::DirectoryIncludeError(
-                    file_path.to_str().unwrap().to_owned()
-                )
-            );
+            return Err(PreprocessError::DirectoryIncludeError(
+                file_path.to_str().unwrap().to_owned(),
+            ));
         }
 
         // If it is an absolute path, we don't need to do anything. If it is not, make it one by adding the include path
@@ -1460,9 +1495,10 @@ impl Preprocessor {
         contents = match fs::read_to_string(file_path) {
             Ok(c) => c,
             Err(e) => {
-                return Err(
-                    PreprocessError::UnableToReadFile(file_path.to_str().unwrap().to_owned(), e.into())
-                );
+                return Err(PreprocessError::UnableToReadFile(
+                    file_path.to_str().unwrap().to_owned(),
+                    e.into(),
+                ));
             }
         };
 
@@ -1592,9 +1628,7 @@ impl DirectiveType {
             "extern" => DirectiveType::EXTERN,
             "global" => DirectiveType::GLOBAL,
             "func" => DirectiveType::FUNC,
-            _ => {
-                return Err(PreprocessError::InvalidDirective(s.to_owned()))
-            }
+            _ => return Err(PreprocessError::InvalidDirective(s.to_owned())),
         })
     }
 }

@@ -1,25 +1,24 @@
 use clap::ArgMatches;
-use std::{env, fmt::{Display, Formatter}};
 use std::io::Write;
+use std::{
+    env,
+    fmt::{Display, Formatter},
+};
 use std::{error::Error, fs, fs::File, path::Path};
 
 mod lexer;
-pub use lexer::{Lexer, Token, TokenData, TokenType};
+pub use lexer::*;
 
 mod preprocessor;
-pub use preprocessor::{
-    BinOp, Definition, DefinitionTable, ExpNode, ExpressionEvaluator, ExpressionParser, Label,
-    LabelInfo, LabelManager, LabelType, LabelValue, Macro, MacroTable, Preprocessor,
-    PreprocessorSettings, UnOp, Value, ValueType,
-};
+pub use preprocessor::*;
 
 mod parser;
-pub use parser::{pass1, pass2, Instruction, OperandType};
+pub use parser::*;
 
 mod output;
 pub use output::tokens_to_text;
 
-use kerbalobjects::{KOFileWriter, KOSValue, StringTable, Symbol, SymbolInfo, SymbolType};
+use kerbalobjects::*;
 
 pub static VERSION: &'static str = "0.9.9";
 
@@ -119,59 +118,73 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     }
     // If not
     else {
+
+        // Run the parser
+        let output = Parser::parse(processed_tokens, &mut label_manager)?;
+
         // Run pass 1
-        let pass1_tokens = pass1(&processed_tokens, &mut label_manager)?;
+        // let pass1_tokens = pass1(&processed_tokens, &mut label_manager)?;
 
-        println!("Pass 1 finished");
+        // println!("Pass 1 finished");
 
-        println!("Labels:");
+        // println!("Labels:");
 
-        for label in label_manager.as_vec() {
-            println!("{}", label.as_str());
-        }
+        // for label in label_manager.as_vec() {
+        //     println!("{}", label.as_str());
+        // }
 
-        // Run pass 2
-        let mut kofile = pass2(&pass1_tokens, &mut label_manager)?;
+        // // Run pass 2
+        // let mut kofile = pass2(&pass1_tokens, &mut label_manager)?;
 
+        // // Check if an empty comment was specified
+        // if !config.comment.is_empty() {
+        //     // If it isn't, then check if any comment was specified
+        //     let comment_str = if config.comment != "!" {
+        //         config.comment.to_owned()
+        //     } else {
+        //         format!("Assembled by KASM v{}", VERSION)
+        //     };
 
-        // Check if an empty comment was specified
-        if !config.comment.is_empty() {
-            // If it isn't, then check if any comment was specified
-            let comment_str = if config.comment != "!" {
-                config.comment.to_owned()
-            } else {
-                format!("Assembled by KASM v{}", VERSION)
-            };
-    
-            let mut comment_strtab = StringTable::new(".comment");
-            // Add the comment as the first and only string
-            comment_strtab.add(&comment_str);
-            // Add the comment section
-            kofile.add_string_table(comment_strtab);
-        }
+        //     let mut comment_strtab = StringTable::new(".comment");
+        //     // Add the comment as the first and only string
+        //     comment_strtab.add(&comment_str);
+        //     // Add the comment section
+        //     kofile.add_string_table(comment_strtab);
+        // }
 
-        // Check if a non-empty file name has been specified
-        if !config.file.is_empty() {
-            // We need to get the file name we will put as the FILE symbol in the object file
-            let file_name = if config.file == "!" {
-                Path::new(&config.file_path).file_name().unwrap().to_str().unwrap()
-            } else {
-                &config.file
-            };
+        // // Check if a non-empty file name has been specified
+        // if !config.file.is_empty() {
+        //     // We need to get the file name we will put as the FILE symbol in the object file
+        //     let file_name = if config.file == "!" {
+        //         Path::new(&config.file_path)
+        //             .file_name()
+        //             .unwrap()
+        //             .to_str()
+        //             .unwrap()
+        //     } else {
+        //         &config.file
+        //     };
 
-            // Create the symbol
-            let file_sym = Symbol::new(file_name, KOSValue::NULL, 0, SymbolInfo::LOCAL, SymbolType::FILE, 0);
+        //     // Create the symbol
+        //     let file_sym = Symbol::new(
+        //         file_name,
+        //         KOSValue::NULL,
+        //         0,
+        //         SymbolInfo::LOCAL,
+        //         SymbolType::FILE,
+        //         0,
+        //     );
 
-            // Add it
-            kofile.add_symbol(file_sym);
-        }
+        //     // Add it
+        //     kofile.add_symbol(file_sym);
+        // }
 
-        // Create a KO file writer
-        let mut writer = KOFileWriter::new(&output_path);
+        // // Create a KO file writer
+        // let mut writer = KOFileWriter::new(&output_path);
 
-        // Actually write the file to disk
-        kofile.write(&mut writer)?;
-        writer.write_to_file()?;
+        // // Actually write the file to disk
+        // kofile.write(&mut writer)?;
+        // writer.write_to_file()?;
     }
 
     Ok(())
@@ -222,7 +235,7 @@ impl InputFiles {
 
 #[derive(Debug)]
 pub enum KASMError {
-    IncludePathDirectoryError
+    IncludePathDirectoryError,
 }
 
 impl Error for KASMError {}
@@ -231,10 +244,7 @@ impl Display for KASMError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             KASMError::IncludePathDirectoryError => {
-                write!(
-                    f,
-                    "Include path must be a directory."
-                )
+                write!(f, "Include path must be a directory.")
             }
         }
     }

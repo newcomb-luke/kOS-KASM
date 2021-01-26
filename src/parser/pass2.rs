@@ -1,6 +1,9 @@
 use std::error::Error;
 
-use crate::{Instruction, Label, LabelInfo, LabelManager, LabelType, LabelValue, OperandType, Token, TokenData, TokenType, preprocessor::PreprocessError};
+use crate::{
+    preprocessor::PreprocessError, Instruction, Label, LabelInfo, LabelManager, LabelType,
+    LabelValue, OperandType, Token, TokenData, TokenType,
+};
 
 use kerbalobjects::RelSection;
 use kerbalobjects::{KOFile, KOSValue, RelInstruction, Symbol, SymbolInfo, SymbolType};
@@ -46,7 +49,7 @@ pub fn pass2(
                 // Set the new function label
                 current_func_label = Some(match label_manager.get(&temp_tuple.1) {
                     Some(label) => label.to_owned(),
-                    None => unreachable!()
+                    None => unreachable!(),
                 });
 
                 // Now we need to create a new instruction list
@@ -132,7 +135,9 @@ pub fn pass2(
                             let label = match label_manager.get(s) {
                                 Some(label) => label,
                                 None => {
-                                    return Err(PreprocessError::LabelDoesNotExist(s.to_owned()).into());
+                                    return Err(
+                                        PreprocessError::LabelDoesNotExist(s.to_owned()).into()
+                                    );
                                 }
                             };
 
@@ -149,14 +154,13 @@ pub fn pass2(
 
                                 // Add it
                                 symbol_index = kofile.add_symbol(extern_symbol);
-                            }
-                            else {
+                            } else {
                                 symbol_index = 0;
                             }
                             // If not, it is either global or local
                             // else {
                             //     match kofile.get_symtab().get_index_by_name(&s) {
-                                    
+
                             //     }
                             //     // Get the index and store it
                             //     symbol_index = ;
@@ -228,7 +232,8 @@ pub fn pass2(
 fn add_instructions_to_file(
     current_func_label: &Option<Label>,
     instruction_list: Vec<RelInstruction>,
-    kofile: &mut KOFile) {
+    kofile: &mut KOFile,
+) {
     let func_label = current_func_label.clone().unwrap();
     let label_id = func_label.id();
     let section_name;
@@ -308,7 +313,7 @@ fn best_operand_type(
             } else {
                 OperandType::SCALARDOUBLE
             }
-        },
+        }
         TokenType::ATSYMBOL => OperandType::ARGMARKER,
         TokenType::HASH => OperandType::NULL,
         TokenType::INT => {

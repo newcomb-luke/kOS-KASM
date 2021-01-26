@@ -575,7 +575,9 @@ fn is_expression_acceptable(
         }
         // If the result is a double
         else if operand_result.valtype() == ValueType::DOUBLE {
-            if *operand_possibility == OperandType::SCALARDOUBLE || *operand_possibility == OperandType::DOUBLE {
+            if *operand_possibility == OperandType::SCALARDOUBLE
+                || *operand_possibility == OperandType::DOUBLE
+            {
                 operand_accepted = true;
             }
         }
@@ -586,17 +588,8 @@ fn is_expression_acceptable(
 
 fn result_to_token(result: &Value) -> Token {
     match result.valtype() {
-        ValueType::BOOL => Token::new(
-            TokenType::BOOL,
-            TokenData::BOOL(result.to_bool())
-        ),
-        ValueType::DOUBLE => Token::new(
-            TokenType::DOUBLE,
-            TokenData::DOUBLE(result.to_double()),
-        ),
-        ValueType::INT => Token::new(
-            TokenType::INT,
-            TokenData::INT(result.to_int()),
-        ),
+        ValueType::BOOL => Token::new(TokenType::BOOL, TokenData::BOOL(result.to_bool())),
+        ValueType::DOUBLE => Token::new(TokenType::DOUBLE, TokenData::DOUBLE(result.to_double())),
+        ValueType::INT => Token::new(TokenType::INT, TokenData::INT(result.to_int())),
     }
 }
