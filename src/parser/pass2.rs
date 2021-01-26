@@ -1,9 +1,6 @@
 use std::error::Error;
 
-use crate::{
-    Instruction, Label, LabelInfo, LabelManager, LabelType, LabelValue, OperandType, Token,
-    TokenData, TokenType,
-};
+use crate::{Instruction, Label, LabelInfo, LabelManager, LabelType, LabelValue, OperandType, Token, TokenData, TokenType, preprocessor::PreprocessError};
 
 use kerbalobjects::RelSection;
 use kerbalobjects::{KOFile, KOSValue, RelInstruction, Symbol, SymbolInfo, SymbolType};
@@ -45,8 +42,12 @@ pub fn pass2(
                     add_instructions_to_file(&current_func_label, instruction_list, &mut kofile);
                 }
 
+                println!("Setting function label");
                 // Set the new function label
-                current_func_label = Some(label_manager.get(&temp_tuple.1)?.to_owned());
+                current_func_label = Some(match label_manager.get(&temp_tuple.1) {
+                    Some(label) => label.to_owned(),
+                    None => unreachable!()
+                });
 
                 // Now we need to create a new instruction list
                 instruction_list = Vec::new();
@@ -126,8 +127,14 @@ pub fn pass2(
                     match &kos_value {
                         // If it is a string, we are trying to reference a function or external symbol
                         KOSValue::STRING(s) | KOSValue::STRINGVALUE(s) => {
+                            println!("Checking if it is a function");
                             // Check if it is a function
-                            let label = label_manager.get(s)?;
+                            let label = match label_manager.get(s) {
+                                Some(label) => label,
+                                None => {
+                                    return Err(PreprocessError::LabelDoesNotExist(s.to_owned()).into());
+                                }
+                            };
 
                             if label.label_info() == LabelInfo::EXTERN {
                                 // If it is external then we need to make a new symbol for it
@@ -143,11 +150,17 @@ pub fn pass2(
                                 // Add it
                                 symbol_index = kofile.add_symbol(extern_symbol);
                             }
-                            // If not, it is either global or local
                             else {
-                                // Get the index and store it
-                                symbol_index = kofile.get_symbol_index_by_name(&s)?;
+                                symbol_index = 0;
                             }
+                            // If not, it is either global or local
+                            // else {
+                            //     match kofile.get_symtab().get_index_by_name(&s) {
+                                    
+                            //     }
+                            //     // Get the index and store it
+                            //     symbol_index = ;
+                            // }
                         }
                         // If this is an int32, then this is also not a function
                         KOSValue::INT32(_) => {
@@ -215,8 +228,7 @@ pub fn pass2(
 fn add_instructions_to_file(
     current_func_label: &Option<Label>,
     instruction_list: Vec<RelInstruction>,
-    kofile: &mut KOFile,
-) {
+    kofile: &mut KOFile) {
     let func_label = current_func_label.clone().unwrap();
     let label_id = func_label.id();
     let section_name;
@@ -267,12 +279,15 @@ fn best_operand_type(
             } else {
                 is_symbol = true;
 
+                println!("Checking if {} is a function in best_operand_type", value);
+
                 // We need to check if this is a function or not
                 // We will also use a string if it is undefined
                 if label_manager.ifdef(value)
                     && (label_manager.get(value).unwrap().label_type() == LabelType::FUNC
                         || label_manager.get(value).unwrap().label_type() == LabelType::UNDEF)
                 {
+                    println!("{} is a string", value);
                     // It will only be defined if it is a function
                     // In that case, we can only use strings
                     if possible_types.contains(&OperandType::STRING) {
@@ -367,28 +382,29 @@ fn token_to_kosvalue(
         OperandType::BOOL => KOSValue::BOOL(str_value.unwrap() == "true"),
         OperandType::BOOLEANVALUE => KOSValue::BOOLEANVALUE(str_value.unwrap() == "true"),
         OperandType::STRING | OperandType::STRINGVALUE => {
-            let value_to_save;
-            // For this we need to test if the token is an identifier that is a label
-            if token.tt() == TokenType::IDENTIFIER && label_manager.ifdef(str_value.unwrap()) {
-                // If it is, we need to get the label's value
-                let label_value = label_manager.get(str_value.unwrap())?.label_value();
-                let label_str;
+            let value_to_save = str_value.unwrap().to_owned();
+            // // For this we need to test if the token is an identifier that is a label
+            // if token.tt() == TokenType::IDENTIFIER && label_manager.ifdef(str_value.unwrap()) {
+            //     println!("Getting the label {}'s value", str_value.unwrap());
+            //     // If it is, we need to get the label's value
+            //     let label_value = label_manager.get(str_value.unwrap())?.label_value();
+            //     let label_str;
 
-                match label_value {
-                    LabelValue::STRING(s) => {
-                        label_str = s;
-                    }
-                    LabelValue::NONE => {
-                        label_str = str_value.unwrap();
-                    }
-                };
+            //     match label_value {
+            //         LabelValue::STRING(s) => {
+            //             label_str = s;
+            //         }
+            //         LabelValue::NONE => {
+            //             label_str = str_value.unwrap();
+            //         }
+            //     };
 
-                // Then we return a KOSValue containing that
-                value_to_save = label_str.to_owned();
-            } else {
-                // If not, then just ust the value itself
-                value_to_save = str_value.unwrap().to_owned()
-            }
+            //     // Then we return a KOSValue containing that
+            //     value_to_save = label_str.to_owned();
+            // } else {
+            //     // If not, then just ust the value itself
+            //     value_to_save = str_value.unwrap().to_owned()
+            // }
 
             // Finally, return the KOSValue
             if best_type == OperandType::STRING {
@@ -410,8 +426,9 @@ fn token_to_kosvalue(
             }
             // If not, we need to get the int value from this by using the location counter
             else {
+                println!("Getting the label trying to get the lc");
                 // This is a label, so let's get the label
-                let label = label_manager.get(str_value.unwrap())?;
+                let label = label_manager.get(str_value.unwrap()).unwrap();
 
                 let label_str = match label.label_value() {
                     LabelValue::STRING(s) => s,

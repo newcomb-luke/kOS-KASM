@@ -1,6 +1,8 @@
-use std::{error::Error, iter::Peekable, slice::Iter};
+use std::{iter::Peekable, slice::Iter};
 
 use crate::{Token, TokenData, TokenType};
+
+use super::errors::{ExpressionResult, ExpressionError};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Value {
@@ -17,27 +19,27 @@ pub enum ValueType {
 }
 
 impl Value {
-    pub fn to_bool(&self) -> Result<bool, Box<dyn Error>> {
+    pub fn to_bool(&self) -> bool {
         match self {
-            Value::Int(i) => Ok(*i > 0),
-            Value::Double(_) => Ok(true),
-            Value::Bool(b) => Ok(*b),
+            Value::Int(i) => *i > 0,
+            Value::Double(_) => true,
+            Value::Bool(b) => *b,
         }
     }
 
-    pub fn to_double(&self) -> Result<f64, Box<dyn Error>> {
+    pub fn to_double(&self) -> f64 {
         match self {
-            Value::Int(i) => Ok(*i as f64),
-            Value::Double(d) => Ok(*d),
-            Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
+            Value::Int(i) => *i as f64,
+            Value::Double(d) => *d,
+            Value::Bool(b) => if *b { 1.0 } else { 0.0 },
         }
     }
 
-    pub fn to_int(&self) -> Result<i32, Box<dyn Error>> {
+    pub fn to_int(&self) -> i32 {
         match self {
-            Value::Int(i) => Ok(*i),
-            Value::Double(d) => Ok(*d as i32),
-            Value::Bool(b) => Ok(if *b { 1 } else { 0 }),
+            Value::Int(i) => *i,
+            Value::Double(d) => *d as i32,
+            Value::Bool(b) => if *b { 1 } else { 0 },
         }
     }
 
@@ -212,17 +214,13 @@ pub struct ExpressionParser {}
 impl ExpressionParser {
     pub fn parse_expression(
         token_iter: &mut Peekable<Iter<Token>>,
-    ) -> Result<Option<ExpNode>, Box<dyn Error>> {
-        if token_iter.peek().is_some() {
-            Ok(Some(ExpressionParser::parse_logical_or(token_iter)?))
-        } else {
-            Ok(None)
-        }
+    ) -> ExpressionResult<ExpNode> {
+        ExpressionParser::parse_logical_or(token_iter)
     }
 
     pub fn parse_logical_or(
         token_iter: &mut Peekable<Iter<Token>>,
-    ) -> Result<ExpNode, Box<dyn Error>> {
+    ) -> ExpressionResult<ExpNode> {
         let mut lhs = ExpressionParser::parse_logical_and(token_iter)?;
 
         while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::OR {
@@ -238,7 +236,7 @@ impl ExpressionParser {
 
     pub fn parse_logical_and(
         token_iter: &mut Peekable<Iter<Token>>,
-    ) -> Result<ExpNode, Box<dyn Error>> {
+    ) ->ExpressionResult<ExpNode> {
         let mut lhs = ExpressionParser::parse_equality_exp(token_iter)?;
 
         while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::AND {
@@ -254,7 +252,7 @@ impl ExpressionParser {
 
     pub fn parse_equality_exp(
         token_iter: &mut Peekable<Iter<Token>>,
-    ) -> Result<ExpNode, Box<dyn Error>> {
+    ) -> ExpressionResult<ExpNode> {
         let mut lhs = ExpressionParser::parse_relational_exp(token_iter)?;
 
         while token_iter.peek().is_some()
@@ -280,7 +278,7 @@ impl ExpressionParser {
 
     pub fn parse_relational_exp(
         token_iter: &mut Peekable<Iter<Token>>,
-    ) -> Result<ExpNode, Box<dyn Error>> {
+    ) -> ExpressionResult<ExpNode> {
         let mut lhs = ExpressionParser::parse_additive_exp(token_iter)?;
 
         while token_iter.peek().is_some()
@@ -310,7 +308,7 @@ impl ExpressionParser {
 
     pub fn parse_additive_exp(
         token_iter: &mut Peekable<Iter<Token>>,
-    ) -> Result<ExpNode, Box<dyn Error>> {
+    ) -> ExpressionResult<ExpNode> {
         let mut lhs = ExpressionParser::parse_term(token_iter)?;
 
         while token_iter.peek().is_some()
@@ -334,7 +332,7 @@ impl ExpressionParser {
         Ok(lhs)
     }
 
-    pub fn parse_term(token_iter: &mut Peekable<Iter<Token>>) -> Result<ExpNode, Box<dyn Error>> {
+    pub fn parse_term(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
         let mut lhs = ExpressionParser::parse_factor(token_iter)?;
 
         while token_iter.peek().is_some()
@@ -358,9 +356,9 @@ impl ExpressionParser {
         Ok(lhs)
     }
 
-    pub fn parse_factor(token_iter: &mut Peekable<Iter<Token>>) -> Result<ExpNode, Box<dyn Error>> {
+    pub fn parse_factor(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
         if token_iter.peek().is_none() {
-            return Err("Tried to parse empty expression".into());
+            return Err(ExpressionError::IncompleteExpression(String::from("Expression incomplete, expected more tokens")).into());
         }
 
         let next_token = token_iter.peek().unwrap();
@@ -370,13 +368,7 @@ impl ExpressionParser {
                 // Consume the (
                 token_iter.next();
 
-                let exp_option = ExpressionParser::parse_expression(token_iter)?;
-
-                if exp_option.is_none() {
-                    return Err("Expected expression, found (".into());
-                }
-
-                let exp = exp_option.unwrap();
+                let exp = ExpressionParser::parse_expression(token_iter)?;
 
                 if token_iter.peek().is_some()
                     && token_iter.peek().unwrap().tt() == TokenType::CLOSEPAREN
@@ -386,7 +378,7 @@ impl ExpressionParser {
 
                     return Ok(exp);
                 } else {
-                    return Err("Error parsing expression, found (, expected closing )".into());
+                    return Err(ExpressionError::IncompleteExpression(String::from("Expected closing ) on expression with (")).into());
                 }
             }
             TokenType::NEGATE | TokenType::COMP | TokenType::MINUS => {
@@ -437,7 +429,7 @@ impl ExpressionParser {
                 }
             }
             t => {
-                return Err(format!("Invalid token {:?}", t).into());
+                return Err(ExpressionError::InvalidToken(next_token.as_str().to_owned()));
             }
         }
     }

@@ -114,7 +114,7 @@ pub fn pass1(
                         // We should first check if one exists
                         if label_manager.ifdef(&label_id) {
                             // If it does exist, then we need to check which type.
-                            let original_label = label_manager.get(&label_id)?;
+                            let original_label = label_manager.get(&label_id).unwrap();
                             let original_type = original_label.label_type();
 
                             // If the Label type is anything other than undefined, then that is an error because the same Label has been declared somewhere else
@@ -520,7 +520,7 @@ fn operand_to_expression_result(
 
     // Parse the expression
     expression = match ExpressionParser::parse_expression(&mut expression_iter) {
-        Ok(expression) => expression.unwrap(),
+        Ok(expression) => expression,
         Err(e) => {
             return Err(format!(
             "Expected expression as argument {} for instruction {}. Expression parsing failed: {}",
@@ -587,20 +587,16 @@ fn is_expression_acceptable(
 fn result_to_token(result: &Value) -> Token {
     match result.valtype() {
         ValueType::BOOL => Token::new(
-            TokenType::IDENTIFIER,
-            TokenData::STRING(String::from(if result.to_bool().ok().unwrap() {
-                "true"
-            } else {
-                "false"
-            })),
+            TokenType::BOOL,
+            TokenData::BOOL(result.to_bool())
         ),
         ValueType::DOUBLE => Token::new(
             TokenType::DOUBLE,
-            TokenData::DOUBLE(result.to_double().ok().unwrap()),
+            TokenData::DOUBLE(result.to_double()),
         ),
         ValueType::INT => Token::new(
             TokenType::INT,
-            TokenData::INT(result.to_int().ok().unwrap()),
+            TokenData::INT(result.to_int()),
         ),
     }
 }

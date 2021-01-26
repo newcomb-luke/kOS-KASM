@@ -15,3 +15,6 @@ pub use evaluator::ExpressionEvaluator;
 
 mod labels;
 pub use labels::{Label, LabelInfo, LabelManager, LabelType, LabelValue};
+
+mod errors;
+pub use errors::*;

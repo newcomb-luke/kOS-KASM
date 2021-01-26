@@ -1,5 +1,5 @@
 use clap::ArgMatches;
-use std::env;
+use std::{env, fmt::{Display, Formatter}};
 use std::io::Write;
 use std::{error::Error, fs, fs::File, path::Path};
 
@@ -70,7 +70,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         include_path = String::from(cwd.as_path().to_str().unwrap());
     } else {
         if !Path::new(&include_path).is_dir() {
-            return Err("Include path must be a directory.".into());
+            return Err(KASMError::IncludePathDirectoryError.into());
         }
     }
 
@@ -104,6 +104,12 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         &mut input_files,
     )?;
 
+    println!("Labels:");
+
+    for label in label_manager.as_vec() {
+        println!("{}", label.as_str());
+    }
+
     // If we are just output the preprocessed only
     if config.preprocess_only {
         // If we are, just output that
@@ -115,6 +121,14 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     else {
         // Run pass 1
         let pass1_tokens = pass1(&processed_tokens, &mut label_manager)?;
+
+        println!("Pass 1 finished");
+
+        println!("Labels:");
+
+        for label in label_manager.as_vec() {
+            println!("{}", label.as_str());
+        }
 
         // Run pass 2
         let mut kofile = pass2(&pass1_tokens, &mut label_manager)?;
@@ -203,5 +217,25 @@ impl InputFiles {
 
     pub fn get_from_id(&self, id: usize) -> String {
         self.files.get(id).unwrap().to_owned()
+    }
+}
+
+#[derive(Debug)]
+pub enum KASMError {
+    IncludePathDirectoryError
+}
+
+impl Error for KASMError {}
+
+impl Display for KASMError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KASMError::IncludePathDirectoryError => {
+                write!(
+                    f,
+                    "Include path must be a directory."
+                )
+            }
+        }
     }
 }

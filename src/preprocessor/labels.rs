@@ -81,12 +81,8 @@ impl LabelManager {
         self.labels.contains_key(identifier)
     }
 
-    pub fn get(&self, identifier: &str) -> Result<&Label, Box<dyn Error>> {
-        if self.ifdef(identifier) {
-            Ok(self.labels.get(identifier).unwrap())
-        } else {
-            Err(format!("Label {} referenced before definition", identifier).into())
-        }
+    pub fn get(&self, identifier: &str) -> Option<&Label> {
+        self.labels.get(identifier)
     }
 
     pub fn as_vec(&self) -> Vec<&Label> {

@@ -1,125 +1,10 @@
-use std::{error::Error, iter::Peekable, str::Chars, str::FromStr};
+use std::{iter::Peekable, str::Chars, str::FromStr};
 
-/// Represents the type of any given token
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum TokenType {
-    OPENPAREN,
-    CLOSEPAREN,
-    IDENTIFIER,
-    INT,
-    DOUBLE,
-    STRING,
-    MINUS,
-    COMP,
-    NEGATE,
-    ADD,
-    MULT,
-    DIV,
-    MOD,
-    AND,
-    OR,
-    EQ,
-    NE,
-    LT,
-    LTE,
-    GT,
-    GTE,
-    QUESTION,
-    COLON,
-    COMMA,
-    NEWLINE,
-    AMPERSAND,
-    LABEL,
-    INNERLABEL,
-    DIRECTIVE,
-    LINECONTINUE,
-    PLACEHOLDER,
-    COMMENT,
-    DOLLAR,
-    HASH,
-    ATSYMBOL,
-}
+mod errors;
+pub use errors::*;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum TokenData {
-    STRING(String),
-    INT(i32),
-    DOUBLE(f64),
-    NONE,
-}
-
-// Produced by the lexer, it is the smallest element that can be parsed, it contains the token's data and position in the source code
-#[derive(Debug, Clone)]
-pub struct Token {
-    tt: TokenType,
-    data: TokenData,
-    col: usize,
-    line: usize,
-    file: usize,
-}
-
-impl Token {
-    pub fn new(tt: TokenType, data: TokenData) -> Token {
-        Token {
-            tt,
-            data,
-            col: 0,
-            line: 0,
-            file: 0,
-        }
-    }
-
-    pub fn set_col(&mut self, col: usize) {
-        self.col = col;
-    }
-
-    pub fn set_line(&mut self, line: usize) {
-        self.line = line
-    }
-
-    pub fn set_file(&mut self, file: usize) {
-        self.file = file
-    }
-
-    pub fn col(&self) -> usize {
-        self.col
-    }
-
-    pub fn line(&self) -> usize {
-        self.line
-    }
-
-    pub fn file(&self) -> usize {
-        self.file
-    }
-
-    pub fn tt(&self) -> TokenType {
-        self.tt
-    }
-
-    pub fn data(&self) -> &TokenData {
-        &self.data
-    }
-
-    pub fn as_str(&self) -> String {
-        let mut s = format!("{:?}", self.tt);
-
-        match &self.data {
-            TokenData::DOUBLE(d) => {
-                s.push_str(&format!(": {}", d));
-            }
-            TokenData::INT(i) => {
-                s.push_str(&format!(": {}", i));
-            }
-            TokenData::STRING(v) => {
-                s.push_str(&format!(": \"{}\"", v));
-            }
-            TokenData::NONE => {}
-        }
-
-        s
-    }
-}
+mod token;
+pub use token::*;
 
 pub struct Lexer {
     line_map: Vec<(usize, usize)>,
@@ -143,7 +28,7 @@ impl Lexer {
         input: &str,
         file_name: &str,
         file_id: usize,
-    ) -> Result<Vec<Token>, Box<dyn Error>> {
+    ) -> LexResult<Vec<Token>> {
         // The vector that will contain all of the tokens
         let mut tokens: Vec<Token> = Vec::new();
 
@@ -161,13 +46,7 @@ impl Lexer {
             let (mut token, length) = match self.lex_token(&mut chars) {
                 Ok(ret) => ret,
                 Err(e) => {
-                    let msg = format!(
-                        "Error lexing inputin file {}: {}, line {}.\n",
-                        file_name,
-                        e,
-                        self.line_map.len()
-                    );
-                    return Err(msg.into());
+                    return Err(LexError::ErrorWrapper(file_name.to_owned(), self.line_map.len(), e.into()).into());
                 }
             };
 
@@ -181,8 +60,7 @@ impl Lexer {
                 self.column_count += length;
             }
 
-            // Set this token's column and line numbers
-            token.set_col(self.column_count);
+            // Set this token's line number
             token.set_line(self.line_map.len());
 
             // Finally, add the token to the list
@@ -208,8 +86,7 @@ impl Lexer {
         match self.remove_line_continues(&mut tokens) {
             Ok(_) => {}
             Err(e) => {
-                let msg = format!("Error lexing input: {}, line {}.\n", e, self.line_map.len());
-                return Err(msg.into());
+                return Err(e);
             }
         };
 
@@ -241,7 +118,7 @@ impl Lexer {
         chars.peek().is_none()
     }
 
-    fn remove_line_continues(&self, tokens: &mut Vec<Token>) -> Result<(), Box<dyn Error>> {
+    fn remove_line_continues(&self, tokens: &mut Vec<Token>) -> LexResult<()> {
         // I was originally going to tokens.remove() all of the line continues and newlines
         // But it turns out that copies the entire vector every time, so why not just do that?
 
@@ -253,11 +130,7 @@ impl Lexer {
             if !skip_next {
                 if tokens[index].tt() == TokenType::LINECONTINUE {
                     if index < tokens.len() - 1 && tokens[index + 1].tt() != TokenType::NEWLINE {
-                        return Err(format!(
-                            "Error parsing, \\ should only be followed by a newline. Found: {}",
-                            tokens[index + 1].as_str()
-                        )
-                        .into());
+                        return Err(LexError::TokenAfterLineContinue(tokens[index + 1].to_owned()).into());
                     } else {
                         // Skip the newline token
                         skip_next = true;
@@ -296,7 +169,7 @@ impl Lexer {
     }
 
     /// Lexes a single token from the character iterator. Returns a tuple containing the token, and the number of characters that the token spans in the source
-    fn lex_token(&self, chars: &mut Peekable<Chars>) -> Result<(Token, usize), Box<dyn Error>> {
+    fn lex_token(&self, chars: &mut Peekable<Chars>) -> LexResult<(Token, usize)> {
         // We are guaranteed to have another character, so just get the next one
         let c = chars.next().unwrap();
 
@@ -312,10 +185,10 @@ impl Lexer {
                     if chars.peek().unwrap().is_ascii_digit() {
                         Lexer::lex_number(c, chars)?
                     } else {
-                        Lexer::lex_dotted(chars)?
+                        Lexer::lex_dotted(chars)
                     }
                 } else {
-                    return Err("Found lone .".into());
+                    return Err(LexError::LoneChar('.').into());
                 }
             }
             '-' => (Token::new(TokenType::MINUS, TokenData::NONE), 1),
@@ -351,13 +224,13 @@ impl Lexer {
             '=' => {
                 if !chars.peek().is_none() {
                     if *chars.peek().unwrap() != '=' {
-                        return Err(format!("Found ={} expected ==", chars.peek().unwrap()).into());
+                        return Err(LexError::ExpectedChar(format!("={}", chars.peek().unwrap()), String::from("==")).into());
                     } else {
                         chars.next();
                         (Token::new(TokenType::EQ, TokenData::NONE), 2)
                     }
                 } else {
-                    return Err("Found = expected ==".into());
+                    return Err(LexError::ExpectedChar(String::from("="), String::from("==")).into());
                 }
             }
             '&' => {
@@ -370,13 +243,13 @@ impl Lexer {
             '|' => {
                 if !chars.peek().is_none() {
                     if *chars.peek().unwrap() != '|' {
-                        return Err(format!("Found |{} expected ||", chars.peek().unwrap()).into());
+                        return Err(LexError::ExpectedChar(format!("|{}", chars.peek().unwrap()), String::from("||")).into());
                     } else {
                         chars.next();
                         (Token::new(TokenType::OR, TokenData::NONE), 2)
                     }
                 } else {
-                    return Err("Found | expected ||".into());
+                    return Err(LexError::ExpectedChar(String::from("|"), String::from("||")).into());
                 }
             }
             '?' => (Token::new(TokenType::QUESTION, TokenData::NONE), 1),
@@ -395,16 +268,16 @@ impl Lexer {
                 (Token::new(TokenType::NEWLINE, TokenData::NONE), 2)
             }
             _ => {
-                return Err(format!("Unexpected character {} while parsing token", c).into());
+                return Err(LexError::UnexpectedChar(c).into());
             }
         })
     }
 
-    fn interpret_string(s: &str) -> Result<String, EscapeError> {
+    fn interpret_string(s: &str) -> LexResult<String>{
         (EscapedStringInterpreter { s: s.chars() }).collect()
     }
 
-    fn lex_string(chars: &mut Peekable<Chars>) -> Result<(Token, usize), Box<dyn Error>> {
+    fn lex_string(chars: &mut Peekable<Chars>) -> LexResult<(Token, usize)> {
         // The first token was a " so we don't really need it, but it still counts towards the size
         let mut size = 1;
 
@@ -451,13 +324,8 @@ impl Lexer {
         // This will resolve any escape sequences in the string to their proper values
         let fully = match Lexer::interpret_string(&value) {
             Ok(s) => s,
-            Err(e) => match e {
-                EscapeError::TrailingEscape => {
-                    return Err("Found trailing escape while parsing string".into());
-                }
-                EscapeError::InvalidEscapedChar(c) => {
-                    return Err(format!("Invalid escape sequence found: {}", c).into());
-                }
+            Err(e) => {
+                return Err(e);
             },
         };
 
@@ -469,7 +337,7 @@ impl Lexer {
     }
 
     /// This function lexes any string value that begins with a . character, this could be an inner label or a directive
-    fn lex_dotted(chars: &mut Peekable<Chars>) -> Result<(Token, usize), Box<dyn Error>> {
+    fn lex_dotted(chars: &mut Peekable<Chars>) -> (Token, usize) {
         let mut value = String::new();
         let mut size;
 
@@ -478,7 +346,7 @@ impl Lexer {
         size = value.len();
 
         // If the next character is a :, then it is an inner label
-        Ok(if Lexer::is_next_char(chars, ':') {
+        if Lexer::is_next_char(chars, ':') {
             // Consume the :, and add 1 to the size
             chars.next();
             size += 1;
@@ -492,14 +360,14 @@ impl Lexer {
                 Token::new(TokenType::DIRECTIVE, TokenData::STRING(value)),
                 size,
             )
-        })
+        }
     }
 
     // Parses any type of number from the input, and produces either an int or double token
     fn lex_number(
         first_char: char,
         chars: &mut Peekable<Chars>,
-    ) -> Result<(Token, usize), Box<dyn Error>> {
+    ) -> LexResult<(Token, usize)> {
         // This function works by reading in the number as a string and parsing it later
         let mut parsable = String::from(first_char);
 
@@ -518,7 +386,7 @@ impl Lexer {
             }
         }
 
-        if parsable.starts_with("0x") {
+        match if parsable.starts_with("0x") {
             Lexer::parse_hex_number(&parsable)
         } else if parsable.starts_with("0b") {
             Lexer::parse_binary_number(&parsable)
@@ -526,10 +394,13 @@ impl Lexer {
             Lexer::parse_double_number(&parsable)
         } else {
             Lexer::parse_decimal_number(&parsable)
+        } {
+            Ok(v) => Ok(v),
+            Err(e) => Err(LexError::LiteralError(e))
         }
     }
 
-    fn parse_decimal_number(input: &str) -> Result<(Token, usize), Box<dyn Error>> {
+    fn parse_decimal_number(input: &str) -> LiteralResult<(Token, usize)> {
         // Because of the nature of this, the size is actually just the size of the string
         let size = input.len();
 
@@ -537,14 +408,14 @@ impl Lexer {
             Result::Ok(value) => Ok((Token::new(TokenType::INT, TokenData::INT(value)), size)),
             Err(_) => {
                 return match i64::from_str(input) {
-                    Result::Ok(_) => Err(format!("Integer literal {} too large.", input).into()),
-                    Err(_) => Err(format!("Invalid int literal: {}", input).into()),
+                    Ok(_) => Err(LiteralParseError::IntTooLarge(input.to_owned())),
+                    Err(_) => Err(LiteralParseError::InvalidInt(input.to_owned()))
                 }
             }
         }
     }
 
-    fn parse_double_number(input: &str) -> Result<(Token, usize), Box<dyn Error>> {
+    fn parse_double_number(input: &str) -> LiteralResult<(Token, usize)> {
         // Because of the nature of this, the size is actually just the size of the string
         let size = input.len();
 
@@ -554,12 +425,12 @@ impl Lexer {
                 size,
             )),
             Err(_) => {
-                return Err(format!("Invalid double literal: {}", input).into());
+                Err(LiteralParseError::InvalidDouble(input.to_owned()))
             }
         }
     }
 
-    fn parse_binary_number(input: &str) -> Result<(Token, usize), Box<dyn Error>> {
+    fn parse_binary_number(input: &str) -> LiteralResult<(Token, usize)> {
         // Because of the nature of this, the size is actually just the size of the string
         let size = input.len();
 
@@ -567,25 +438,21 @@ impl Lexer {
         let number_str = &input[2..];
 
         if number_str.is_empty() {
-            return Err("Error trying to parse token 0b, expected hex literal".into());
+            Err(LiteralParseError::ExpectedBinary)
         } else {
             match i32::from_str_radix(number_str, 2) {
                 Result::Ok(value) => Ok((Token::new(TokenType::INT, TokenData::INT(value)), size)),
                 Err(_) => {
                     return match i64::from_str_radix(number_str, 16) {
-                        Result::Ok(_) => Err(format!(
-                            "Binary literal {} too large to fit into an integer",
-                            input
-                        )
-                        .into()),
-                        Err(_) => Err(format!("Invalid binary literal {}", input).into()),
+                        Ok(_) => Err(LiteralParseError::BinaryTooLarge(input.to_owned())),
+                        Err(_) => Err(LiteralParseError::InvalidBinary(input.to_owned()))
                     }
                 }
             }
         }
     }
 
-    fn parse_hex_number(input: &str) -> Result<(Token, usize), Box<dyn Error>> {
+    fn parse_hex_number(input: &str) -> LiteralResult<(Token, usize)> {
         // Because of the nature of this, the size is actually just the size of the string
         let size = input.len();
 
@@ -593,18 +460,14 @@ impl Lexer {
         let number_str = &input[2..];
 
         if number_str.is_empty() {
-            return Err("Error trying to parse token 0x, expected hex literal".into());
+            Err(LiteralParseError::ExpectedHex)
         } else {
             match i32::from_str_radix(number_str, 16) {
                 Result::Ok(value) => Ok((Token::new(TokenType::INT, TokenData::INT(value)), size)),
                 Err(_) => {
                     return match i64::from_str_radix(number_str, 16) {
-                        Result::Ok(_) => Err(format!(
-                            "Hex literal {} too large to fit into an integer",
-                            input
-                        )
-                        .into()),
-                        Err(_) => Err(format!("Invalid hex literal {}", input).into()),
+                        Ok(_) => Err(LiteralParseError::HexTooLarge(input.to_owned())),
+                        Err(_) => Err(LiteralParseError::InvalidHex(input.to_owned()))
                     }
                 }
             }
@@ -643,10 +506,18 @@ impl Lexer {
 
             (Token::new(TokenType::LABEL, TokenData::STRING(id)), size)
         } else {
-            (
-                Token::new(TokenType::IDENTIFIER, TokenData::STRING(id)),
-                size,
-            )
+            // We should check if it is supposed to be a boolean "true" or "false"
+            if id == "true" || id == "false" {
+                (
+                    Token::new(TokenType::BOOL, TokenData::BOOL( id == "true" )),
+                    size
+                )
+            } else {
+                (
+                    Token::new(TokenType::IDENTIFIER, TokenData::STRING(id)),
+                    size,
+                )
+            }
         }
     }
 
@@ -676,28 +547,22 @@ impl Lexer {
 
 // Source: https://stackoverflow.com/questions/58551211/how-do-i-interpret-escaped-characters-in-a-string
 
-#[derive(Debug, PartialEq)]
-enum EscapeError {
-    TrailingEscape,
-    InvalidEscapedChar(char),
-}
-
 struct EscapedStringInterpreter<'a> {
     s: std::str::Chars<'a>,
 }
 
 impl<'a> Iterator for EscapedStringInterpreter<'a> {
-    type Item = Result<char, EscapeError>;
+    type Item = LexResult<char>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.s.next().map(|c| match c {
             '\\' => match self.s.next() {
-                None => Err(EscapeError::TrailingEscape),
+                None => Err(LexError::TrailingEscape),
                 Some('n') => Ok('\n'),
                 Some('\\') => Ok('\\'),
                 Some('"') => Ok('"'),
                 Some('t') => Ok('\t'),
-                Some(c) => Err(EscapeError::InvalidEscapedChar(c)),
+                Some(c) => Err(LexError::InvalidEscapedChar(c)),
             },
             c => Ok(c),
         })

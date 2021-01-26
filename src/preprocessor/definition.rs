@@ -1,6 +1,8 @@
-use std::{error::Error, iter::Peekable, slice::Iter};
+use std::{iter::Peekable, slice::Iter};
 
 use crate::{Token, TokenData, TokenType};
+
+use super::errors::*;
 
 pub struct Definition {
     contents: Vec<Token>,
@@ -21,7 +23,7 @@ impl Definition {
     /// Parses a definition from the provided token interator
     pub fn parse_definition(
         token_iter: &mut Peekable<Iter<Token>>,
-    ) -> Result<Definition, Box<dyn Error>> {
+    ) -> PreprocessResult<Definition> {
         // Check to see if we have a token, and it is an identifier
         if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::IDENTIFIER {
             let id = match token_iter.next().unwrap().data() {
@@ -48,23 +50,23 @@ impl Definition {
 
                         // If there is no token, throw an error
                         if token_iter.peek().is_none() {
-                            return Err(format!(
-                                "Unexpected end of file while parsing definition {}",
-                                id
-                            )
-                            .into());
+                            return Err(PreprocessError::DefinitionParseError(
+                                id.to_owned(),
+                                DefinitionError::UnexpectedEOF.into()
+                            ));
                         }
                         // If it is not an identifier throw an error
                         else if token_iter.peek().unwrap().tt() != TokenType::IDENTIFIER {
-                            return Err(format!(
-                                "Expected argument in definition, found: {}",
-                                token_iter.peek().unwrap().as_str()
-                            )
-                            .into());
+                            return Err(PreprocessError::DefinitionParseError(
+                                id.to_owned(),
+                                DefinitionError::ExpectedArgument(
+                                    token_iter.peek().unwrap().as_str()
+                                ).into()
+                            ));
                         }
                         // If everything is fine
                         else {
-                            // Consume the token, but also add it to the  argument identifiers list
+                            // Consume the token, but also add it to the argument identifiers list
                             arg_ids.push(match token_iter.next().unwrap().data() {
                                 TokenData::STRING(s) => s,
                                 _ => unreachable!(),
@@ -76,11 +78,10 @@ impl Definition {
                         // If there are no tokens left
                         if token_iter.peek().is_none() {
                             // That is an error.
-                            return Err(format!(
-                                "Expected closing parenthesis on definition {}",
-                                id
-                            )
-                            .into());
+                            return Err(PreprocessError::DefinitionParseError(
+                                id.to_owned(),
+                                DefinitionError::ExpectedClosingParen.into()
+                            ));
                         }
                         // Or if there is a closing parenthesis
                         else if token_iter.peek().unwrap().tt() == TokenType::CLOSEPAREN {
@@ -96,11 +97,12 @@ impl Definition {
                         }
                         // If it isn't a comma, there is a problem
                         else {
-                            return Err(format!(
-                                "Expected comma or closing parenthesis, found {:?}",
-                                token_iter.peek().unwrap().as_str()
-                            )
-                            .into());
+                            return Err(PreprocessError::DefinitionParseError(
+                                id.to_owned(),
+                                Box::new(DefinitionError::ExpectedArgumentsEnd(
+                                    token_iter.peek().unwrap().as_str()
+                                ))
+                            ));
                         }
                     }
                 }
@@ -160,7 +162,10 @@ impl Definition {
         }
         // If we don't that is an error because it is required
         else {
-            Err("Expected definition identifier".into())
+            Err(PreprocessError::DefinitionParseError(
+                String::new(),
+                Box::new(DefinitionError::MissingIdentifier)
+            ))
         }
     }
 

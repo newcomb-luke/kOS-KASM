@@ -1,6 +1,8 @@
-use std::{error::Error, iter::Peekable, slice::Iter};
+use std::{iter::Peekable, slice::Iter};
 
 use crate::{Token, TokenData, TokenType};
+
+use super::{MacroError, PreprocessError, PreprocessResult};
 
 #[derive(Debug, Clone)]
 pub struct MacroArg {
@@ -52,7 +54,7 @@ impl Macro {
     pub fn parse_macro(
         start_line: usize,
         token_iter: &mut Peekable<Iter<Token>>,
-    ) -> Result<Macro, Box<dyn Error>> {
+    ) -> PreprocessResult<Macro> {
         // Check to see if we have a token, and it is an identifier
         if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::IDENTIFIER {
             let id = match token_iter.next().unwrap().data() {
@@ -67,11 +69,11 @@ impl Macro {
 
             // There needs to be an .endmacro directive, so no more tokens is an error
             if token_iter.peek().is_none() {
-                return Err(format!(
-                    "Incomplete macro definition {}, expected macro body. Line {}",
-                    id, start_line
-                )
-                .into());
+                return Err(PreprocessError::MacroParseError(
+                    id.to_owned(),
+                    start_line,
+                    MacroError::IncompleteMacroDefinition.into()
+                ).into());
             }
             // If there are arguments to this macro
             else if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
@@ -79,12 +81,11 @@ impl Macro {
 
                 // It has to be an int
                 if token_iter.peek().unwrap().tt() != TokenType::INT {
-                    return Err(format!(
-                        "Expected number of macro arguments, found: {}. Line: {}",
-                        token_iter.peek().unwrap().as_str(),
-                        start_line
-                    )
-                    .into());
+                    return Err(PreprocessError::MacroParseError(
+                        id.to_owned(),
+                        start_line,
+                        MacroError::InvalidNumberOfArguments(token_iter.peek().unwrap().as_str()).into()
+                    ).into());
                 }
                 min_args = match token_iter.next().unwrap().data() {
                     TokenData::INT(i) => *i,
@@ -108,12 +109,11 @@ impl Macro {
 
                     // Next has to be an int
                     if token_iter.peek().unwrap().tt() != TokenType::INT {
-                        return Err(format!(
-                            "Expected max number of macro arguments, found: {}. Line: {}",
-                            token_iter.peek().unwrap().as_str(),
-                            start_line
-                        )
-                        .into());
+                        return Err(PreprocessError::MacroParseError(
+                            id.to_owned(),
+                            start_line,
+                            MacroError::ExpectedArgumentRange(token_iter.peek().unwrap().as_str()).into(),
+                        ).into());
                     }
                     max_args = match token_iter.next().unwrap().data() {
                         TokenData::INT(i) => *i,
@@ -122,7 +122,11 @@ impl Macro {
 
                     // Test if the range makes sense...
                     if min_args >= max_args {
-                        return Err(format!("Invalid macro definition {} argument numbers. Range {}-{} makes no sense. Line {}", id, min_args, max_args, start_line).into());
+                        return Err(PreprocessError::MacroParseError(
+                            id.to_owned(),
+                            start_line,
+                            MacroError::InvalidArgumentRange((min_args, max_args)).into()
+                        ).into());
                     }
 
                     num_required_default_values = max_args - min_args;
@@ -140,11 +144,16 @@ impl Macro {
                         if token_iter.peek().is_none()
                             || token_iter.peek().unwrap().tt() == TokenType::NEWLINE
                         {
-                            return Err(format!(
-                                "Macro {} definition missing required default value. Line {}",
-                                id, start_line
-                            )
-                            .into());
+                            let token_str = match token_iter.peek() {
+                                Some(t) => t.as_str(),
+                                None => String::new()
+                            };
+
+                            return Err(PreprocessError::MacroParseError(
+                                id.to_owned(),
+                                start_line,
+                                MacroError::MissingDefaultArgumentValue.into()
+                            ).into());
                         }
 
                         // Go until we run out or hit a comma or newline
@@ -170,21 +179,27 @@ impl Macro {
                     if token_iter.peek().is_none()
                         || token_iter.peek().unwrap().tt() != TokenType::NEWLINE
                     {
-                        return Err(format!(
-                            "Expected newline after macro arguments in definition {}. Line {}",
-                            id, start_line
-                        )
-                        .into());
+                        let token_str = match token_iter.peek() {
+                            Some(t) => t.as_str(),
+                            None => String::new()
+                        };
+
+                        return Err(PreprocessError::MacroParseError(
+                            id.to_owned(),
+                            start_line,
+                            MacroError::TokenAfterMacroArguments(token_str).into()
+                        ).into());
                     }
                 }
                 // If it isn't either, that is an error
                 else {
-                    return Err(format!(
-                        "Expected newline or argument range. Found {}. Line {}",
-                        token_iter.peek().unwrap().as_str(),
-                        start_line
-                    )
-                    .into());
+                    let invalid_token = token_iter.peek().unwrap();
+                    
+                    return Err(PreprocessError::MacroParseError(
+                        id.to_owned(),
+                        start_line,
+                        MacroError::InvalidTokenInDeclaration(invalid_token.as_str()).into()
+                    ).into());
                 }
             }
             // If there are no arguments, we just move on, but consume the newline
@@ -215,6 +230,7 @@ impl Macro {
                 // We should also test for argument placeholders
                 else if token_iter.peek().unwrap().tt() == TokenType::AMPERSAND {
                     let argument_number;
+                    let line;
 
                     // Consume it
                     token_iter.next();
@@ -223,9 +239,24 @@ impl Macro {
                     if token_iter.peek().is_none()
                         || token_iter.peek().unwrap().tt() != TokenType::INT
                     {
-                        return Err(
-                            format!("Expected int value after & in macro definition").into()
-                        );
+                        let token_str = match token_iter.peek() {
+                            Some(t) => {
+                                line = t.line();
+                                t.as_str()
+                            },
+                            None => {
+                                line = start_line;
+                                String::new()
+                            }
+                        };
+
+                        return Err(PreprocessError::MacroParseError(
+                            id.to_owned(),
+                            line,
+                            MacroError::InvalidArgumentReference(token_str).into()
+                        ).into());
+                    } else {
+                        line = token_iter.peek().unwrap().line();
                     }
 
                     // Get the number of the argument
@@ -236,11 +267,11 @@ impl Macro {
 
                     // Make sure it isn't out of bounds
                     if argument_number > max_args {
-                        return Err(format!(
-                            "Argument number {} is out of bounds for macro definition",
-                            argument_number
-                        )
-                        .into());
+                        return Err(PreprocessError::MacroParseError(
+                            id.to_owned(),
+                            line,
+                            MacroError::ArgumentReferenceOutOfBounds(argument_number).into()
+                        ).into());
                     }
 
                     // Now replace it with a placeholder
@@ -257,14 +288,22 @@ impl Macro {
 
             // If this loop ended because we ran out of tokens... that is bad
             if !clean_exit {
-                Err(format!(".macro {} declaration requires closing .endmacro directive. Reached end of file before .endmacro. Macro line {}", id, start_line).into())
+                Err(PreprocessError::MacroParseError(
+                    id.to_owned(),
+                    start_line,
+                    MacroError::EndedWithoutClosing.into()
+                ).into())
             } else {
                 Ok(Macro::new(id, contents, args, min_args as usize))
             }
         }
         // If we don't that is an error because it is required
         else {
-            Err(format!("Expected macro identifier. Line {}", start_line).into())
+            Err(PreprocessError::MacroParseError(
+                String::new(),
+                start_line,
+                MacroError::MissingIdentifier.into()
+            ).into())
         }
     }
 
