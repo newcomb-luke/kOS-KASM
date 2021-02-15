@@ -20,9 +20,10 @@ pub use output::*;
 
 use kerbalobjects::*;
 
-pub static VERSION: &'static str = "0.9.9";
+pub static VERSION: &'static str = "0.9.11";
 
 pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
+
     if !config.file_path.ends_with(".kasm") {
         return Err(format!(
             "Input file must be a KASM file. Found: {}",
@@ -102,12 +103,6 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         &mut label_manager,
         &mut input_files,
     )?;
-
-    println!("Labels:");
-
-    for label in label_manager.as_vec() {
-        println!("{}", label.as_str());
-    }
 
     // If we are just output the preprocessed only
     if config.preprocess_only {

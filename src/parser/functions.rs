@@ -45,8 +45,6 @@ impl Function {
             ),
         );
 
-        println!("Parsing function {}", func_name);
-
         let mut parent_label_id = func_name.to_owned();
         let mut size = 0;
 
@@ -158,10 +156,6 @@ impl Function {
                 }
                 _ => unreachable!(),
             }
-        }
-
-        for instr in &instructions {
-            println!("{}", instr);
         }
 
         Ok(Function::new(func_name, instructions, size))

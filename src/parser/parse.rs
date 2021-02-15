@@ -15,12 +15,6 @@ impl Parser {
         let mut functions = Vec::new();
         let mut location_counter = 0;
 
-        println!("Tokens being passed to the parser:");
-
-        for token in &tokens {
-            println!("{}", token.as_str());
-        }
-
         let mut token_iter = tokens.iter().peekable();
 
         // Go until we find the first token that is a label
@@ -55,10 +49,6 @@ impl Parser {
 
         // Check for undefined labels
         Parser::check_labels(&functions, label_manager)?;
-
-        for label in label_manager.as_vec() {
-            println!("{:?}", label);
-        }
 
         Ok(functions)
     }

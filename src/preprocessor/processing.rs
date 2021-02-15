@@ -757,12 +757,6 @@ impl Preprocessor {
             }
         }
 
-        println!("\tNew tokens:\n");
-
-        for token in new_tokens.iter() {
-            println!("\t\t{}", token.as_str());
-        }
-
         Ok(new_tokens)
     }
 
@@ -1189,7 +1183,7 @@ impl Preprocessor {
             }
 
             // If it was a comma, consume it
-            if token_iter.peek().unwrap().tt() == TokenType::COMMA {
+            if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::COMMA {
                 token_iter.next();
             }
         }
