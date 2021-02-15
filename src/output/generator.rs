@@ -110,7 +110,7 @@ impl Generator {
                     else {
 
                         let label_location = match label.label_value() { LabelValue::LOC(l) => *l, _ => unreachable!() };
-                        let rel_jump_loc = location_counter - label_location;
+                        let rel_jump_loc = label_location - location_counter;
 
                         let loc_sym = Symbol::new("", KOSValue::INT32(rel_jump_loc as i32), 4, SymbolInfo::LOCAL, SymbolType::NOTYPE, 2);
 
