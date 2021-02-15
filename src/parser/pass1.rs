@@ -59,7 +59,7 @@ pub fn pass1(
                 }
 
                 // Get the possible operand combinations from the instruction
-                possible_operands = Instruction::operands_from_opcode(instr_opcode);
+                possible_operands = Instruction::operand_types_from_opcode(instr_opcode);
 
                 // Now we call a function to read all operands, verify them, and possibly evaluate them
                 new_operands = read_and_verify_operands(
@@ -579,7 +579,7 @@ fn is_expression_acceptable(
                 || *operand_possibility == OperandType::DOUBLE
             {
                 operand_accepted = true;
-            }
+            }s
         }
     }
 

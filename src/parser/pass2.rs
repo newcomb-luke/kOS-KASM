@@ -90,7 +90,7 @@ pub fn pass2(
             };
 
             let mut opcode = Instruction::opcode_from_mnemonic(mnemonic);
-            let possible_types_list = Instruction::operands_from_opcode(opcode);
+            let possible_types_list = Instruction::operand_types_from_opcode(opcode);
 
             let mut operand_tokens = Vec::new();
             let mut operand_symbols = Vec::new();

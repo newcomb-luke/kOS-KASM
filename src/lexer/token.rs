@@ -36,6 +36,7 @@ pub enum TokenType {
     HASH,
     ATSYMBOL,
     BOOL,
+    FUNCTION,
 }
 
 #[derive(Debug, PartialEq, Clone)]

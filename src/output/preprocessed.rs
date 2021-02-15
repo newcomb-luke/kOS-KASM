@@ -75,6 +75,7 @@ pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
             },
             TokenType::HASH => String::from("#"),
             TokenType::ATSYMBOL => String::from("@"),
+            TokenType::FUNCTION => String::from(""),
         };
 
         output.push_str(&st);

@@ -590,7 +590,10 @@ impl Preprocessor {
                         // Now register it in the Label table
                         label_manager.def(func_label_id, func_label);
 
-                        // Finally, push back the label token as it is needed for the first pass
+                        // Now we need to push a "function token" so that the parser knows that this is declaring a new function and not just referencing it
+                        new_tokens.push(Token::new(TokenType::FUNCTION, TokenData::NONE));
+
+                        // Finally, push back the label token as it is needed for parsing
                         new_tokens.push(label_token.clone());
                     }
                     _ => unreachable!(),
@@ -1509,7 +1512,7 @@ impl Preprocessor {
         // Lex the contents
         tokens = match lexer.lex(&contents, &file_name, file_id) {
             Ok(tokens) => tokens,
-            Err(e) => {
+            Err(_) => {
                 return Err(PreprocessError::IncludedLexError(file_name.to_owned()));
             }
         };

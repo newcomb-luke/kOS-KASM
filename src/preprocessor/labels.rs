@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LabelType {
@@ -19,7 +19,7 @@ pub enum LabelInfo {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LabelValue {
     NONE,
-    STRING(String),
+    LOC(u32),
 }
 
 #[derive(Debug, Clone)]

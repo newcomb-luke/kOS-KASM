@@ -421,22 +421,17 @@ impl ExpressionParser {
                 token_iter.next();
                 return Ok(ExpNode::Constant(Value::Double(*v)).into());
             }
-            TokenType::IDENTIFIER => {
-                // Get the string value out of it
-                let v = match next_token.data() {
-                    TokenData::STRING(v) => v,
+            TokenType::BOOL => {
+                let b = match next_token.data() {
+                    TokenData::BOOL(b) => *b,
                     _ => unreachable!(),
                 };
                 // Consume it
                 token_iter.next();
 
-                if v == "true" {
-                    return Ok(ExpNode::Constant(Value::Bool(true)).into());
-                } else {
-                    return Ok(ExpNode::Constant(Value::Bool(false)).into());
-                }
+                return Ok(ExpNode::Constant(Value::Bool(b)).into());
             }
-            t => {
+            _ => {
                 return Err(ExpressionError::InvalidToken(
                     next_token.as_str().to_owned(),
                 ));

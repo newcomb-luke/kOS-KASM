@@ -150,11 +150,6 @@ impl Macro {
                         if token_iter.peek().is_none()
                             || token_iter.peek().unwrap().tt() == TokenType::NEWLINE
                         {
-                            let token_str = match token_iter.peek() {
-                                Some(t) => t.as_str(),
-                                None => String::new(),
-                            };
-
                             return Err(PreprocessError::MacroParseError(
                                 id.to_owned(),
                                 start_line,

@@ -16,7 +16,7 @@ mod parser;
 pub use parser::*;
 
 mod output;
-pub use output::tokens_to_text;
+pub use output::*;
 
 use kerbalobjects::*;
 
@@ -118,73 +118,60 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     }
     // If not
     else {
-
         // Run the parser
         let output = Parser::parse(processed_tokens, &mut label_manager)?;
 
-        // Run pass 1
-        // let pass1_tokens = pass1(&processed_tokens, &mut label_manager)?;
+        let mut kofile = Generator::generate(output, &mut label_manager)?;
 
-        // println!("Pass 1 finished");
+        // Check if an empty comment was specified
+        if !config.comment.is_empty() {
+            // If it isn't, then check if any comment was specified
+            let comment_str = if config.comment != "!" {
+                config.comment.to_owned()
+            } else {
+                format!("Assembled by KASM v{}", VERSION)
+            };
 
-        // println!("Labels:");
+            let mut comment_strtab = StringTable::new(".comment");
+            // Add the comment as the first and only string
+            comment_strtab.add(&comment_str);
+            // Add the comment section
+            kofile.add_string_table(comment_strtab);
+        }
 
-        // for label in label_manager.as_vec() {
-        //     println!("{}", label.as_str());
-        // }
+        // Check if a non-empty file name has been specified
+        if !config.file.is_empty() {
+            // We need to get the file name we will put as the FILE symbol in the object file
+            let file_name = if config.file == "!" {
+                Path::new(&config.file_path)
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+            } else {
+                &config.file
+            };
 
-        // // Run pass 2
-        // let mut kofile = pass2(&pass1_tokens, &mut label_manager)?;
+            // Create the symbol
+            let file_sym = Symbol::new(
+                file_name,
+                KOSValue::NULL,
+                0,
+                SymbolInfo::LOCAL,
+                SymbolType::FILE,
+                0,
+            );
 
-        // // Check if an empty comment was specified
-        // if !config.comment.is_empty() {
-        //     // If it isn't, then check if any comment was specified
-        //     let comment_str = if config.comment != "!" {
-        //         config.comment.to_owned()
-        //     } else {
-        //         format!("Assembled by KASM v{}", VERSION)
-        //     };
+            // Add it
+            kofile.add_symbol(file_sym);
+        }
 
-        //     let mut comment_strtab = StringTable::new(".comment");
-        //     // Add the comment as the first and only string
-        //     comment_strtab.add(&comment_str);
-        //     // Add the comment section
-        //     kofile.add_string_table(comment_strtab);
-        // }
+        // Create a KO file writer
+        let mut writer = KOFileWriter::new(&output_path);
 
-        // // Check if a non-empty file name has been specified
-        // if !config.file.is_empty() {
-        //     // We need to get the file name we will put as the FILE symbol in the object file
-        //     let file_name = if config.file == "!" {
-        //         Path::new(&config.file_path)
-        //             .file_name()
-        //             .unwrap()
-        //             .to_str()
-        //             .unwrap()
-        //     } else {
-        //         &config.file
-        //     };
-
-        //     // Create the symbol
-        //     let file_sym = Symbol::new(
-        //         file_name,
-        //         KOSValue::NULL,
-        //         0,
-        //         SymbolInfo::LOCAL,
-        //         SymbolType::FILE,
-        //         0,
-        //     );
-
-        //     // Add it
-        //     kofile.add_symbol(file_sym);
-        // }
-
-        // // Create a KO file writer
-        // let mut writer = KOFileWriter::new(&output_path);
-
-        // // Actually write the file to disk
-        // kofile.write(&mut writer)?;
-        // writer.write_to_file()?;
+        // Actually write the file to disk
+        kofile.write(&mut writer)?;
+        writer.write_to_file()?;
     }
 
     Ok(())
