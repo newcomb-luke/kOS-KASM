@@ -2,7 +2,11 @@
 
 ## The Kerbal Compiler Collection assembler for kOS
 
-This is not meant to be used by anything yet in this condition!
+KASM is a well-featured assembler that works with KLinker to assemble code to run in the kOS mod for Kerbal Space Program.
+
+## Documentation / Tutorials
+
+https://github.com/newcomb-luke/kOS-KASM.git
 
 ### Feature list:
 
