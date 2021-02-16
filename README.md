@@ -1,4 +1,4 @@
-# kOS-KASM
+# KASM
 
 ## The Kerbal Compiler Collection assembler for kOS
 
