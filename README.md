@@ -6,7 +6,11 @@ KASM is a well-featured assembler that works with KLinker to assemble code to ru
 
 ## Documentation / Tutorials
 
-https://github.com/newcomb-luke/kOS-KASM.git
+https://newcomb-luke.github.io/kOS-KASM/
+
+## Sample Usage
+
+kasm input.kasm -o program.ko
 
 ### Feature list:
 
