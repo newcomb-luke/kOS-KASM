@@ -20,7 +20,7 @@ pub use output::*;
 
 use kerbalobjects::*;
 
-pub static VERSION: &'static str = "0.9.14";
+pub static VERSION: &'static str = "0.9.15";
 
 pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 

@@ -1333,7 +1333,7 @@ impl Preprocessor {
                     // Get the token
                     let token = token_iter.next().unwrap();
 
-                    // If this token is another definiition expansion...
+                    // If this token is another definition expansion...
                     if token.tt() == TokenType::IDENTIFIER && definition_table.ifdef(id) {
                         // Get the id
                         let inner_id = match token.data() {
@@ -1410,27 +1410,34 @@ impl Preprocessor {
             let token = without_placeholders_iter.next().unwrap();
 
             // If this token is another definition expansion...
-            if token.tt() == TokenType::IDENTIFIER && definition_table.ifdef(id) {
-                // Get the id
-                let inner_id = match token.data() {
-                    TokenData::STRING(s) => s,
-                    _ => unreachable!(),
-                };
+            if token.tt() == TokenType::IDENTIFIER {
+                let token_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
 
-                // We don't want recursive expansion, that would be bad.
-                if *id == *inner_id {
-                    return Err(DefinitionError::RecursiveExpansion);
+                if definition_table.ifdef(token_id) {
+                    // Get the id
+                    let inner_id = match token.data() {
+                        TokenData::STRING(s) => s,
+                        _ => unreachable!(),
+                    };
+
+                    // We don't want recursive expansion, that would be bad.
+                    if *id == *inner_id {
+                        return Err(DefinitionError::RecursiveExpansion);
+                    }
+
+                    // Expand it
+                    let mut inner = self.expand_definition(
+                        inner_id,
+                        &mut without_placeholders_iter,
+                        definition_table,
+                    )?;
+
+                    // Append it to the expanded tokens list
+                    expanded_tokens.append(&mut inner);
+                } else {
+                    // Just append the token
+                    expanded_tokens.push(token.clone());
                 }
-
-                // Expand it
-                let mut inner = self.expand_definition(
-                    inner_id,
-                    &mut without_placeholders_iter,
-                    definition_table,
-                )?;
-
-                // Append it to the expanded tokens list
-                expanded_tokens.append(&mut inner);
             }
             // If it isn't
             else {
