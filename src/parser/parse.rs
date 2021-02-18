@@ -1,4 +1,4 @@
-use crate::{LabelManager, ParseError, Token, TokenType};
+use crate::{LabelManager, LabelType, ParseError, Token, TokenType};
 
 use super::{functions::Function, instructions::Operand, ParseResult};
 pub struct Parser {}
@@ -60,7 +60,9 @@ impl Parser {
                 for op in instr.operands() {
                     match op {
                         Operand::LABELREF(r) => {
-                            if !label_manager.ifdef(r) {
+                            let label = label_manager.get(r).unwrap();
+
+                            if label.label_type() == LabelType::UNDEF || label.label_type() == LabelType::UNDEFFUNC {
                                 return Err(ParseError::UndefinedLabelError(r.to_owned()));
                             }
                         }

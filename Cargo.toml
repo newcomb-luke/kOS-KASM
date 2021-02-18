@@ -1,6 +1,6 @@
 [package]
 name = "kasm"
-version = "0.9.13"
+version = "0.9.14"
 authors = ["Luke Newcomb <newcomb.luke@protonmail.com>"]
 edition = "2018"
 license = "GPL-3.0"

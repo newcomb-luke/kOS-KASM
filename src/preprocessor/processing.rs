@@ -554,25 +554,22 @@ impl Preprocessor {
                             _ => unreachable!(),
                         };
 
-                        // If this function was declared as global, it will already be in the Label table
-                        // If it is in the Label table and it isn't global though, it is a duplicate
+                        // We need to check if an entry with this id was already made in the table
                         if label_manager.ifdef(func_label_id) {
                             // Retrieve it
                             let declared_label = label_manager.get(func_label_id).unwrap();
 
-                            // Check if it isn't global
-                            if declared_label.label_info() != LabelInfo::GLOBAL {
-                                // Then it is a duplicate
+                            // We need to check if it is undefined, because if it was already defined, it is a duplicate
+                            // If it is global though, it is expected to be undefined, so skip if it is global
+                            if declared_label.label_info() != LabelInfo::GLOBAL && (declared_label.label_type() != LabelType::UNDEFFUNC && declared_label.label_type() != LabelType::UNDEF) {
                                 return Err(PreprocessError::DuplicateLabel(
                                     func_label_id.to_owned(),
-                                    directive_line,
+                                    directive_line + 1,
                                 )
                                 .into());
                             }
-                            // If it is global, then we need to make the new Label info global as well
-                            else {
-                                label_info = LabelInfo::GLOBAL;
-                            }
+
+                            label_info = declared_label.label_info();
                         }
                         // If it isn't already declared, then the new Label's info will be local
                         else {
@@ -1051,11 +1048,6 @@ impl Preprocessor {
                         else {
                             new_tokens.push(token);
                         }
-                    }
-                    // If it is a boolean value
-                    else if id == "true" || id == "false" {
-                        // Push it right along
-                        new_tokens.push(token);
                     }
                     // We also need to check if it is an external Label
                     else if label_manager.ifdef(id) {
