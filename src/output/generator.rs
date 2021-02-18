@@ -1,4 +1,4 @@
-use crate::{Function, Instruction, LabelManager, LabelType, LabelValue, Operand};
+use crate::{Function, Instruction, LabelInfo, LabelManager, LabelType, LabelValue, Operand};
 use kerbalobjects::{KOFile, KOSValue, RelInstruction, RelSection, Symbol, SymbolInfo, SymbolType};
 
 use super::{GeneratorError, GeneratorResult};
@@ -32,12 +32,28 @@ impl Generator {
                 symbol_name,
                 KOSValue::NULL,
                 func.size(),
-                SymbolInfo::GLOBAL,
+                func.info(),
                 SymbolType::FUNC,
                 idx + FIRST_FUNC_SECTION,
             );
 
             kofile.add_symbol(func_symbol);
+        }
+
+        // Now we need to populate symbols for external functions
+        for label in label_manager.as_vec() {
+            if label.label_info() == LabelInfo::EXTERN {
+                let func_symbol = Symbol::new(
+                    label.id(),
+                    KOSValue::NULL,
+                    0,
+                    SymbolInfo::EXTERN,
+                    SymbolType::FUNC,
+                    0,
+                );
+
+                kofile.add_symbol(func_symbol);
+            }
         }
 
         let mut location_counter = 0;
@@ -99,7 +115,7 @@ impl Generator {
 
                     let sym_index;
 
-                    if label.label_type() == LabelType::FUNC {
+                    if label.label_type() == LabelType::FUNC || label.label_type() == LabelType::UNDEFFUNC {
 
                         sym_index = match kofile.get_symtab().get_index_by_name(f) {
                             Ok(idx) => idx,

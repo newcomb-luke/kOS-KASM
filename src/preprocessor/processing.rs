@@ -300,7 +300,7 @@ impl Preprocessor {
                         // Then define it
                         label_manager.def(
                             id,
-                            Label::new(id, LabelType::UNDEF, LabelInfo::EXTERN, LabelValue::NONE),
+                            Label::new(id, LabelType::UNDEFFUNC, LabelInfo::EXTERN, LabelValue::NONE),
                         );
                     }
                     DirectiveType::GLOBAL => {
@@ -312,7 +312,7 @@ impl Preprocessor {
                         {
                             return Err(PreprocessError::ExpectedAfterDirective(
                                 String::from("identifier"),
-                                String::from(".extern"),
+                                String::from(".global"),
                                 directive_line,
                             )
                             .into());
@@ -375,7 +375,7 @@ impl Preprocessor {
                                 id,
                                 Label::new(
                                     id,
-                                    LabelType::UNDEF,
+                                    LabelType::UNDEFFUNC,
                                     LabelInfo::GLOBAL,
                                     LabelValue::NONE,
                                 ),
