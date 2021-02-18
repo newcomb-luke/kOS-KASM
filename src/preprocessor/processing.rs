@@ -1467,6 +1467,13 @@ impl Preprocessor {
         // Create a new lexer just for this file
         let mut lexer = Lexer::new();
 
+        // If it is an absolute path, we don't need to do anything. If it is not, make it one by adding the include path
+        if !file_path.is_absolute() {
+            let include_path = Path::new(&self.include_path);
+            path_buffer = include_path.join(file_path);
+            file_path = path_buffer.as_path();
+        }
+
         // If the file does not exist, error out here
         if !file_path.exists() {
             return Err(PreprocessError::InvalidIncludeFile(
@@ -1479,13 +1486,6 @@ impl Preprocessor {
             return Err(PreprocessError::DirectoryIncludeError(
                 file_path.to_str().unwrap().to_owned(),
             ));
-        }
-
-        // If it is an absolute path, we don't need to do anything. If it is not, make it one by adding the include path
-        if !file_path.is_absolute() {
-            let include_path = Path::new(&self.include_path);
-            path_buffer = include_path.join(file_path);
-            file_path = path_buffer.as_path();
         }
 
         // Attempt to read the file as text
