@@ -1,4 +1,7 @@
 use clap::ArgMatches;
+use kerbalobjects::kofile::sections::{SectionHeader, StringTable};
+use kerbalobjects::kofile::symbols::KOSymbol;
+use output::preprocessed::tokens_to_text;
 use std::io::Write;
 use std::{
     env,
@@ -6,24 +9,23 @@ use std::{
 };
 use std::{error::Error, fs, fs::File, path::Path};
 
-mod lexer;
-pub use lexer::*;
+pub mod lexer;
+use lexer::*;
 
-mod preprocessor;
-pub use preprocessor::*;
+pub mod preprocessor;
+use preprocessor::*;
 
-mod parser;
-pub use parser::*;
+pub mod parser;
+use parser::*;
 
-mod output;
-pub use output::*;
+pub mod output;
+use output::generator::Generator;
 
-use kerbalobjects::*;
+use kerbalobjects::{kofile::*, ToBytes};
 
-pub static VERSION: &'static str = "0.9.12";
+pub static VERSION: &'static str = "0.10.12";
 
 pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
-
     if !config.file_path.ends_with(".kasm") {
         return Err(format!(
             "Input file must be a KASM file. Found: {}",
@@ -127,11 +129,19 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
                 format!("Assembled by KASM v{}", VERSION)
             };
 
-            let mut comment_strtab = StringTable::new(".comment");
+            let comment_strtab_name_idx = kofile.add_shstr(".comment");
+
+            let comment_strtab_sh =
+                SectionHeader::new(comment_strtab_name_idx, sections::SectionKind::StrTab);
+
+            let comment_strtab_idx = kofile.add_header(comment_strtab_sh);
+
+            let mut comment_strtab = StringTable::new(0, comment_strtab_idx);
+
             // Add the comment as the first and only string
             comment_strtab.add(&comment_str);
             // Add the comment section
-            kofile.add_string_table(comment_strtab);
+            kofile.add_str_tab(comment_strtab);
         }
 
         // Check if a non-empty file name has been specified
@@ -147,26 +157,31 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
                 &config.file
             };
 
-            // Create the symbol
-            let file_sym = Symbol::new(
-                file_name,
-                KOSValue::NULL,
-                0,
-                SymbolInfo::LOCAL,
-                SymbolType::FILE,
-                0,
-            );
+            let symstrtab = kofile.str_tab_by_name(".symstrtab").unwrap();
+
+            let file_name_idx = symstrtab.add(file_name);
+            let mut file_sym =
+                KOSymbol::new(0, 0, symbols::SymBind::Global, symbols::SymType::File, 0);
+            file_sym.set_name_idx(file_name_idx);
+
+            let sym_section = kofile.sym_tab_by_name(".symtab").unwrap();
 
             // Add it
-            kofile.add_symbol(file_sym);
+            sym_section.add(file_sym);
         }
 
-        // Create a KO file writer
-        let mut writer = KOFileWriter::new(&output_path);
+        kofile.update_headers()?;
+
+        let mut file_buffer = Vec::with_capacity(2048);
+
+        kofile.to_bytes(&mut file_buffer);
 
         // Actually write the file to disk
-        kofile.write(&mut writer)?;
-        writer.write_to_file()?;
+        let mut file =
+            std::fs::File::create(output_path).expect("Output file could not be created");
+
+        file.write_all(file_buffer.as_slice())
+            .expect("Output file could not be written to.");
     }
 
     Ok(())

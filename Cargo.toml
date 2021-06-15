@@ -1,6 +1,6 @@
 [package]
 name = "kasm"
-version = "0.9.12"
+version = "0.10.12"
 authors = ["Luke Newcomb <newcomb.luke@protonmail.com>"]
 edition = "2018"
 license = "GPL-3.0"
@@ -12,4 +12,4 @@ homepage = "https://github.com/newcomb-luke/kOS-KASM"
 
 [dependencies]
 clap = "~2.27.0"
-kerbalobjects = "2.1.0"
+kerbalobjects = "3.0.11"
