@@ -157,14 +157,19 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
                 &config.file
             };
 
-            let symstrtab = kofile.str_tab_by_name(".symstrtab").unwrap();
+            let symstrtab = kofile.str_tab_by_name_mut("symstrtab").unwrap();
 
             let file_name_idx = symstrtab.add(file_name);
-            let mut file_sym =
-                KOSymbol::new(0, 0, symbols::SymBind::Global, symbols::SymType::File, 0);
-            file_sym.set_name_idx(file_name_idx);
+            let file_sym = KOSymbol::new(
+                file_name_idx,
+                0,
+                0,
+                symbols::SymBind::Global,
+                symbols::SymType::File,
+                0,
+            );
 
-            let sym_section = kofile.sym_tab_by_name(".symtab").unwrap();
+            let sym_section = kofile.sym_tab_by_name_mut(".symtab").unwrap();
 
             // Add it
             sym_section.add(file_sym);

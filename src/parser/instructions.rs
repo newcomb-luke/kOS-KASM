@@ -568,7 +568,7 @@ impl Instruction {
             0x4a => vec![],
             0x4b => vec![],
             0x4c => vec![
-                vec![OperandType::STRING],
+                vec![OperandType::STRING, OperandType::NULL],
                 vec![
                     OperandType::STRING,
                     OperandType::INT16,

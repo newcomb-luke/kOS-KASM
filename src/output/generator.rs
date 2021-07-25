@@ -4,10 +4,10 @@ use super::errors::{GeneratorError, GeneratorResult};
 
 use kerbalobjects::{
     kofile::{
-        sections::{DataSection, RelSection, StringTable, SymbolTable},
-        symbols::KOSymbol,
+        sections::{DataSection, FuncSection, ReldSection, SectionIndex, StringTable, SymbolTable},
         symbols::SymBind,
         symbols::SymType,
+        symbols::{KOSymbol, ReldEntry},
         Instr, KOFile,
     },
     KOSValue, Opcode,
@@ -25,25 +25,18 @@ impl Generator {
 
         let mut symtab = kofile.new_symtab(".symtab");
         let mut datatab = kofile.new_datasection(".data");
+        let mut reld_section = kofile.new_reldsection(".reld");
         let mut symstrtab = kofile.new_strtab(".symstrtab");
         let start_index = kofile.section_count();
-        let mut rel_sections = Vec::new();
+        let mut func_sections = Vec::new();
 
         // First we will populate the symbols for the functions
         for (idx, func) in functions.iter().enumerate() {
-            let func_name = func.name();
-
-            let symbol_name = if func_name == "_start" {
-                ".text"
-            } else if func_name == "_init" {
-                ".init"
-            } else {
-                &func_name
-            };
-            let func_name_idx = symstrtab.add(symbol_name);
+            let func_name_idx = symstrtab.add(&func.name());
 
             let sh_idx = start_index + idx;
             let mut func_symbol = KOSymbol::new(
+                0,
                 0,
                 func.size(),
                 SymBind::Global,
@@ -57,25 +50,26 @@ impl Generator {
 
         let mut location_counter = 0;
         for func in functions {
-            let rel_section = Generator::generate_function(
+            let func_section = Generator::generate_function(
                 func,
                 &mut kofile,
                 &mut datatab,
+                &mut reld_section,
                 &mut symtab,
                 &mut symstrtab,
                 label_manager,
                 &mut location_counter,
             )?;
 
-            rel_sections.push(rel_section);
+            func_sections.push(func_section);
         }
 
         kofile.add_str_tab(symstrtab);
         kofile.add_data_section(datatab);
         kofile.add_sym_tab(symtab);
 
-        for rel_section in rel_sections {
-            kofile.add_rel_section(rel_section);
+        for func_section in func_sections {
+            kofile.add_func_section(func_section);
         }
 
         Ok(kofile)
@@ -85,27 +79,22 @@ impl Generator {
         func: Function,
         kofile: &mut KOFile,
         data_section: &mut DataSection,
+        reld_section: &mut ReldSection,
         symtab: &mut SymbolTable,
         symstrtab: &mut StringTable,
         label_manager: &LabelManager,
         location_counter: &mut u32,
-    ) -> GeneratorResult<RelSection> {
-        let func_name = func.name();
+    ) -> GeneratorResult<FuncSection> {
+        let mut code_section = kofile.new_funcsection(&func.name());
+        let section_index = code_section.section_index();
 
-        let section_name = if func.name() == "_start" {
-            ".text"
-        } else if func.name() == "_init" {
-            ".init"
-        } else {
-            &func_name
-        };
-
-        let mut code_section = kofile.new_relsection(section_name);
-
-        for instr in func.instructions() {
+        for (instr_index, instr) in func.instructions().iter().enumerate() {
             let ko_instr = Generator::instr_to_koinstr(
                 instr,
+                instr_index,
+                section_index,
                 data_section,
+                reld_section,
                 symtab,
                 symstrtab,
                 label_manager,
@@ -124,7 +113,10 @@ impl Generator {
 
     fn instr_to_koinstr(
         instr: &Instruction,
+        instr_index: usize,
+        section_index: usize,
         data_section: &mut DataSection,
+        reld_section: &mut ReldSection,
         symtab: &mut SymbolTable,
         symstrtab: &mut StringTable,
         label_manager: &LabelManager,
@@ -132,37 +124,18 @@ impl Generator {
     ) -> GeneratorResult<Instr> {
         let mut instr_operands = Vec::new();
 
-        for op in instr.operands() {
+        for (op_index, op) in instr.operands().iter().enumerate() {
             let instr_op = match op {
-                Operand::VALUE(v) => {
-                    let val_idx = data_section.add_checked(v.clone());
-
-                    let val_sym = KOSymbol::new(
-                        val_idx,
-                        v.size_bytes() as u16,
-                        SymBind::Local,
-                        SymType::NoType,
-                        data_section.section_index() as u16,
-                    );
-
-                    symtab.add_checked(val_sym)
-                }
+                Operand::VALUE(v) => data_section.add_checked(v.clone()),
                 Operand::LABELREF(f) => {
                     let label = label_manager.get(f).unwrap();
 
-                    let sym_index;
+                    let sym_index = if label.label_type() == LabelType::FUNC {
+                        let func_name_idx = symstrtab
+                            .find(f)
+                            .ok_or(GeneratorError::UnresolvedFuncRefError(f.to_owned()))?;
 
-                    if label.label_type() == LabelType::FUNC {
-                        let func_name_idx = symstrtab.find(f);
-
-                        sym_index = match func_name_idx {
-                            Some(name_idx) => symtab
-                                .find(symtab.find_has_name(name_idx).unwrap())
-                                .unwrap(),
-                            None => {
-                                return Err(GeneratorError::UnresolvedFuncRefError(f.to_owned()))
-                            }
-                        };
+                        symtab.position_by_name(func_name_idx).unwrap()
                     } else {
                         let label_location = match label.label_value() {
                             LabelValue::LOC(l) => *l,
@@ -176,7 +149,10 @@ impl Generator {
                         let value_size = value.size_bytes();
                         let value_idx = data_section.add_checked(value);
 
-                        let loc_sym = KOSymbol::new(
+                        let name_index = symstrtab.add_checked(f);
+
+                        let sym = KOSymbol::new(
+                            name_index,
                             value_idx,
                             value_size as u16,
                             SymBind::Local,
@@ -184,10 +160,15 @@ impl Generator {
                             data_section.section_index() as u16,
                         );
 
-                        sym_index = symtab.add_checked(loc_sym);
-                    }
+                        symtab.add(sym)
+                    };
 
-                    sym_index
+                    let reld_entry =
+                        ReldEntry::new(section_index, instr_index, op_index, sym_index);
+
+                    reld_section.add(reld_entry);
+
+                    0
                 }
             };
 
