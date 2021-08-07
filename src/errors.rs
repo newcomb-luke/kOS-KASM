@@ -77,6 +77,7 @@ impl ErrorData {
 
 pub enum ErrorKind {
     JunkAfterBackslash,
+    JunkDirective,
     TokenParse,
     JunkFloat,
 }
@@ -87,6 +88,11 @@ impl ErrorKind {
             ErrorKind::JunkAfterBackslash => ErrorData::new(
                 "Unable to parse line continuation",
                 "Found token after \\ character",
+                Level::Error,
+            ),
+            ErrorKind::JunkDirective => ErrorData::new(
+                "Error parsing directive",
+                "Not a valid directive name",
                 Level::Error,
             ),
             ErrorKind::TokenParse => {

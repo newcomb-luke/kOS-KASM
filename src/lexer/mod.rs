@@ -85,10 +85,11 @@ impl<'a> Lexer<'a> {
             RawToken::DirectiveElseIfNotDef => TokenKind::DirectiveElseIfNotDef,
             RawToken::DirectiveElse => TokenKind::DirectiveElse,
             RawToken::DirectiveEndIf => TokenKind::DirectiveEndIf,
-            RawToken::Directive => TokenKind::Directive,
 
             RawToken::Label => TokenKind::Label,
             RawToken::InnerLabel => TokenKind::InnerLabel,
+
+            RawToken::InnerLabelReference => TokenKind::InnerLabelReference,
 
             RawToken::Identifier => TokenKind::Identifier,
 

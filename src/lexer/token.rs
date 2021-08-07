@@ -45,11 +45,12 @@ pub enum TokenKind {
     DirectiveElseIfNotDef,
     DirectiveElse,
     DirectiveEndIf,
-    Directive,
 
     /// Labels
     Label,
     InnerLabel,
+
+    InnerLabelReference,
 
     Identifier,
 
@@ -139,7 +140,7 @@ pub enum RawToken {
     #[token(".ifdef")]
     DirectiveIfDef,
 
-    #[token("ifndef")]
+    #[token(".ifndef")]
     DirectiveIfNotDef,
 
     #[token(".elif")]
@@ -161,7 +162,7 @@ pub enum RawToken {
     DirectiveEndIf,
 
     #[regex(r"\.[_a-zA-Z][_a-zA-Z0-9]+")]
-    Directive,
+    InnerLabelReference,
 
     #[regex(r"\.[_a-zA-Z][_a-zA-Z0-9]+:")]
     InnerLabel,

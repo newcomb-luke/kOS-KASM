@@ -121,14 +121,18 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         for error in errors {
             error.emit(&token_map, &tokens)?;
         }
-    } else {
-        // Run phase 0 of the assembly
-        if let Err(error) = phase0(&mut tokens) {
-            error.emit(&token_map, &tokens)?;
-        } else {
-            println!("Assembly successful");
-        }
+
+        return Err("".into());
     }
+
+    // Run phase 0 of the assembly
+    if let Err(error) = phase0(&mut tokens) {
+        error.emit(&token_map, &tokens)?;
+
+        return Err("".into());
+    }
+
+    println!("Lexing complete");
 
     /*
         // Run preprocessor
