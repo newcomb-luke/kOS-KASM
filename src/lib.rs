@@ -1,17 +1,20 @@
 use clap::ArgMatches;
-use kerbalobjects::kofile::sections::{SectionHeader, StringTable};
-use kerbalobjects::kofile::symbols::KOSymbol;
-use output::preprocessed::tokens_to_text;
-use std::io::Write;
+use errors::{FileContext, TokenMap};
+use lexer::check_errors;
+use lexer::token::Token;
+use preprocessor::phase0::phase0;
+use std::fs;
 use std::{
     env,
     fmt::{Display, Formatter},
 };
-use std::{error::Error, fs, fs::File, path::Path};
+use std::{error::Error, path::Path};
 
 pub mod lexer;
-use lexer::*;
 
+pub mod errors;
+
+/*
 pub mod preprocessor;
 use preprocessor::*;
 
@@ -20,10 +23,13 @@ use parser::*;
 
 pub mod output;
 use output::generator::Generator;
+*/
 
-use kerbalobjects::{kofile::*, ToBytes};
+pub mod preprocessor;
 
-pub static VERSION: &'static str = "0.10.12";
+pub mod output;
+
+pub static VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     if !config.file_path.ends_with(".kasm") {
@@ -62,20 +68,29 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let mut include_path = config.include_path.clone();
+    let mut _include_path = config.include_path.clone();
 
     // If no include path has been specified
-    if include_path == "!" {
+    if _include_path == "!" {
         // Get it from the current working directory
         let cwd = env::current_dir()?;
 
-        include_path = String::from(cwd.as_path().to_str().unwrap());
+        _include_path = String::from(cwd.as_path().to_str().unwrap());
     } else {
-        if !Path::new(&include_path).is_dir() {
+        if !Path::new(&_include_path).is_dir() {
             return Err(KASMError::IncludePathDirectoryError.into());
         }
     }
 
+    let input_path = Path::new(&config.file_path);
+
+    let input_file_name_os = input_path.file_name().ok_or("Invalid path provided")?;
+    let input_file_name = input_file_name_os
+        .to_owned()
+        .into_string()
+        .map_err(|_| "Invalid path provided")?;
+
+    /*
     // Create all the variables required to perform assembly
     let mut preprocessor = Preprocessor::new(include_path);
     let mut definition_table = DefinitionTable::new();
@@ -86,108 +101,133 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         expand_definitions: true,
         expand_macros: true,
     };
+    */
 
-    input_files.add_file("main");
+    // input_files.add_file("main");
 
     // Read the input file
-    let main_contents = fs::read_to_string(&config.file_path)?;
+    let main_source = fs::read_to_string(&config.file_path)?;
 
-    // Create out lexer and lex the main file's tokens
-    let mut lexer = Lexer::new();
-    let main_tokens = lexer.lex(&main_contents, "main", 0)?;
+    let file_context = FileContext::new(input_file_name, main_source);
 
-    // Run preprocessor
-    let processed_tokens = preprocessor.process(
-        &settings,
-        main_tokens,
-        &mut definition_table,
-        &mut macro_table,
-        &mut label_manager,
-        &mut input_files,
-    )?;
+    let mut token_map = TokenMap::new();
+    token_map.add(file_context);
 
-    // If we are just output the preprocessed only
-    if config.preprocess_only {
-        // If we are, just output that
-        let preprocessed = tokens_to_text(&processed_tokens);
-        let mut pre_file = File::create(&output_path)?;
-        pre_file.write_all(&preprocessed.as_bytes())?;
-    }
-    // If not
-    else {
-        // Run the parser
-        let output = Parser::parse(processed_tokens, &mut label_manager)?;
+    let file_context = token_map.file_at(0).unwrap().0;
 
-        let mut kofile = Generator::generate(output, &mut label_manager)?;
+    let mut tokens: Vec<Token> = lexer::tokenize(file_context.source()).collect();
 
-        // Check if an empty comment was specified
-        if !config.comment.is_empty() {
-            // If it isn't, then check if any comment was specified
-            let comment_str = if config.comment != "!" {
-                config.comment.to_owned()
-            } else {
-                format!("Assembled by KASM v{}", VERSION)
-            };
-
-            let comment_strtab_name_idx = kofile.add_shstr(".comment");
-
-            let comment_strtab_sh =
-                SectionHeader::new(comment_strtab_name_idx, sections::SectionKind::StrTab);
-
-            let comment_strtab_idx = kofile.add_header(comment_strtab_sh);
-
-            let mut comment_strtab = StringTable::new(0, comment_strtab_idx);
-
-            // Add the comment as the first and only string
-            comment_strtab.add(&comment_str);
-            // Add the comment section
-            kofile.add_str_tab(comment_strtab);
+    if let Err(errors) = check_errors(&tokens) {
+        for error in errors {
+            error.emit(&token_map, &tokens)?;
         }
 
-        // Check if a non-empty file name has been specified
-        if !config.file.is_empty() {
-            // We need to get the file name we will put as the FILE symbol in the object file
-            let file_name = if config.file == "!" {
-                Path::new(&config.file_path)
-                    .file_name()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-            } else {
-                &config.file
-            };
-
-            let symstrtab = kofile.str_tab_by_name_mut("symstrtab").unwrap();
-
-            let file_name_idx = symstrtab.add(file_name);
-            let file_sym = KOSymbol::new(
-                file_name_idx,
-                0,
-                0,
-                symbols::SymBind::Global,
-                symbols::SymType::File,
-                0,
-            );
-
-            let sym_section = kofile.sym_tab_by_name_mut(".symtab").unwrap();
-
-            // Add it
-            sym_section.add(file_sym);
-        }
-
-        kofile.update_headers()?;
-
-        let mut file_buffer = Vec::with_capacity(2048);
-
-        kofile.to_bytes(&mut file_buffer);
-
-        // Actually write the file to disk
-        let mut file =
-            std::fs::File::create(output_path).expect("Output file could not be created");
-
-        file.write_all(file_buffer.as_slice())
-            .expect("Output file could not be written to.");
+        return Err("".into());
     }
+
+    // Run phase 0 of the assembly
+    if let Err(error) = phase0(&mut tokens) {
+        error.emit(&token_map, &tokens)?;
+
+        return Err("".into());
+    }
+
+    println!("Lexing complete");
+
+    /*
+        // Run preprocessor
+        let processed_tokens = preprocessor.process(
+            &settings,
+            main_tokens,
+            &mut definition_table,
+            &mut macro_table,
+            &mut label_manager,
+            &mut input_files,
+        )?;
+
+        // If we are just output the preprocessed only
+        if config.preprocess_only {
+            // If we are, just output that
+            let preprocessed = tokens_to_text(&processed_tokens);
+            let mut pre_file = File::create(&output_path)?;
+            pre_file.write_all(&preprocessed.as_bytes())?;
+        }
+        // If not
+        else {
+            // Run the parser
+            let output = Parser::parse(processed_tokens, &mut label_manager)?;
+
+            let mut kofile = Generator::generate(output, &mut label_manager)?;
+
+            // Check if an empty comment was specified
+            if !config.comment.is_empty() {
+                // If it isn't, then check if any comment was specified
+                let comment_str = if config.comment != "!" {
+                    config.comment.to_owned()
+                } else {
+                    format!("Assembled by KASM v{}", VERSION)
+                };
+
+                let comment_strtab_name_idx = kofile.add_shstr(".comment");
+
+                let comment_strtab_sh =
+                    SectionHeader::new(comment_strtab_name_idx, sections::SectionKind::StrTab);
+
+                let comment_strtab_idx = kofile.add_header(comment_strtab_sh);
+
+                let mut comment_strtab = StringTable::new(0, comment_strtab_idx);
+
+                // Add the comment as the first and only string
+                comment_strtab.add(&comment_str);
+                // Add the comment section
+                kofile.add_str_tab(comment_strtab);
+            }
+
+            // Check if a non-empty file name has been specified
+            if !config.file.is_empty() {
+                // We need to get the file name we will put as the FILE symbol in the object file
+                let file_name = if config.file == "!" {
+                    Path::new(&config.file_path)
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                } else {
+                    &config.file
+                };
+
+                let symstrtab = kofile.str_tab_by_name_mut("symstrtab").unwrap();
+
+                let file_name_idx = symstrtab.add(file_name);
+                let file_sym = KOSymbol::new(
+                    file_name_idx,
+                    0,
+                    0,
+                    symbols::SymBind::Global,
+                    symbols::SymType::File,
+                    0,
+                );
+
+                let sym_section = kofile.sym_tab_by_name_mut(".symtab").unwrap();
+
+                // Add it
+                sym_section.add(file_sym);
+            }
+
+            kofile.update_headers()?;
+
+            let mut file_buffer = Vec::with_capacity(2048);
+
+            kofile.to_bytes(&mut file_buffer);
+
+            // Actually write the file to disk
+            let mut file =
+                std::fs::File::create(output_path).expect("Output file could not be created");
+
+            file.write_all(file_buffer.as_slice())
+                .expect("Output file could not be written to.");
+        }
+    */
 
     Ok(())
 }

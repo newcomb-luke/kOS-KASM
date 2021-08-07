@@ -1,9 +1,106 @@
 use std::{error::Error, fmt::Display, fmt::Formatter};
 
+use crate::{lexer::token::Token, output::console::Console, FileContext};
+
 pub type PreprocessResult<T> = Result<T, PreprocessError>;
 pub type ExpressionResult<T> = Result<T, ExpressionError>;
 pub type MacroExpansionResult<T> = Result<T, MacroError>;
 pub type DefinitionExpansionResult<T> = Result<T, DefinitionError>;
+
+pub type Phase0Result<T> = Result<T, Phase0Error>;
+
+#[derive(Debug)]
+pub enum Phase0Error {
+    JunkAfterBackslashError(usize),
+}
+
+pub trait TokenIndex {
+    fn token_index(&self) -> usize;
+}
+
+pub trait Emittable: IndexEmittable {
+    fn emit(&self, file_context: &FileContext, tokens: &Vec<Token>) -> std::io::Result<()> {
+        let mut index = 0;
+        let mut error_token = None;
+
+        for (iter_index, token) in tokens.iter().enumerate() {
+            if iter_index == self.token_index() {
+                error_token = Some(token);
+                break;
+            }
+
+            index += token.len;
+        }
+
+        if let Some(token) = error_token {
+            self.emit_index(file_context, index, token.clone())
+        } else {
+            Console::emit(
+                crate::output::console::Level::Bug,
+                file_context,
+                "Internal error in assembler",
+                "",
+                0,
+                0,
+            )
+        }
+    }
+}
+
+pub trait IndexEmittable: TokenIndex {
+    fn emit_index(
+        &self,
+        file_context: &FileContext,
+        index: u32,
+        token: Token,
+    ) -> std::io::Result<()>;
+}
+
+impl TokenIndex for Phase0Error {
+    fn token_index(&self) -> usize {
+        match self {
+            Phase0Error::JunkAfterBackslashError(token_index) => *token_index,
+        }
+    }
+}
+
+impl IndexEmittable for Phase0Error {
+    fn emit_index(
+        &self,
+        file_context: &FileContext,
+        index: u32,
+        token: Token,
+    ) -> std::io::Result<()> {
+        let (prefix, message) = match self {
+            Phase0Error::JunkAfterBackslashError(_) => (
+            ),
+        };
+
+        Console::emit(
+            crate::output::console::Level::Error,
+            file_context,
+            prefix,
+            message,
+            index,
+            token.len,
+        )
+    }
+}
+
+impl Emittable for Phase0Error {}
+
+/*
+*
+       level: Level,
+       file_name: &str,
+       source_map: &SourceMap,
+       source: &str,
+       prefix: &str,
+       message: &str,
+       index: u32,
+       len: u32,
+*
+*/
 
 #[derive(Debug)]
 pub enum PreprocessError {

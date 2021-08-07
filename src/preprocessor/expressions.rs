@@ -1,6 +1,6 @@
 use std::{iter::Peekable, slice::Iter};
 
-use crate::{Token, TokenData, TokenType};
+use crate::lexer::token::Token;
 
 use super::errors::{ExpressionError, ExpressionResult};
 
