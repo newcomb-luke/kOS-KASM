@@ -1,5 +1,7 @@
 pub mod phase0;
 
+pub mod expressions;
+
 /*
 mod expressions;
 pub use expressions::{BinOp, ExpNode, ExpressionParser, UnOp, Value, ValueType};

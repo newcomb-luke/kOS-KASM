@@ -1,14 +1,13 @@
 use clap::ArgMatches;
-use errors::{FileContext, TokenMap};
+use errors::SourceFile;
 use lexer::check_errors;
 use lexer::token::Token;
 use preprocessor::phase0::phase0;
-use std::fs;
-use std::{
-    env,
-    fmt::{Display, Formatter},
-};
+use std::env;
 use std::{error::Error, path::Path};
+use std::{fs, vec};
+
+use crate::preprocessor::phase0::phase1;
 
 pub mod lexer;
 
@@ -78,7 +77,7 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
         _include_path = String::from(cwd.as_path().to_str().unwrap());
     } else {
         if !Path::new(&_include_path).is_dir() {
-            return Err(KASMError::IncludePathDirectoryError.into());
+            return Err("Lol".into());
         }
     }
 
@@ -108,18 +107,15 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     // Read the input file
     let main_source = fs::read_to_string(&config.file_path)?;
 
-    let file_context = FileContext::new(input_file_name, main_source);
+    let source_file = SourceFile::new(input_file_name, main_source);
 
-    let mut token_map = TokenMap::new();
-    token_map.add(file_context);
+    let source_files = vec![source_file];
 
-    let file_context = token_map.file_at(0).unwrap().0;
-
-    let mut tokens: Vec<Token> = lexer::tokenize(file_context.source()).collect();
+    let mut tokens: Vec<Token> = lexer::tokenize(source_files.get(0).unwrap().source()).collect();
 
     if let Err(errors) = check_errors(&tokens) {
         for error in errors {
-            error.emit(&token_map, &tokens)?;
+            error.emit(&source_files)?;
         }
 
         return Err("".into());
@@ -127,10 +123,13 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
     // Run phase 0 of the assembly
     if let Err(error) = phase0(&mut tokens) {
-        error.emit(&token_map, &tokens)?;
+        error.emit(&source_files)?;
 
         return Err("".into());
     }
+
+    // Run phase 1 of the assembly
+    tokens = phase1(tokens);
 
     println!("Lexing complete");
 
@@ -272,22 +271,5 @@ impl InputFiles {
 
     pub fn get_from_id(&self, id: usize) -> String {
         self.files.get(id).unwrap().to_owned()
-    }
-}
-
-#[derive(Debug)]
-pub enum KASMError {
-    IncludePathDirectoryError,
-}
-
-impl Error for KASMError {}
-
-impl Display for KASMError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            KASMError::IncludePathDirectoryError => {
-                write!(f, "Include path must be a directory.")
-            }
-        }
     }
 }

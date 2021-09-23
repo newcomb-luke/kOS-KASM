@@ -1,14 +1,14 @@
 use crate::{
-    errors::Error,
+    errors::KASMError,
     lexer::token::{Token, TokenKind},
 };
 
 /// Phase 0 replaces comments and line continues with whitespace
-pub fn phase0(tokens: &mut Vec<Token>) -> Result<(), Error> {
+pub fn phase0(tokens: &mut Vec<Token>) -> Result<(), KASMError> {
     let mut last_was_backslash = false;
 
     // Loop through all of the tokens
-    for (token_index, token) in tokens.iter_mut().enumerate() {
+    for token in tokens.iter_mut() {
         // If the last token was a backslash (line continue)
         if last_was_backslash {
             // If it was a newline as expected, then replace it with whitespace and reset
@@ -19,9 +19,9 @@ pub fn phase0(tokens: &mut Vec<Token>) -> Result<(), Error> {
             // If it was whitespace that is fine
             else if token.kind != TokenKind::Whitespace {
                 // If it wasn't though, that is an error
-                return Err(Error::new(
+                return Err(KASMError::new(
                     crate::errors::ErrorKind::JunkAfterBackslash,
-                    token_index as u32,
+                    *token,
                 ));
             }
         } else {
@@ -41,6 +41,23 @@ pub fn phase0(tokens: &mut Vec<Token>) -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+/// Phase 1 replaces removes all whitespace
+pub fn phase1(tokens: Vec<Token>) -> Vec<Token> {
+    // Allocate it as the same size just so we never have to allocate again
+    let mut new_tokens = Vec::with_capacity(tokens.len());
+
+    // Loop through all of the tokens
+    for token in tokens.iter() {
+        // If it isn't whitespace
+        if token.kind != TokenKind::Whitespace {
+            // Add it back
+            new_tokens.push(*token);
+        }
+    }
+
+    new_tokens
 }
 
 #[cfg(test)]

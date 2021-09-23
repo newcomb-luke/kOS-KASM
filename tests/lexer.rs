@@ -14,6 +14,7 @@ fn lex_operators() {
         TokenKind::OperatorOr,
         TokenKind::OperatorEquals,
         TokenKind::OperatorNotEquals,
+        TokenKind::OperatorNegate,
         TokenKind::OperatorGreaterThan,
         TokenKind::OperatorLessThan,
         TokenKind::OperatorGreaterEquals,
@@ -22,7 +23,7 @@ fn lex_operators() {
 
     let mut correct_iter = correct_kinds.iter();
 
-    let source = " - + ~ * / % && || == != > < >= <=";
+    let source = " - + ~ * / % && || == != ! > < >= <=";
 
     let tokens: Vec<Token> = lexer::tokenize(source).collect();
 
