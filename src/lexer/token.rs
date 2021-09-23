@@ -1,5 +1,8 @@
 use logos::Logos;
 
+use crate::errors::SourceFile;
+
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenKind {
     /// Operators
@@ -13,6 +16,7 @@ pub enum TokenKind {
     OperatorOr,
     OperatorEquals,
     OperatorNotEquals,
+    OperatorNegate,
     OperatorGreaterThan,
     OperatorLessThan,
     OperatorGreaterEquals,
@@ -236,6 +240,9 @@ pub enum RawToken {
     #[token("!=")]
     OperatorNotEquals,
 
+    #[token("!")]
+    OperatorNegate,
+
     #[token(">")]
     OperatorGreaterThan,
 
@@ -270,13 +277,134 @@ pub enum RawToken {
     Comment,
 }
 
-// Produced by the lexer, it is the smallest element that can be parsed, it contains the token's data and position in the source code
-/// A token of KASM source
+/// Produced by the lexer, it is the smallest element that can be parsed, it contains the token's data and position in the source code
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Token {
-    /// The kind of topen
+    /// The kind of token
     pub kind: TokenKind,
 
-    /// The token's length
-    pub len: u32,
+    /// The ID of the file this token belongs to
+    pub file_id: u8,
+
+    /// The index into the file's source that this token is
+    pub source_index: u32,
+
+    /// The length of the token in the source
+    pub len: u16,
+}
+
+impl<'a> Token {
+    /// Tries to find the slice of the source code that corresponds to this token
+    pub fn slice(&self, source_files: &'a Vec<SourceFile>) -> Option<&'a str> {
+        let file = source_files.get(self.file_id as usize)?;
+
+        let start = self.source_index as usize;
+        let end = start + self.len as usize;
+
+        file.source().get(start..end)
+    }
+}
+
+/// An "iterator" that will iterate over Tokens, but with extra features a normal iterator does not
+/// have.
+pub struct TokenIter {
+    tokens: Vec<Token>,
+    position: usize,
+}
+
+impl TokenIter {
+    /// Creates a new token iterator that will iterate over the provided token vector
+    pub fn new(tokens: Vec<Token>) -> Self {
+        Self {
+            tokens,
+            position: 0,
+        }
+    }
+
+    /// Gets the next Token, if there is one. If not, returns None
+    pub fn next(&mut self) -> Option<&Token> {
+        // Get the element
+        let token = self.tokens.get(self.position);
+
+        // Advance the iterator
+        self.position += 1;
+
+        token
+    }
+
+    /// Gets the next Token but does not advance the iterator, if there is one. It not, returns
+    /// None
+    pub fn peek(&self) -> Option<&Token> {
+        // Get the element
+        self.tokens.get(self.position)
+    }
+
+    /// Gets the next Token but does not advance the iterator, if there is one. If not, it returns
+    /// an Err() with the provided error value
+    pub fn peek_or<E>(&self, err: E) -> Result<&Token, E> {
+        self.tokens.get(self.position).ok_or(err)
+    }
+
+    /// Gets the Token at a specified index into the iterator, if there is one. If not, returns
+    /// None
+    pub fn get(&self, index: usize) -> Option<&Token> {
+        // Get the element
+        self.tokens.get(index)
+    }
+
+    /// Gets the Token that was previously returned from a call to next(), if there is one. If not,
+    /// returns None
+    pub fn previous(&self) -> Option<&Token> {
+        // If we won't be trying to access the -1th element...
+        if self.position > 0 {
+            // Get the previous element
+            self.tokens.get(self.position - 1)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the current position of the iterator
+    pub fn position(&self) -> usize {
+        self.position
+    }
+}
+
+impl From<TokenIter> for Vec<Token> {
+    fn from(iter: TokenIter) -> Self {
+        iter.tokens
+    }
+}
+
+#[test]
+fn test_peek() {
+    let tokens = vec![
+        Token {
+            kind: TokenKind::Backslash,
+            file_id: 0,
+            source_index: 0,
+            len: 1,
+        },
+        Token {
+            kind: TokenKind::Newline,
+            file_id: 0,
+            source_index: 1,
+            len: 1,
+        },
+        Token {
+            kind: TokenKind::Identifier,
+            file_id: 0,
+            source_index: 2,
+            len: 5,
+        },
+    ];
+
+    let mut token_iter = TokenIter::new(tokens);
+
+    assert_eq!(token_iter.peek().unwrap().kind, TokenKind::Backslash);
+    assert_eq!(token_iter.peek().unwrap().kind, TokenKind::Backslash);
+    assert_eq!(token_iter.next().unwrap().kind, TokenKind::Backslash);
+    assert_eq!(token_iter.peek().unwrap().kind, TokenKind::Newline);
+    assert_eq!(token_iter.next().unwrap().kind, TokenKind::Newline);
+    assert_eq!(token_iter.peek().unwrap().kind, TokenKind::Identifier);
 }

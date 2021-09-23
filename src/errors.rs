@@ -5,6 +5,8 @@ use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
 
 use crate::lexer::token::Token;
 
+pub type KASMResult<T> = Result<T, KASMError>;
+
 static WARNING_COLOR: Color = Color::Yellow;
 static ERROR_COLOR: Color = Color::Red;
 static NOTE_COLOR: Color = Color::Green;
@@ -75,11 +77,19 @@ impl ErrorData {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum ErrorKind {
     JunkAfterBackslash,
     JunkDirective,
     TokenParse,
     JunkFloat,
+
+    UnexpectedEndOfExpression,
+    MissingClosingExpressionParen,
+    InvalidTokenExpression,
+
+    IntegerParse,
+    FloatParse,
 }
 
 impl ErrorKind {
@@ -103,18 +113,45 @@ impl ErrorKind {
                 "Found invalid character(s)",
                 Level::Error,
             ),
+            ErrorKind::UnexpectedEndOfExpression => ErrorData::new(
+                "Unable to parse expression",
+                "Expected more tokens",
+                Level::Error,
+            ),
+            ErrorKind::MissingClosingExpressionParen => ErrorData::new(
+                "Unable to parse expression",
+                "Expected closing )",
+                Level::Error,
+            ),
+            ErrorKind::InvalidTokenExpression => ErrorData::new(
+                "Unable to parse expression",
+                "Found invalid token(s)",
+                Level::Error,
+            ),
+            ErrorKind::IntegerParse => ErrorData::new(
+                "Unable to parse integer literal",
+                "Found invalid character(s)",
+                Level::Error,
+            ),
+            ErrorKind::FloatParse => ErrorData::new(
+                "Unable to parse float literal",
+                "Found invalid character(s)",
+                Level::Error,
+            ),
         }
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum InternalError {
     ErrorDisplayError,
     FindErrorTokenError,
 }
 
-pub struct Error {
+#[derive(Debug, Copy, Clone)]
+pub struct KASMError {
     kind: ErrorKind,
-    token_index: u32,
+    token: Token,
 }
 
 impl InternalError {
@@ -145,29 +182,16 @@ impl InternalError {
     }
 }
 
-impl Error {
-    pub fn new(kind: ErrorKind, token_index: u32) -> Self {
-        Error { kind, token_index }
+impl KASMError {
+    pub fn new(kind: ErrorKind, token: Token) -> Self {
+        Self { kind, token }
     }
 
-    pub fn emit(&self, token_map: &TokenMap, tokens: &Vec<Token>) -> std::io::Result<()> {
-        let mut index = 0;
-        let mut error_token = None;
+    pub fn emit(&self, files: &Vec<SourceFile>) -> std::io::Result<()> {
         let error_data = self.kind.error_data();
 
-        for (iter_index, token) in tokens.iter().enumerate() {
-            if iter_index as u32 == self.token_index {
-                error_token = Some(token);
-                break;
-            }
-
-            index += token.len;
-        }
-
-        let file_context = token_map.file_at(index);
-
-        if let (Some((file_context, _)), Some(token)) = (file_context, error_token) {
-            Error::emit_normal(file_context, &error_data, index, token)?;
+        if let Some(file) = files.get(self.token.file_id as usize) {
+            self.emit_normal(file, &error_data, self.token.source_index)?;
         } else {
             InternalError::FindErrorTokenError.emit()?;
         }
@@ -176,23 +200,23 @@ impl Error {
     }
 
     fn emit_normal(
-        file_context: &FileContext,
+        &self,
+        file: &SourceFile,
         error_data: &ErrorData,
         index: u32,
-        token: &Token,
     ) -> std::io::Result<()> {
         let level = error_data.level;
         let prefix = error_data.prefix;
         let message = error_data.message;
-        let len = token.len;
+        let len = self.token.len;
 
-        if let Some((line_num, line_start, line_end)) = file_context.source_map().get_line(index) {
-            let original_line = &file_context.source()[line_start as usize..line_end as usize];
+        if let Some(line) = file.get_line(index) {
+            let original_line = &file.source()[line.start as usize..line.end as usize];
 
             let line_string = original_line.replace("\t", "    ");
 
-            let column = (index - line_start) + 3 * original_line.matches("\t").count() as u32;
-            let line_num_string = format!("{}", line_num);
+            let column = (index - line.start) + 3 * original_line.matches("\t").count() as u32;
+            let line_num_string = format!("{}", line.num);
 
             let mut stream = StandardStream::stdout(termcolor::ColorChoice::Auto);
 
@@ -224,7 +248,7 @@ impl Error {
 
             stream.set_color(&regular_color)?;
 
-            writeln!(stream, "{}:{}:{}", file_context.name(), line_num, column)?;
+            writeln!(stream, "{}:{}:{}", file.name(), line.num, column)?;
 
             stream.set_color(&prompt_color)?;
 
@@ -263,65 +287,70 @@ impl Error {
     }
 }
 
-/// A struct used to store where lines in the source are, for warning and error messages
-#[derive(Debug, Clone)]
-pub struct SourceMap {
-    lines: Vec<(u32, u32)>,
+#[derive(Debug, Copy, Clone)]
+pub struct Line {
+    pub start: u32,
+    pub end: u32,
+    pub num: u32,
 }
 
-impl SourceMap {
-    /// Generates a source map for the given source
-    pub fn generate(source: &str) -> Self {
-        let mut lines = Vec::new();
-        let mut last_start = 0;
-        let mut current_index = 0;
+impl Line {
+    pub fn new(start: u32, end: u32) -> Self {
+        Self { start, end, num: 0 }
+    }
 
-        for char in source.chars() {
-            if char == '\n' {
-                let line = (last_start, current_index);
-                last_start = current_index + 1;
+    pub fn with_num(start: u32, end: u32, num: u32) -> Self {
+        Self { start, end, num }
+    }
+}
 
-                lines.push(line);
-            }
+#[derive(Debug, Clone)]
+pub struct SourceFile {
+    name: String,
+    source: String,
+    lines: Vec<Line>,
+}
 
-            current_index += 1;
+impl SourceFile {
+    pub fn new(name: String, source: String) -> Self {
+        // Generate the line maps
+        let lines = Self::generate(&source);
+
+        Self {
+            name,
+            source,
+            lines,
         }
-
-        lines.push((last_start, current_index));
-
-        SourceMap { lines }
     }
 
     /// Returns the start and end positions of the line the index is in
-    pub fn get_line(&self, index: u32) -> Option<(u32, u32, u32)> {
-        for (line_num, line) in self.lines.iter().enumerate() {
-            if line.0 <= index && index <= line.1 {
-                let data = ((line_num + 1) as u32, line.0, line.1);
-
-                return Some(data);
+    pub fn get_line(&self, index: u32) -> Option<Line> {
+        for line in self.lines.iter() {
+            if line.start <= index && index <= line.end {
+                return Some(*line);
             }
         }
 
         None
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct FileContext {
-    name: String,
-    source: String,
-    source_map: SourceMap,
-}
+    /// Generates a source map for the given source
+    fn generate(source: &str) -> Vec<Line> {
+        let mut lines = Vec::new();
+        let mut current_index = 0;
 
-impl FileContext {
-    pub fn new(name: String, source: String) -> Self {
-        let source_map = SourceMap::generate(&source);
+        // Split the source by lines
+        for (index, source_line) in source.split('\n').enumerate() {
+            let start = current_index;
+            // Increment the current index to account for this line
+            current_index += source_line.len() + 1;
 
-        Self {
-            name,
-            source,
-            source_map,
+            let line = Line::with_num(start as u32, (current_index - 1) as u32, (index + 1) as u32);
+
+            lines.push(line);
         }
+
+        lines
     }
 
     pub fn name(&self) -> &String {
@@ -330,62 +359,5 @@ impl FileContext {
 
     pub fn source(&self) -> &String {
         &self.source
-    }
-
-    pub fn source_map(&self) -> &SourceMap {
-        &self.source_map
-    }
-
-    pub fn get_line(&self, index: u32) -> Option<(u32, u32, u32)> {
-        self.source_map.get_line(index)
-    }
-}
-
-/// A struct to map absolute token indexes to files
-pub struct TokenMap {
-    file_contexts: Vec<FileContext>,
-    file_ranges: Vec<(u32, u32)>,
-    current_end: u32,
-}
-
-impl TokenMap {
-    pub fn new() -> Self {
-        TokenMap {
-            file_contexts: Vec::new(),
-            file_ranges: Vec::new(),
-            current_end: 0,
-        }
-    }
-
-    pub fn add(&mut self, file_context: FileContext) {
-        let size = file_context.source().len();
-        let new_end = self.current_end + size as u32;
-
-        let range = (self.current_end, new_end);
-
-        self.file_contexts.push(file_context);
-        self.file_ranges.push(range);
-
-        self.current_end = new_end;
-    }
-
-    pub fn file_at(&self, index: u32) -> Option<(&FileContext, u32)> {
-        let mut file_context = None;
-        let mut offset = 0;
-
-        for (file_index, range) in self.file_ranges.iter().enumerate() {
-            if range.0 <= index && index <= range.1 {
-                file_context = self.file_contexts.get(file_index);
-                offset = range.0;
-
-                break;
-            }
-        }
-
-        if let Some(file) = file_context {
-            Some((file, index - offset))
-        } else {
-            None
-        }
     }
 }

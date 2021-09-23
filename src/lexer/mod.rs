@@ -3,14 +3,14 @@ use logos::Logos;
 use token::RawToken;
 pub use token::*;
 
-use crate::errors::Error;
+use crate::errors::KASMError;
 
 use self::token::{Token, TokenKind};
 
 pub struct Lexer<'a> {
     inner: logos::Lexer<'a, RawToken>,
     done: bool,
-    len: usize,
+    current_index: usize,
     peeked: Option<Token>,
 }
 
@@ -20,7 +20,7 @@ impl<'a> Lexer<'a> {
         Lexer {
             inner: RawToken::lexer(source),
             done: false,
-            len: 0,
+            current_index: 0,
             peeked: None,
         }
     }
@@ -31,9 +31,6 @@ impl<'a> Lexer<'a> {
             None
         } else {
             if let Some(raw) = self.inner.next() {
-                let raw_len = self.inner.slice().len();
-                self.len += raw_len;
-
                 Some(raw)
             } else {
                 self.done = true;
@@ -43,7 +40,7 @@ impl<'a> Lexer<'a> {
     }
 
     // Converts a RawToken into a Token
-    fn raw_to_token(raw: RawToken, len: usize) -> Token {
+    fn raw_to_token(&mut self, raw: RawToken, len: u16) -> Token {
         let kind = match raw {
             RawToken::OperatorMinus => TokenKind::OperatorMinus,
             RawToken::OperatorPlus => TokenKind::OperatorPlus,
@@ -55,6 +52,7 @@ impl<'a> Lexer<'a> {
             RawToken::OperatorOr => TokenKind::OperatorOr,
             RawToken::OperatorEquals => TokenKind::OperatorEquals,
             RawToken::OperatorNotEquals => TokenKind::OperatorNotEquals,
+            RawToken::OperatorNegate => TokenKind::OperatorNegate,
             RawToken::OperatorGreaterThan => TokenKind::OperatorGreaterThan,
             RawToken::OperatorLessThan => TokenKind::OperatorLessThan,
             RawToken::OperatorGreaterEquals => TokenKind::OperatorGreaterEquals,
@@ -118,9 +116,15 @@ impl<'a> Lexer<'a> {
             RawToken::JunkFloatError => TokenKind::JunkFloatError,
         };
 
+        let source_index = self.current_index as u32;
+
+        self.current_index += len as usize;
+
         Token {
             kind,
-            len: len as u32,
+            file_id: 0,
+            source_index,
+            len: len as u16,
         }
     }
 }
@@ -135,7 +139,7 @@ impl<'a> Iterator for Lexer<'a> {
             Some(peeked_token)
         } else {
             let raw_token = self.lex_raw()?;
-            Some(Self::raw_to_token(raw_token, self.inner.slice().len()))
+            Some(self.raw_to_token(raw_token, self.inner.slice().len() as u16))
         }
     }
 }
@@ -146,20 +150,14 @@ pub fn tokenize<'a>(source: &'a str) -> impl Iterator<Item = Token> + 'a {
 }
 
 /// Checks the token iterator for errors, and if one appears, returns an error
-pub fn check_errors<'a>(tokens: &Vec<Token>) -> Result<(), Vec<Error>> {
+pub fn check_errors<'a>(tokens: &Vec<Token>) -> Result<(), Vec<KASMError>> {
     let mut errors = Vec::new();
 
-    for (token_index, token) in tokens.iter().enumerate() {
+    for token in tokens.iter() {
         if token.kind == TokenKind::Error {
-            errors.push(Error::new(
-                crate::errors::ErrorKind::TokenParse,
-                token_index as u32,
-            ));
+            errors.push(KASMError::new(crate::errors::ErrorKind::TokenParse, *token));
         } else if token.kind == TokenKind::JunkFloatError {
-            errors.push(Error::new(
-                crate::errors::ErrorKind::JunkFloat,
-                token_index as u32,
-            ));
+            errors.push(KASMError::new(crate::errors::ErrorKind::JunkFloat, *token));
         }
     }
 
