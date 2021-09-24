@@ -3,7 +3,7 @@ use logos::Logos;
 use token::RawToken;
 pub use token::*;
 
-use crate::errors::KASMError;
+use crate::errors::{AssemblyError, ErrorManager, KASMResult};
 
 use self::token::{Token, TokenKind};
 
@@ -64,12 +64,15 @@ impl<'a> Lexer<'a> {
 
             RawToken::DirectiveDefine => TokenKind::DirectiveDefine,
             RawToken::DirectiveMacro => TokenKind::DirectiveMacro,
+            RawToken::DirectiveEndmacro => TokenKind::DirectiveEndmacro,
             RawToken::DirectiveRepeat => TokenKind::DirectiveRepeat,
             RawToken::DirectiveInclude => TokenKind::DirectiveInclude,
             RawToken::DirectiveExtern => TokenKind::DirectiveExtern,
             RawToken::DirectiveGlobal => TokenKind::DirectiveGlobal,
             RawToken::DirectiveLocal => TokenKind::DirectiveLocal,
             RawToken::DirectiveLine => TokenKind::DirectiveLine,
+            RawToken::DirectiveType => TokenKind::DirectiveType,
+            RawToken::DirectiveValue => TokenKind::DirectiveValue,
             RawToken::DirectiveUndef => TokenKind::DirectiveUndef,
             RawToken::DirectiveUnmacro => TokenKind::DirectiveUnmacro,
             RawToken::DirectiveFunc => TokenKind::DirectiveFunc,
@@ -149,21 +152,19 @@ pub fn tokenize<'a>(source: &'a str) -> impl Iterator<Item = Token> + 'a {
     Lexer::new(source)
 }
 
-/// Checks the token iterator for errors, and if one appears, returns an error
-pub fn check_errors<'a>(tokens: &Vec<Token>) -> Result<(), Vec<KASMError>> {
-    let mut errors = Vec::new();
-
+/// Checks the token iterator for errors, and if one appears, registers it with the error manager
+pub fn check_errors<'a>(tokens: &Vec<Token>, errors: &mut ErrorManager) {
     for token in tokens.iter() {
         if token.kind == TokenKind::Error {
-            errors.push(KASMError::new(crate::errors::ErrorKind::TokenParse, *token));
+            errors.add_assembly(AssemblyError::new(
+                crate::errors::ErrorKind::TokenParse,
+                *token,
+            ));
         } else if token.kind == TokenKind::JunkFloatError {
-            errors.push(KASMError::new(crate::errors::ErrorKind::JunkFloat, *token));
+            errors.add_assembly(AssemblyError::new(
+                crate::errors::ErrorKind::JunkFloat,
+                *token,
+            ));
         }
-    }
-
-    if errors.len() > 0 {
-        Err(errors)
-    } else {
-        Ok(())
     }
 }

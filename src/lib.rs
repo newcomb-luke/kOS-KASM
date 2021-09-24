@@ -7,7 +7,9 @@ use std::env;
 use std::{error::Error, path::Path};
 use std::{fs, vec};
 
+use crate::errors::ErrorManager;
 use crate::preprocessor::phase0::phase1;
+use crate::preprocessor::preprocess;
 
 pub mod lexer;
 
@@ -102,6 +104,8 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
     };
     */
 
+    let mut error_manager = ErrorManager::new();
+
     // input_files.add_file("main");
 
     // Read the input file
@@ -109,29 +113,37 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
     let source_file = SourceFile::new(input_file_name, main_source);
 
-    let source_files = vec![source_file];
+    let mut source_files = vec![source_file];
 
     let mut tokens: Vec<Token> = lexer::tokenize(source_files.get(0).unwrap().source()).collect();
 
-    if let Err(errors) = check_errors(&tokens) {
-        for error in errors {
-            error.emit(&source_files)?;
+    check_errors(&tokens, &mut error_manager);
+
+    // If no (fatal) errors were produced, continue
+    if !error_manager.emit(&source_files)? {
+        // Run phase 0 of the assembly
+        phase0(&mut tokens, &mut error_manager);
+        if !error_manager.emit(&source_files)? {
+            // Run phase 1 of the assembly
+            tokens = phase1(tokens);
+
+            println!("Lexing complete");
+
+            // Run the preprocessor
+            let processed = match preprocess("", tokens, &mut source_files, &mut error_manager) {
+                Ok(p) => {
+                    error_manager.emit(&source_files)?;
+
+                    p
+                }
+                Err(_) => {
+                    error_manager.emit(&source_files)?;
+
+                    return Err("".into());
+                }
+            };
         }
-
-        return Err("".into());
     }
-
-    // Run phase 0 of the assembly
-    if let Err(error) = phase0(&mut tokens) {
-        error.emit(&source_files)?;
-
-        return Err("".into());
-    }
-
-    // Run phase 1 of the assembly
-    tokens = phase1(tokens);
-
-    println!("Lexing complete");
 
     /*
         // Run preprocessor

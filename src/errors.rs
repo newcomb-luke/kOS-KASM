@@ -5,7 +5,7 @@ use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
 
 use crate::lexer::token::Token;
 
-pub type KASMResult<T> = Result<T, KASMError>;
+pub type KASMResult<T> = Result<T, ()>;
 
 static WARNING_COLOR: Color = Color::Yellow;
 static ERROR_COLOR: Color = Color::Red;
@@ -13,6 +13,83 @@ static NOTE_COLOR: Color = Color::Green;
 static HELP_COLOR: Color = Color::Cyan;
 static PLAIN_WHITE: Color = Color::Rgb(255, 255, 255);
 static PROMPT_COLOR: Color = Color::Blue;
+
+#[derive(Debug, Clone)]
+pub enum KASMError {
+    Assembly(AssemblyError),
+    Internal(InternalError),
+}
+
+impl From<AssemblyError> for KASMError {
+    fn from(err: AssemblyError) -> Self {
+        KASMError::Assembly(err)
+    }
+}
+
+impl From<InternalError> for KASMError {
+    fn from(err: InternalError) -> Self {
+        KASMError::Internal(err)
+    }
+}
+
+#[derive(Debug)]
+pub struct ErrorManager {
+    errors: Vec<KASMError>,
+}
+
+impl ErrorManager {
+    pub fn new() -> Self {
+        ErrorManager { errors: Vec::new() }
+    }
+
+    pub fn add(&mut self, err: KASMError) {
+        self.errors.push(err);
+    }
+
+    pub fn add_assembly(&mut self, err: AssemblyError) {
+        self.errors.push(KASMError::Assembly(err));
+    }
+
+    pub fn add_internal(&mut self, err: InternalError) {
+        self.errors.push(KASMError::Internal(err));
+    }
+
+    /// Emits any errors and warnings that have been generated and store in th
+    pub fn emit(&mut self, files: &Vec<SourceFile>) -> std::io::Result<bool> {
+        if self.errors.len() > 0 {
+            let mut had_fatal = false;
+
+            for error in self.errors.drain(..) {
+                if error.is_fatal() {
+                    had_fatal = true;
+                }
+
+                match error {
+                    KASMError::Assembly(err) => err.emit(files)?,
+                    KASMError::Internal(err) => err.emit()?,
+                }
+            }
+
+            Ok(had_fatal)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn errors(&self) -> &Vec<KASMError> {
+        &self.errors
+    }
+}
+
+impl KASMError {
+    /// Returns true if this error is considered fatal or not
+    pub fn is_fatal(&self) -> bool {
+        match self {
+            KASMError::Assembly(err) => err.is_fatal(),
+            KASMError::Internal(_) => true,
+        }
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Level {
@@ -59,8 +136,20 @@ impl Level {
             Level::Help => "help",
         }
     }
+
+    /// Returns true if this error level is considered fatal
+    pub fn is_fatal(&self) -> bool {
+        match self {
+            Level::Bug => false,
+            Level::Error => true,
+            Level::Warning => false,
+            Level::Note => false,
+            Level::Help => false,
+        }
+    }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct ErrorData {
     pub prefix: &'static str,
     pub message: &'static str,
@@ -79,6 +168,8 @@ impl ErrorData {
 
 #[derive(Debug, Copy, Clone)]
 pub enum ErrorKind {
+    ShouldNotBeShown,
+
     JunkAfterBackslash,
     JunkDirective,
     TokenParse,
@@ -90,11 +181,27 @@ pub enum ErrorKind {
 
     IntegerParse,
     FloatParse,
+
+    MissingDirectiveIdentifier,
+    ExpectedDirectiveIdentifier,
+    InvalidTokenDirectiveArguments,
+    NotCommaOrParenDirectiveArguments,
+    UnexpectedEndOfDirectiveArguments,
+    WarnEmptyDirectiveArguments,
+    WarnEmptyDirectiveExpansionWithArgs,
+
+    MissingUndefIdentifier,
+    ExpectedUndefIdentifier,
 }
 
 impl ErrorKind {
     pub fn error_data(&self) -> ErrorData {
         match self {
+            ErrorKind::ShouldNotBeShown => ErrorData::new(
+                "This error should never be shown, and is a placeholder",
+                "This error was shown here!!!",
+                Level::Error,
+            ),
             ErrorKind::JunkAfterBackslash => ErrorData::new(
                 "Unable to parse line continuation",
                 "Found token after \\ character",
@@ -115,7 +222,7 @@ impl ErrorKind {
             ),
             ErrorKind::UnexpectedEndOfExpression => ErrorData::new(
                 "Unable to parse expression",
-                "Expected more tokens",
+                "Expected more tokens to complete expression",
                 Level::Error,
             ),
             ErrorKind::MissingClosingExpressionParen => ErrorData::new(
@@ -138,6 +245,51 @@ impl ErrorKind {
                 "Found invalid character(s)",
                 Level::Error,
             ),
+            ErrorKind::MissingDirectiveIdentifier => ErrorData::new(
+                "Error while parsing directive declaration",
+                "Expected an identifier, found end of file",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedDirectiveIdentifier => ErrorData::new(
+                "Error while parsing directive declaration",
+                "Expected an identifier, found invalid token",
+                Level::Error,
+            ),
+            ErrorKind::InvalidTokenDirectiveArguments => ErrorData::new(
+                "Error while parsing directive arguments",
+                "Expected an argument or closing )",
+                Level::Error,
+            ),
+            ErrorKind::NotCommaOrParenDirectiveArguments => ErrorData::new(
+                "Error while parsing directive arguments",
+                "Expected a , or closing )",
+                Level::Error,
+            ),
+            ErrorKind::UnexpectedEndOfDirectiveArguments => ErrorData::new(
+                "Error while parsing directive arguments",
+                "End of file reached after token",
+                Level::Error,
+            ),
+            ErrorKind::WarnEmptyDirectiveArguments => ErrorData::new(
+                "Empty arguments list",
+                "Did you mean to add arguments?",
+                Level::Warning,
+            ),
+            ErrorKind::WarnEmptyDirectiveExpansionWithArgs => ErrorData::new(
+                "Empty definition expansion",
+                "Definition with arguments, but no use of them",
+                Level::Warning,
+            ),
+            ErrorKind::MissingUndefIdentifier => ErrorData::new(
+                "Error while parsing undefine",
+                "Expected an identifier, found end of file",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedUndefIdentifier => ErrorData::new(
+                "Error while parsing undefine",
+                "Expected an identifier, found invalid token",
+                Level::Error,
+            ),
         }
     }
 }
@@ -149,9 +301,10 @@ pub enum InternalError {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct KASMError {
+pub struct AssemblyError {
     kind: ErrorKind,
     token: Token,
+    error_data: ErrorData,
 }
 
 impl InternalError {
@@ -182,16 +335,18 @@ impl InternalError {
     }
 }
 
-impl KASMError {
+impl AssemblyError {
     pub fn new(kind: ErrorKind, token: Token) -> Self {
-        Self { kind, token }
+        Self {
+            kind,
+            token,
+            error_data: kind.error_data(),
+        }
     }
 
     pub fn emit(&self, files: &Vec<SourceFile>) -> std::io::Result<()> {
-        let error_data = self.kind.error_data();
-
         if let Some(file) = files.get(self.token.file_id as usize) {
-            self.emit_normal(file, &error_data, self.token.source_index)?;
+            self.emit_normal(file)?;
         } else {
             InternalError::FindErrorTokenError.emit()?;
         }
@@ -199,16 +354,13 @@ impl KASMError {
         Ok(())
     }
 
-    fn emit_normal(
-        &self,
-        file: &SourceFile,
-        error_data: &ErrorData,
-        index: u32,
-    ) -> std::io::Result<()> {
+    fn emit_normal(&self, file: &SourceFile) -> std::io::Result<()> {
+        let error_data = self.error_data;
         let level = error_data.level;
         let prefix = error_data.prefix;
         let message = error_data.message;
         let len = self.token.len;
+        let index = self.token.source_index;
 
         if let Some(line) = file.get_line(index) {
             let original_line = &file.source()[line.start as usize..line.end as usize];
@@ -284,6 +436,16 @@ impl KASMError {
         }
 
         Ok(())
+    }
+
+    /// Returns the error kind of this error
+    pub fn kind(&self) -> ErrorKind {
+        self.kind
+    }
+
+    /// Returns if this error is fatal or not
+    pub fn is_fatal(&self) -> bool {
+        self.error_data.level.is_fatal()
     }
 }
 

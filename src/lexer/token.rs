@@ -1,6 +1,6 @@
 use logos::Logos;
 
-use crate::errors::SourceFile;
+use crate::errors::{AssemblyError, ErrorKind, ErrorManager, KASMResult, SourceFile};
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -30,12 +30,15 @@ pub enum TokenKind {
     /// Directives
     DirectiveDefine,
     DirectiveMacro,
+    DirectiveEndmacro,
     DirectiveRepeat,
     DirectiveInclude,
     DirectiveExtern,
     DirectiveGlobal,
     DirectiveLocal,
     DirectiveLine,
+    DirectiveType,
+    DirectiveValue,
     DirectiveUndef,
     DirectiveUnmacro,
     DirectiveFunc,
@@ -108,6 +111,9 @@ pub enum RawToken {
     #[token(".macro")]
     DirectiveMacro,
 
+    #[token(".endmacro")]
+    DirectiveEndmacro,
+
     #[token(".rep")]
     DirectiveRepeat,
 
@@ -125,6 +131,12 @@ pub enum RawToken {
 
     #[token(".line")]
     DirectiveLine,
+
+    #[token(".type")]
+    DirectiveType,
+
+    #[token(".value")]
+    DirectiveValue,
 
     #[token(".undef")]
     DirectiveUndef,
@@ -171,7 +183,7 @@ pub enum RawToken {
     #[regex(r"\.[_a-zA-Z][_a-zA-Z0-9]+:")]
     InnerLabel,
 
-    #[regex(r"[_a-zA-Z][_a-zA-Z0-9]+")]
+    #[regex(r"[_a-zA-Z][_a-zA-Z0-9]?")]
     Identifier,
 
     #[regex(r"[_a-zA-Z][_a-zA-Z0-9]+:")]
@@ -368,6 +380,13 @@ impl TokenIter {
     pub fn position(&self) -> usize {
         self.position
     }
+
+    /// Inserts another vector of Tokens into the iterator into the current position
+    pub fn insert(&mut self, tokens: Vec<Token>) {
+        for token in tokens {
+            self.tokens.insert(self.position, token);
+        }
+    }
 }
 
 impl From<TokenIter> for Vec<Token> {
@@ -407,4 +426,118 @@ fn test_peek() {
     assert_eq!(token_iter.peek().unwrap().kind, TokenKind::Newline);
     assert_eq!(token_iter.next().unwrap().kind, TokenKind::Newline);
     assert_eq!(token_iter.peek().unwrap().kind, TokenKind::Identifier);
+}
+
+/// Consumes a single token from the TokenIter. If the token is not present, then it returns the
+/// specified error to the ErrorManager
+///
+/// Behaves just like peek_token, but this consumes the token
+pub fn consume_token(
+    token_iter: &mut TokenIter,
+    errors: &mut ErrorManager,
+    missing: ErrorKind,
+) -> KASMResult<Token> {
+    // Check if there is a token
+    if let Some(token) = token_iter.next() {
+        Ok(*token)
+    }
+    // If not, register the error
+    else {
+        errors.add_assembly(AssemblyError::new(missing, *token_iter.previous().unwrap()));
+        Err(())
+    }
+}
+
+/// Peeks a single token from the TokenIter. If the token is not present, then it returns the
+/// specified error to the ErrorManager
+///
+/// Behaves just like consume_token, but this just peeks the iterator
+pub fn peek_token<'a>(
+    token_iter: &'a mut TokenIter,
+    errors: &mut ErrorManager,
+    missing: ErrorKind,
+) -> KASMResult<&'a Token> {
+    // Check if there is a token
+    if let Some(token) = token_iter.peek() {
+        Ok(token)
+    }
+    // If not, register the error
+    else {
+        errors.add_assembly(AssemblyError::new(missing, *token_iter.previous().unwrap()));
+        Err(())
+    }
+}
+
+/// Consumes a single token from the TokenIter. If the token is not present, then it returns the
+/// specified "missing" error kind to the ErrorManager. If the token is present, but the token kind
+/// is incorrect, then the specified "incorrect" error kind is returned to the ErrorManager. If the
+/// token is both present, and of the correct kind, it is returned as Ok(&Token)
+pub fn parse_token(
+    token_iter: &mut TokenIter,
+    errors: &mut ErrorManager,
+    kind: TokenKind,
+    incorrect: ErrorKind,
+    missing: ErrorKind,
+) -> KASMResult<Token> {
+    // Check for the token
+    let token = consume_token(token_iter, errors, missing)?;
+
+    if token.kind == kind {
+        Ok(token)
+    } else {
+        errors.add_assembly(AssemblyError::new(incorrect, token));
+        Err(())
+    }
+}
+
+/// Peeks a token from the TokenIter. If the token is not present, then it registers the specified
+/// error with the ErrorManager. If the token is present, then it checks to see if it is of the
+/// kind specified. If it is, then it returns Ok(true), if not, it returns Ok(false)
+pub fn test_next_is<'a>(
+    token_iter: &'a mut TokenIter,
+    errors: &mut ErrorManager,
+    kind: TokenKind,
+    missing: ErrorKind,
+) -> KASMResult<bool> {
+    // Check for the token
+    let token = peek_token(token_iter, errors, missing)?;
+
+    Ok(token.kind == kind)
+}
+
+#[test]
+fn test_insert() {
+    let first_tokens = vec![
+        Token {
+            kind: TokenKind::Backslash,
+            file_id: 0,
+            source_index: 0,
+            len: 1,
+        },
+        Token {
+            kind: TokenKind::Newline,
+            file_id: 0,
+            source_index: 1,
+            len: 1,
+        },
+    ];
+
+    let second_tokens = vec![Token {
+        kind: TokenKind::DirectiveIf,
+        file_id: 1,
+        source_index: 0,
+        len: 3,
+    }];
+
+    let mut token_iter = TokenIter::new(first_tokens);
+
+    assert_eq!(token_iter.next().unwrap().kind, TokenKind::Backslash);
+
+    token_iter.insert(second_tokens);
+
+    assert_eq!(token_iter.next().unwrap().kind, TokenKind::DirectiveIf);
+
+    assert_eq!(token_iter.next().unwrap().kind, TokenKind::Newline);
+
+    assert_eq!(token_iter.next(), None);
 }

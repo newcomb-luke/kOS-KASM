@@ -1,5 +1,5 @@
-use std::{iter::Peekable, slice::Iter};
-
+pub struct Macro {}
+/*
 use crate::{Token, TokenData, TokenType};
 
 use super::{MacroError, PreprocessError, PreprocessResult};
@@ -339,3 +339,4 @@ impl Macro {
         self.num_required_args
     }
 }
+*/

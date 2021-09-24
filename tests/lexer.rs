@@ -70,12 +70,15 @@ fn lex_directives() {
     let correct_kinds = vec![
         TokenKind::DirectiveDefine,
         TokenKind::DirectiveMacro,
+        TokenKind::DirectiveEndmacro,
         TokenKind::DirectiveRepeat,
         TokenKind::DirectiveInclude,
         TokenKind::DirectiveExtern,
         TokenKind::DirectiveGlobal,
         TokenKind::DirectiveLocal,
         TokenKind::DirectiveLine,
+        TokenKind::DirectiveType,
+        TokenKind::DirectiveValue,
         TokenKind::DirectiveUndef,
         TokenKind::DirectiveUnmacro,
         TokenKind::DirectiveFunc,
@@ -96,12 +99,15 @@ fn lex_directives() {
     let source = "
 .define
 .macro
+.endmacro
 .rep
 .include
 .extern
 .global
 .local
 .line
+.type
+.value
 .undef
 .unmacro
 .func

@@ -1,5 +1,5 @@
 use crate::{
-    errors::{ErrorKind, KASMError, KASMResult, SourceFile},
+    errors::{AssemblyError, ErrorKind, ErrorManager, KASMResult, SourceFile},
     lexer::{token::TokenKind, TokenIter},
 };
 
@@ -166,15 +166,17 @@ impl ExpressionParser {
     pub fn parse_expression(
         token_iter: &mut TokenIter,
         source_files: &Vec<SourceFile>,
+        errors: &mut ErrorManager,
     ) -> KASMResult<ExpNode> {
-        ExpressionParser::parse_logical_or(token_iter, source_files)
+        ExpressionParser::parse_logical_or(token_iter, source_files, errors)
     }
 
     fn parse_logical_or(
         token_iter: &mut TokenIter,
         source_files: &Vec<SourceFile>,
+        errors: &mut ErrorManager,
     ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_logical_and(token_iter, source_files)?;
+        let mut lhs = ExpressionParser::parse_logical_and(token_iter, source_files, errors)?;
 
         while let Some(token) = token_iter.peek() {
             // If it is an Or operator
@@ -182,7 +184,7 @@ impl ExpressionParser {
                 // If it is, consume it
                 token_iter.next();
 
-                let rhs = ExpressionParser::parse_logical_and(token_iter, source_files)?;
+                let rhs = ExpressionParser::parse_logical_and(token_iter, source_files, errors)?;
 
                 lhs = ExpNode::BinOp(lhs.into(), BinOp::Or, rhs.into());
             }
@@ -198,8 +200,9 @@ impl ExpressionParser {
     fn parse_logical_and(
         token_iter: &mut TokenIter,
         source_files: &Vec<SourceFile>,
+        errors: &mut ErrorManager,
     ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_equality_exp(token_iter, source_files)?;
+        let mut lhs = ExpressionParser::parse_equality_exp(token_iter, source_files, errors)?;
 
         while let Some(token) = token_iter.peek() {
             // If it is an And operator
@@ -207,7 +210,7 @@ impl ExpressionParser {
                 // If it is, consume it
                 token_iter.next();
 
-                let rhs = ExpressionParser::parse_equality_exp(token_iter, source_files)?;
+                let rhs = ExpressionParser::parse_equality_exp(token_iter, source_files, errors)?;
 
                 lhs = ExpNode::BinOp(lhs.into(), BinOp::And, rhs.into());
             }
@@ -223,8 +226,9 @@ impl ExpressionParser {
     fn parse_equality_exp(
         token_iter: &mut TokenIter,
         source_files: &Vec<SourceFile>,
+        errors: &mut ErrorManager,
     ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_relational_exp(token_iter, source_files)?;
+        let mut lhs = ExpressionParser::parse_relational_exp(token_iter, source_files, errors)?;
 
         while let Some(token) = token_iter.peek() {
             // Check if it is an equality operator, == or !=
@@ -239,7 +243,7 @@ impl ExpressionParser {
             // Consume it
             token_iter.next();
 
-            let rhs = ExpressionParser::parse_relational_exp(token_iter, source_files)?;
+            let rhs = ExpressionParser::parse_relational_exp(token_iter, source_files, errors)?;
 
             lhs = ExpNode::BinOp(lhs.into(), operator, rhs.into());
         }
@@ -250,8 +254,9 @@ impl ExpressionParser {
     fn parse_relational_exp(
         token_iter: &mut TokenIter,
         source_files: &Vec<SourceFile>,
+        errors: &mut ErrorManager,
     ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_additive_exp(token_iter, source_files)?;
+        let mut lhs = ExpressionParser::parse_additive_exp(token_iter, source_files, errors)?;
 
         while let Some(token) = token_iter.peek() {
             // Check if it is a relational operator, >, <, >=, or <=
@@ -269,7 +274,7 @@ impl ExpressionParser {
             // Consume it
             token_iter.next();
 
-            let rhs = ExpressionParser::parse_additive_exp(token_iter, source_files)?;
+            let rhs = ExpressionParser::parse_additive_exp(token_iter, source_files, errors)?;
 
             lhs = ExpNode::BinOp(lhs.into(), operator, rhs.into());
         }
@@ -280,8 +285,9 @@ impl ExpressionParser {
     fn parse_additive_exp(
         token_iter: &mut TokenIter,
         source_files: &Vec<SourceFile>,
+        errors: &mut ErrorManager,
     ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_term(token_iter, source_files)?;
+        let mut lhs = ExpressionParser::parse_term(token_iter, source_files, errors)?;
 
         while let Some(token) = token_iter.peek() {
             // Check if it is an additive operator: +/-
@@ -297,7 +303,7 @@ impl ExpressionParser {
             // Consume it
             token_iter.next();
 
-            let rhs = ExpressionParser::parse_term(token_iter, source_files)?;
+            let rhs = ExpressionParser::parse_term(token_iter, source_files, errors)?;
 
             lhs = ExpNode::BinOp(lhs.into(), operator, rhs.into());
         }
@@ -308,8 +314,9 @@ impl ExpressionParser {
     fn parse_term(
         token_iter: &mut TokenIter,
         source_files: &Vec<SourceFile>,
+        errors: &mut ErrorManager,
     ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_factor(token_iter, source_files)?;
+        let mut lhs = ExpressionParser::parse_factor(token_iter, source_files, errors)?;
 
         while let Some(token) = token_iter.peek() {
             // Check if it is either a * or / operator
@@ -322,7 +329,7 @@ impl ExpressionParser {
                 }
             };
 
-            let rhs = ExpressionParser::parse_factor(token_iter, source_files)?;
+            let rhs = ExpressionParser::parse_factor(token_iter, source_files, errors)?;
 
             lhs = ExpNode::BinOp(lhs.into(), operator, rhs.into());
         }
@@ -333,14 +340,18 @@ impl ExpressionParser {
     fn parse_factor(
         token_iter: &mut TokenIter,
         source_files: &Vec<SourceFile>,
+        errors: &mut ErrorManager,
     ) -> KASMResult<ExpNode> {
         let token = match token_iter.peek() {
             Some(t) => t,
             None => {
-                return Err(KASMError::new(
+                errors.add_assembly(AssemblyError::new(
                     ErrorKind::UnexpectedEndOfExpression,
                     *token_iter.previous().unwrap(),
                 ));
+
+                // We cannot continue
+                return Err(());
             }
         };
 
@@ -350,15 +361,17 @@ impl ExpressionParser {
                 // Consume it
                 token_iter.next();
 
-                let inner_expression = Self::parse_expression(token_iter, source_files)?;
+                let inner_expression = Self::parse_expression(token_iter, source_files, errors)?;
 
                 let token = match token_iter.peek() {
                     Some(t) => t,
                     None => {
-                        return Err(KASMError::new(
+                        errors.add_assembly(AssemblyError::new(
                             ErrorKind::MissingClosingExpressionParen,
                             *token_iter.previous().unwrap(),
                         ));
+
+                        return Err(());
                     }
                 };
 
@@ -369,10 +382,12 @@ impl ExpressionParser {
 
                     Ok(inner_expression)
                 } else {
-                    Err(KASMError::new(
+                    errors.add_assembly(AssemblyError::new(
                         ErrorKind::MissingClosingExpressionParen,
                         *token,
-                    ))
+                    ));
+
+                    return Err(());
                 }
             }
             TokenKind::OperatorNegate
@@ -389,7 +404,7 @@ impl ExpressionParser {
                     _ => unreachable!(),
                 };
 
-                let factor = Self::parse_factor(token_iter, source_files)?;
+                let factor = Self::parse_factor(token_iter, source_files, errors)?;
 
                 Ok(ExpNode::UnOp(operator, factor.into()))
             }
@@ -398,12 +413,16 @@ impl ExpressionParser {
                 let token = token_iter.next().unwrap();
 
                 // Get the integer value out of it
-                let value_str = token
-                    .slice(source_files)
-                    .ok_or(KASMError::new(ErrorKind::IntegerParse, *token))?;
+                let value_str = token.slice(source_files).unwrap();
 
-                let value = i32::from_str_radix(value_str, 10)
-                    .map_err(|_| KASMError::new(ErrorKind::IntegerParse, *token))?;
+                let value = match value_str.parse::<i32>() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        errors.add_assembly(AssemblyError::new(ErrorKind::IntegerParse, *token));
+
+                        return Err(());
+                    }
+                };
 
                 Ok(ExpNode::Constant(Value::Int(value)).into())
             }
@@ -412,13 +431,16 @@ impl ExpressionParser {
                 let token = token_iter.next().unwrap();
 
                 // Get the float value out of it
-                let value_str = token
-                    .slice(source_files)
-                    .ok_or(KASMError::new(ErrorKind::FloatParse, *token))?;
+                let value_str = token.slice(source_files).unwrap();
 
-                let value = value_str
-                    .parse::<f64>()
-                    .map_err(|_| KASMError::new(ErrorKind::FloatParse, *token))?;
+                let value = match value_str.parse::<f64>() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        errors.add_assembly(AssemblyError::new(ErrorKind::FloatParse, *token));
+
+                        return Err(());
+                    }
+                };
 
                 Ok(ExpNode::Constant(Value::Double(value)).into())
             }
@@ -427,7 +449,14 @@ impl ExpressionParser {
             }
             TokenKind::LiteralTrue => Ok(ExpNode::Constant(Value::Bool(true))),
             TokenKind::LiteralFalse => Ok(ExpNode::Constant(Value::Bool(false))),
-            _ => Err(KASMError::new(ErrorKind::InvalidTokenExpression, *token)),
+            _ => {
+                errors.add_assembly(AssemblyError::new(
+                    ErrorKind::InvalidTokenExpression,
+                    *token,
+                ));
+
+                Err(())
+            }
         }
     }
 }
@@ -450,7 +479,9 @@ fn parse_addition() {
 
     let mut token_iter = TokenIter::new(tokens);
 
-    match ExpressionParser::parse_expression(&mut token_iter, &source_files) {
+    let mut error_manager = ErrorManager::new();
+
+    match ExpressionParser::parse_expression(&mut token_iter, &source_files, &mut error_manager) {
         Ok(_) => {}
         Err(e) => {
             panic!("Parsing of 2 + 2 failed: {:#?}", e);
@@ -476,7 +507,9 @@ fn parse_parens() {
 
     let mut token_iter = TokenIter::new(tokens);
 
-    match ExpressionParser::parse_expression(&mut token_iter, &source_files) {
+    let mut error_manager = ErrorManager::new();
+
+    match ExpressionParser::parse_expression(&mut token_iter, &source_files, &mut error_manager) {
         Ok(_) => {}
         Err(e) => {
             panic!("Parsing of (2 + 2) - 3 failed: {:#?}", e);
