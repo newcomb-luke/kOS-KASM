@@ -1,4 +1,4 @@
-// pub mod symbols;
+pub mod symbols;
 
 /*
 pub mod preprocessed;

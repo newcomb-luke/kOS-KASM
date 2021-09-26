@@ -166,7 +166,7 @@ impl ErrorData {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ErrorKind {
     ShouldNotBeShown,
 
@@ -182,6 +182,7 @@ pub enum ErrorKind {
     IntegerParse,
     FloatParse,
 
+    // .define errors
     MissingDirectiveIdentifier,
     ExpectedDirectiveIdentifier,
     InvalidTokenDirectiveArguments,
@@ -190,8 +191,44 @@ pub enum ErrorKind {
     WarnEmptyDirectiveArguments,
     WarnEmptyDirectiveExpansionWithArgs,
 
+    // .undef errors
     MissingUndefIdentifier,
     ExpectedUndefIdentifier,
+
+    // .rep errors
+    MissingRepeatNumber,
+    ExpectedRepeatNumber,
+    MissingRepeatNewline,
+    ExpectedRepeatNewline,
+    ExpectedEndRepeat,
+
+    // .macro errors
+    MissingMacroIdentifier,
+    ExpectedMacroIdentifier,
+    MissingMacroContents,
+    ExpectedMacroNumArguments,
+    ExpectedMacroNewline,
+    MissingMacroMaxArguments,
+    ExpectedMacroMaxArguments,
+    WarnMacroMinMaxEqual,
+    InvalidMacroArgumentsRange,
+    MissingMacroArgumentDefault,
+    ExpectedEndMacro,
+
+    // Symbol binding errors
+    MissingBindingIdentifier,
+    ExpectedBindingIdentifier,
+
+    // .unmacro errors
+    MissingUnmacroIdentifier,
+    ExpectedUnmacroIdentifier,
+    ExpectedUnmacroNumArgs,
+    ExpectedUnmacroRange,
+    MissingUnmacroMaxArguments,
+    ExpectedUnmacroMaxArguments,
+
+    // General
+    DirectiveNotAllowed,
 }
 
 impl ErrorKind {
@@ -288,6 +325,131 @@ impl ErrorKind {
             ErrorKind::ExpectedUndefIdentifier => ErrorData::new(
                 "Error while parsing undefine",
                 "Expected an identifier, found invalid token",
+                Level::Error,
+            ),
+            ErrorKind::MissingRepeatNumber => ErrorData::new(
+                "Error while parsing repeat directive",
+                "Expected a number of repetitions, found end of file",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedRepeatNumber => ErrorData::new(
+                "Error while parsing repeat directive",
+                "Expected a number of repetitions, found invalid token",
+                Level::Error,
+            ),
+            ErrorKind::MissingRepeatNewline => ErrorData::new(
+                "Error while parsing repeat directive",
+                "Expected contents of repeat",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedRepeatNewline => ErrorData::new(
+                "Error while parsing repeat directive",
+                "Expected newline before contents",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedEndRepeat => ErrorData::new(
+                "Error while parsing repeat directive",
+                "Reached end of file searching for .endrep",
+                Level::Error,
+            ),
+            ErrorKind::MissingMacroIdentifier => ErrorData::new(
+                "Error while parsing macro",
+                "Expected an identifier, found end of file",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedMacroIdentifier => ErrorData::new(
+                "Error while parsing macro",
+                "Expected an identifier, found invalid token",
+                Level::Error,
+            ),
+            ErrorKind::MissingMacroContents => ErrorData::new(
+                "Error while parsing macro",
+                "Reached end of file before macro contents",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedMacroNumArguments => ErrorData::new(
+                "Error while parsing macro",
+                "Expected number of arguments, found invalid token",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedMacroNewline => ErrorData::new(
+                "Error while parsing macro",
+                "Expected a newline after macro arguments, found invalid token",
+                Level::Error,
+            ),
+            ErrorKind::MissingMacroMaxArguments => ErrorData::new(
+                "Error while parsing macro",
+                "Expected maximum number of arguments, found end file",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedMacroMaxArguments => ErrorData::new(
+                "Error while parsing macro",
+                "Expected maximum number of arguments because of '-', found invalid token",
+                Level::Error,
+            ),
+            ErrorKind::WarnMacroMinMaxEqual => ErrorData::new(
+                "Macro arguments range",
+                "The minimum and maximum are the same value",
+                Level::Warning,
+            ),
+            ErrorKind::InvalidMacroArgumentsRange => ErrorData::new(
+                "Error while parsing macro",
+                "Arguments range maximum is smaller than minimum",
+                Level::Error,
+            ),
+            ErrorKind::MissingMacroArgumentDefault => ErrorData::new(
+                "Error while parsing macro",
+                "Ran out of tokens reading default arguments",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedEndMacro => ErrorData::new(
+                "Error while parsing macro",
+                "Reached end of file searching for .endmacro",
+                Level::Error,
+            ),
+            ErrorKind::MissingBindingIdentifier => ErrorData::new(
+                "Error while parsing symbol binding",
+                "Expected a symbol identifier, found end of file",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedBindingIdentifier => ErrorData::new(
+                "Error while parsing symbol binding",
+                "Expected a symbol identifier",
+                Level::Error,
+            ),
+            ErrorKind::MissingUnmacroIdentifier => ErrorData::new(
+                "Error while parsing unmacro",
+                "Expected a macro name, found end of file",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedUnmacroIdentifier => ErrorData::new(
+                "Error while parsing unmacro",
+                "Expected a macro name",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedUnmacroNumArgs => ErrorData::new(
+                "Error while parsing unmacro",
+                "Expected a number of arguments, or newline",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedUnmacroRange => ErrorData::new(
+                "Error while parsing unmacro",
+                "Expected a '-', or newline",
+                Level::Error,
+            ),
+            ErrorKind::MissingUnmacroMaxArguments => ErrorData::new(
+                "Error while parsing unmacro",
+                "Found argument range, missing maximum value",
+                Level::Error,
+            ),
+            ErrorKind::ExpectedUnmacroMaxArguments => ErrorData::new(
+                "Error while parsing unmacro",
+                "Expected maximum number of arguments",
+                Level::Error,
+            ),
+            ErrorKind::DirectiveNotAllowed => ErrorData::new(
+                "Error while preprocessing",
+                "Directive not allowed outside of correct scope",
                 Level::Error,
             ),
         }

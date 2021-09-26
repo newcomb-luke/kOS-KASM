@@ -1,6 +1,6 @@
 use logos::Logos;
 
-use crate::errors::{AssemblyError, ErrorKind, ErrorManager, KASMResult, SourceFile};
+use crate::errors::{AssemblyError, ErrorKind, ErrorManager, SourceFile};
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -32,6 +32,7 @@ pub enum TokenKind {
     DirectiveMacro,
     DirectiveEndmacro,
     DirectiveRepeat,
+    DirectiveEndRepeat,
     DirectiveInclude,
     DirectiveExtern,
     DirectiveGlobal,
@@ -117,6 +118,9 @@ pub enum RawToken {
     #[token(".rep")]
     DirectiveRepeat,
 
+    #[token(".endrep")]
+    DirectiveEndRepeat,
+
     #[token(".include")]
     DirectiveInclude,
 
@@ -177,16 +181,16 @@ pub enum RawToken {
     #[token(".endif")]
     DirectiveEndIf,
 
-    #[regex(r"\.[_a-zA-Z][_a-zA-Z0-9]+")]
+    #[regex(r"\.[_a-zA-Z][_a-zA-Z0-9]*")]
     InnerLabelReference,
 
-    #[regex(r"\.[_a-zA-Z][_a-zA-Z0-9]+:")]
+    #[regex(r"\.[_a-zA-Z][_a-zA-Z0-9]*:")]
     InnerLabel,
 
-    #[regex(r"[_a-zA-Z][_a-zA-Z0-9]?")]
+    #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*")]
     Identifier,
 
-    #[regex(r"[_a-zA-Z][_a-zA-Z0-9]+:")]
+    #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*:")]
     Label,
 
     #[regex(r"[ \t\f]+")]
@@ -207,7 +211,7 @@ pub enum RawToken {
     #[regex(r"[0-9]+\.[\D&&\S]+")]
     JunkFloatError,
 
-    #[regex(r"0x[0-9a-fA-F][0-9a-fA-f_]+")]
+    #[regex(r"0x[0-9a-fA-F][0-9a-fA-f_]*")]
     LiteralHex,
 
     #[regex(r"0b[01][01_]+")]
@@ -436,15 +440,15 @@ pub fn consume_token(
     token_iter: &mut TokenIter,
     errors: &mut ErrorManager,
     missing: ErrorKind,
-) -> KASMResult<Token> {
+) -> Option<Token> {
     // Check if there is a token
     if let Some(token) = token_iter.next() {
-        Ok(*token)
+        Some(*token)
     }
     // If not, register the error
     else {
         errors.add_assembly(AssemblyError::new(missing, *token_iter.previous().unwrap()));
-        Err(())
+        None
     }
 }
 
@@ -452,19 +456,19 @@ pub fn consume_token(
 /// specified error to the ErrorManager
 ///
 /// Behaves just like consume_token, but this just peeks the iterator
-pub fn peek_token<'a>(
-    token_iter: &'a mut TokenIter,
+pub fn peek_token(
+    token_iter: &mut TokenIter,
     errors: &mut ErrorManager,
     missing: ErrorKind,
-) -> KASMResult<&'a Token> {
+) -> Option<Token> {
     // Check if there is a token
     if let Some(token) = token_iter.peek() {
-        Ok(token)
+        Some(*token)
     }
     // If not, register the error
     else {
         errors.add_assembly(AssemblyError::new(missing, *token_iter.previous().unwrap()));
-        Err(())
+        None
     }
 }
 
@@ -478,15 +482,18 @@ pub fn parse_token(
     kind: TokenKind,
     incorrect: ErrorKind,
     missing: ErrorKind,
-) -> KASMResult<Token> {
+) -> Option<Token> {
     // Check for the token
-    let token = consume_token(token_iter, errors, missing)?;
+    let token = peek_token(token_iter, errors, missing)?;
 
     if token.kind == kind {
-        Ok(token)
+        Some(*token_iter.next().unwrap())
+    } else if token.kind == TokenKind::Newline {
+        errors.add_assembly(AssemblyError::new(missing, *token_iter.previous().unwrap()));
+        None
     } else {
         errors.add_assembly(AssemblyError::new(incorrect, token));
-        Err(())
+        None
     }
 }
 
@@ -498,11 +505,11 @@ pub fn test_next_is<'a>(
     errors: &mut ErrorManager,
     kind: TokenKind,
     missing: ErrorKind,
-) -> KASMResult<bool> {
+) -> Option<bool> {
     // Check for the token
     let token = peek_token(token_iter, errors, missing)?;
 
-    Ok(token.kind == kind)
+    Some(token.kind == kind)
 }
 
 #[test]

@@ -3,6 +3,7 @@ use errors::SourceFile;
 use lexer::check_errors;
 use lexer::token::Token;
 use preprocessor::phase0::phase0;
+use std::collections::HashMap;
 use std::env;
 use std::{error::Error, path::Path};
 use std::{fs, vec};
@@ -106,8 +107,6 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
     let mut error_manager = ErrorManager::new();
 
-    // input_files.add_file("main");
-
     // Read the input file
     let main_source = fs::read_to_string(&config.file_path)?;
 
@@ -131,17 +130,19 @@ pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
 
             // Run the preprocessor
             let processed = match preprocess("", tokens, &mut source_files, &mut error_manager) {
-                Ok(p) => {
+                Some(p) => {
                     error_manager.emit(&source_files)?;
 
                     p
                 }
-                Err(_) => {
+                None => {
                     error_manager.emit(&source_files)?;
 
                     return Err("".into());
                 }
             };
+
+            println!("Preprocessed: {:#?}", processed);
         }
     }
 

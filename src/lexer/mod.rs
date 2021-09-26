@@ -3,7 +3,7 @@ use logos::Logos;
 use token::RawToken;
 pub use token::*;
 
-use crate::errors::{AssemblyError, ErrorManager, KASMResult};
+use crate::errors::{AssemblyError, ErrorManager};
 
 use self::token::{Token, TokenKind};
 
@@ -66,6 +66,7 @@ impl<'a> Lexer<'a> {
             RawToken::DirectiveMacro => TokenKind::DirectiveMacro,
             RawToken::DirectiveEndmacro => TokenKind::DirectiveEndmacro,
             RawToken::DirectiveRepeat => TokenKind::DirectiveRepeat,
+            RawToken::DirectiveEndRepeat => TokenKind::DirectiveEndRepeat,
             RawToken::DirectiveInclude => TokenKind::DirectiveInclude,
             RawToken::DirectiveExtern => TokenKind::DirectiveExtern,
             RawToken::DirectiveGlobal => TokenKind::DirectiveGlobal,

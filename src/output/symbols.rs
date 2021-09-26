@@ -5,6 +5,7 @@ use kerbalobjects::{
 
 /// Represents a symbol in KASM code, which is a simplified version of a KOSymbol from the KO file
 /// format
+#[derive(Debug)]
 pub struct Symbol {
     /// The type of the symbol. In KASM, only Func and NoType are supported
     pub sym_type: SymType,

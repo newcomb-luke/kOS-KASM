@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    errors::{AssemblyError, ErrorKind, ErrorManager, KASMResult, SourceFile},
+    errors::{AssemblyError, ErrorKind, ErrorManager, SourceFile},
     lexer::{
         parse_token, test_next_is,
         token::{Token, TokenKind},
@@ -19,7 +19,7 @@ impl UnDefinition {
         token_iter: &mut TokenIter,
         source_files: &Vec<SourceFile>,
         errors: &mut ErrorManager,
-    ) -> KASMResult<String> {
+    ) -> Option<String> {
         // .undef will always be there
         token_iter.next();
 
@@ -35,7 +35,7 @@ impl UnDefinition {
         // Get the actual identifier out of it
         let identifier = identifier_token.slice(source_files).unwrap().to_string();
 
-        Ok(identifier)
+        Some(identifier)
     }
 }
 
@@ -58,29 +58,11 @@ impl Definition {
     ///
     /// .define B(x, y)     x * y
     ///
-    /// push A(x)
-    ///
-    /// <ident: push> <ident: A> <leftparen> <ident: x> <rightparen>
-    ///
-    /// call printFunc, #
-    ///
-    /// <ident: call> <ident: printFunc> <comma> <hash>
-    ///
-    /// .define printFunc wedseddawdaw
-    ///
-    /// .func
-    /// printFunc:
-    ///     store "$x"
-    ///     push @
-    ///     push "$x"
-    ///     call #, "print()"
-    ///     ret 0
-    ///
     pub fn parse(
         token_iter: &mut TokenIter,
         source_files: &Vec<SourceFile>,
         errors: &mut ErrorManager,
-    ) -> KASMResult<(Self, String)> {
+    ) -> Option<(Self, String)> {
         // .define will always be there
         token_iter.next();
 
@@ -134,8 +116,8 @@ impl Definition {
                             token_iter,
                             errors,
                             TokenKind::Identifier,
-                            ErrorKind::UnexpectedEndOfDirectiveArguments,
                             ErrorKind::InvalidTokenDirectiveArguments,
+                            ErrorKind::UnexpectedEndOfDirectiveArguments,
                         )?;
 
                         // Get the actual identifier out of it
@@ -214,12 +196,128 @@ impl Definition {
             None
         };
 
-        Ok((
+        Some((
             Self {
                 arguments,
                 contents,
             },
             identifier,
         ))
+    }
+}
+
+fn _parse_definition(source: &str) -> Result<Definition, ErrorKind> {
+    use crate::errors::KASMError;
+    use crate::lexer::{self, check_errors};
+    use crate::{phase0, phase1};
+
+    let mut error_manager = ErrorManager::new();
+
+    let source_file = SourceFile::new("test".to_string(), source.to_string());
+
+    let source_files = vec![source_file];
+
+    let mut tokens: Vec<Token> = lexer::tokenize(source_files.get(0).unwrap().source()).collect();
+
+    check_errors(&tokens, &mut error_manager);
+
+    if error_manager.errors().len() > 0 {
+        return Err(match error_manager.errors().get(0).unwrap() {
+            KASMError::Assembly(err) => err.kind(),
+            _ => unreachable!(),
+        });
+    }
+
+    // Run phase 0 of the assembly
+    phase0(&mut tokens, &mut error_manager);
+
+    if error_manager.errors().len() > 0 {
+        return Err(match error_manager.errors().get(0).unwrap() {
+            KASMError::Assembly(err) => err.kind(),
+            _ => unreachable!(),
+        });
+    }
+    // Run phase 1 of the assembly
+    tokens = phase1(tokens);
+
+    let mut token_iter = TokenIter::new(tokens);
+
+    let (definition, _) =
+        match Definition::parse(&mut token_iter, &source_files, &mut error_manager) {
+            Some(def) => def,
+            None => {
+                let err = match error_manager.errors().get(0).unwrap() {
+                    KASMError::Assembly(e) => e.kind(),
+                    _ => unreachable!(),
+                };
+
+                return Err(err);
+            }
+        };
+
+    Ok(definition)
+}
+
+#[test]
+fn no_identifier() {
+    match _parse_definition(".define") {
+        Ok(_) => {
+            panic!("Definition parsed successfully!!! BAD!!!!");
+        }
+        Err(e) => {
+            assert_eq!(e, ErrorKind::MissingDirectiveIdentifier);
+        }
+    }
+}
+
+#[test]
+fn no_closing_paren() {
+    match _parse_definition(".define TEST(") {
+        Ok(_) => {
+            panic!("Definition parsed successfully!!! BAD!!!!");
+        }
+        Err(e) => {
+            assert_eq!(e, ErrorKind::UnexpectedEndOfDirectiveArguments);
+        }
+    }
+}
+
+#[test]
+fn valid_no_expansion() {
+    match _parse_definition(".define FLAG") {
+        Ok(_) => {}
+        Err(e) => {
+            panic!("Error: {:?}", e);
+        }
+    }
+}
+
+#[test]
+fn valid_with_expansion() {
+    match _parse_definition(".define NUM 24") {
+        Ok(_) => {}
+        Err(e) => {
+            panic!("Error: {:?}", e);
+        }
+    }
+}
+
+#[test]
+fn valid_with_arg() {
+    match _parse_definition(".define SQUARE(x) x * x") {
+        Ok(_) => {}
+        Err(e) => {
+            panic!("Error: {:?}", e);
+        }
+    }
+}
+
+#[test]
+fn valid_with_args() {
+    match _parse_definition(".define MULT(x, y) x * y") {
+        Ok(_) => {}
+        Err(e) => {
+            panic!("Error: {:?}", e);
+        }
     }
 }

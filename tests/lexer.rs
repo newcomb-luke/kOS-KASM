@@ -72,6 +72,7 @@ fn lex_directives() {
         TokenKind::DirectiveMacro,
         TokenKind::DirectiveEndmacro,
         TokenKind::DirectiveRepeat,
+        TokenKind::DirectiveEndRepeat,
         TokenKind::DirectiveInclude,
         TokenKind::DirectiveExtern,
         TokenKind::DirectiveGlobal,
@@ -101,6 +102,7 @@ fn lex_directives() {
 .macro
 .endmacro
 .rep
+.endrep
 .include
 .extern
 .global

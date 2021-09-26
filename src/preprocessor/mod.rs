@@ -1,12 +1,20 @@
 use std::collections::HashMap;
 
+use kerbalobjects::kofile::symbols::{SymBind, SymType};
+
 use crate::{
-    errors::{ErrorManager, KASMResult, SourceFile},
+    errors::{AssemblyError, ErrorKind, ErrorManager, SourceFile},
     lexer::{
+        parse_token,
         token::{Token, TokenKind},
         TokenIter,
     },
-    preprocessor::definitions::UnDefinition,
+    output::symbols::Symbol,
+    preprocessor::{
+        definitions::UnDefinition,
+        macros::{MacroArgs, UnMacro},
+        repeat::Repeat,
+    },
 };
 
 use self::{definitions::Definition, macros::Macro};
@@ -17,6 +25,7 @@ pub mod expressions;
 
 pub mod definitions;
 pub mod macros;
+pub mod repeat;
 
 /*
 mod processing;
@@ -38,6 +47,7 @@ mod errors;
 pub use errors::*;
 */
 
+#[derive(Debug)]
 struct DefinitionTable<T> {
     definitions: HashMap<String, T>,
 }
@@ -68,12 +78,10 @@ impl<T> DefinitionTable<T> {
     pub fn get(&self, identifier: &str) -> Option<&T> {
         self.definitions.get(identifier)
     }
-}
 
-// The mode of the preprocessor
-enum PreprocessMode {
-    Text,
-    Data,
+    pub fn get_mut(&mut self, identifier: &str) -> Option<&mut T> {
+        self.definitions.get_mut(identifier)
+    }
 }
 
 /// Runs the preprocessor on the tokens provided, using the given include path if any .include
@@ -83,16 +91,15 @@ pub fn preprocess(
     tokens: Vec<Token>,
     source_files: &mut Vec<SourceFile>,
     errors: &mut ErrorManager,
-) -> KASMResult<Vec<Token>> {
+) -> Option<Vec<Token>> {
     let mut preprocessor = Preprocessor::new(include_path);
 
-    Ok(preprocessor.process(tokens, source_files, errors)?)
+    Some(preprocessor.process(tokens, source_files, errors)?)
 }
 
 /// The preprocessor that evaluates expressions and executes directives
 pub struct Preprocessor {
     include_path: String,
-    mode: PreprocessMode,
     definitions: DefinitionTable<Definition>,
     macros: DefinitionTable<Macro>,
 }
@@ -101,7 +108,6 @@ impl Preprocessor {
     pub fn new(include_path: &str) -> Self {
         Self {
             include_path: include_path.to_string(),
-            mode: PreprocessMode::Text,
             definitions: DefinitionTable::new(),
             macros: DefinitionTable::new(),
         }
@@ -112,7 +118,7 @@ impl Preprocessor {
         tokens: Vec<Token>,
         source_files: &mut Vec<SourceFile>,
         errors: &mut ErrorManager,
-    ) -> KASMResult<Vec<Token>> {
+    ) -> Option<Vec<Token>> {
         // Pre-allocate for as many tokens as we had before, it should be a good estimate
         let mut preprocessed_tokens = Vec::with_capacity(tokens.len());
 
@@ -130,7 +136,10 @@ impl Preprocessor {
             )?;
         }
 
-        Ok(preprocessed_tokens)
+        println!("Definitions: {:#?}", self.definitions);
+        println!("Macros: {:#?}", self.macros);
+
+        Some(preprocessed_tokens)
     }
 
     // This function preprocesses a "part"
@@ -143,7 +152,7 @@ impl Preprocessor {
         source_files: &mut Vec<SourceFile>,
         errors: &mut ErrorManager,
         preprocessed_tokens: &mut Vec<Token>,
-    ) -> KASMResult<()> {
+    ) -> Option<()> {
         // In the loop we checked if there was another token or not
         let token = token_iter.peek().unwrap();
 
@@ -162,12 +171,172 @@ impl Preprocessor {
 
                 self.definitions.undef(&identifier);
             }
-            TokenKind::Newline => {
-                token_iter.next();
+            TokenKind::DirectiveRepeat => {
+                let repeat = Repeat::parse(token_iter, source_files, errors)?;
+
+                repeat.invoke(preprocessed_tokens);
+
+                todo!("Invoke definitions and macros within .rep");
             }
-            _ => unimplemented!("Not implemented yet"),
+            TokenKind::DirectiveMacro => {
+                let (our_macro, identifier) = Macro::parse(token_iter, source_files, errors)?;
+
+                println!("Defined macro {}", identifier);
+
+                self.macros.define(&identifier, our_macro);
+            }
+            TokenKind::DirectiveUnmacro => {
+                let (identifier, args) = UnMacro::parse(token_iter, source_files, errors)?;
+
+                // This awful mess of match statements basically just means if the macro arguments
+                // are equal or not
+                let matches = if let Some(our_macro) = self.macros.get(&identifier) {
+                    match our_macro.args() {
+                        Some(args_1) => match args {
+                            Some(args_2) => match args_1 {
+                                MacroArgs::Fixed(args_1_num) => match args_2 {
+                                    MacroArgs::Fixed(args_2_num) => *args_1_num == args_2_num,
+                                    _ => false,
+                                },
+                                MacroArgs::Range(args_1_min, args_1_max, _) => match args_2 {
+                                    MacroArgs::Range(args_2_min, args_2_max, _) => {
+                                        *args_1_min == args_2_min && *args_1_max == args_2_max
+                                    }
+                                    _ => false,
+                                },
+                            },
+                            None => false,
+                        },
+                        None => match args {
+                            Some(_) => false,
+                            None => true,
+                        },
+                    }
+                } else {
+                    false
+                };
+
+                // If the macro arguments are equal
+                if matches {
+                    self.macros.undef(&identifier);
+                }
+            }
+            TokenKind::DirectiveInclude => {
+                todo!("Implement .include");
+            }
+            TokenKind::DirectiveIf
+            | TokenKind::DirectiveIfNot
+            | TokenKind::DirectiveIfDef
+            | TokenKind::DirectiveIfNotDef => {
+                todo!("Implement .if");
+            }
+            TokenKind::Identifier => {
+                todo!("Implement macro expansion");
+            }
+            // Preprocessor ignores
+            TokenKind::KeywordSection
+            | TokenKind::KeywordText
+            | TokenKind::KeywordData
+            | TokenKind::Label
+            | TokenKind::InnerLabel
+            | TokenKind::InnerLabelReference
+            | TokenKind::LiteralInteger
+            | TokenKind::LiteralFloat
+            | TokenKind::LiteralHex
+            | TokenKind::LiteralBinary
+            | TokenKind::LiteralTrue
+            | TokenKind::LiteralFalse
+            | TokenKind::LiteralString
+            | TokenKind::SymbolLeftParen
+            | TokenKind::SymbolRightParen
+            | TokenKind::SymbolComma
+            | TokenKind::SymbolHash
+            | TokenKind::SymbolAt
+            | TokenKind::SymbolAnd
+            | TokenKind::Newline
+            | TokenKind::OperatorMinus
+            | TokenKind::OperatorPlus
+            | TokenKind::OperatorCompliment
+            | TokenKind::OperatorMultiply
+            | TokenKind::OperatorDivide
+            | TokenKind::OperatorMod
+            | TokenKind::OperatorAnd
+            | TokenKind::OperatorOr
+            | TokenKind::OperatorEquals
+            | TokenKind::OperatorNotEquals
+            | TokenKind::OperatorNegate
+            | TokenKind::OperatorGreaterThan
+            | TokenKind::OperatorLessThan
+            | TokenKind::OperatorGreaterEquals
+            | TokenKind::OperatorLessEquals
+            | TokenKind::DirectiveGlobal
+            | TokenKind::DirectiveExtern
+            | TokenKind::DirectiveLocal
+            | TokenKind::DirectiveLine
+            | TokenKind::DirectiveValue
+            | TokenKind::DirectiveFunc
+            | TokenKind::DirectiveType => {
+                // Just add it to the preprocessed tokens
+                preprocessed_tokens.push(*token_iter.next().unwrap());
+            }
+            // Directives that are not allowed outside of their respective parsing scopes
+            TokenKind::DirectiveEndmacro
+            | TokenKind::DirectiveEndRepeat
+            | TokenKind::DirectiveEndIf
+            | TokenKind::DirectiveElse
+            | TokenKind::DirectiveElseIf
+            | TokenKind::DirectiveElseIfNot
+            | TokenKind::DirectiveElseIfDef
+            | TokenKind::DirectiveElseIfNotDef => {
+                errors.add_assembly(AssemblyError::new(ErrorKind::DirectiveNotAllowed, *token));
+
+                return None;
+            }
+            TokenKind::Backslash
+            | TokenKind::Whitespace
+            | TokenKind::Comment
+            | TokenKind::Error
+            | TokenKind::JunkFloatError => unreachable!(),
         }
 
-        Ok(())
+        Some(())
     }
+}
+
+// This parses a symbol binding directive
+//
+// Examples:
+//
+// .extern func
+// .global _start
+//
+// This returns an option of a tuple of the symbol binding that was specified, and a String of the
+// symbol that is being specified
+fn parse_binding(
+    token_iter: &mut TokenIter,
+    source_files: &mut Vec<SourceFile>,
+    errors: &mut ErrorManager,
+) -> Option<(SymBind, String)> {
+    // This will always either be .extern, .global, or .local
+    let bind_token = token_iter.next().unwrap();
+
+    let bind = match bind_token.kind {
+        TokenKind::DirectiveExtern => SymBind::Extern,
+        TokenKind::DirectiveGlobal => SymBind::Global,
+        TokenKind::DirectiveLocal => SymBind::Local,
+        _ => unreachable!(),
+    };
+
+    let symbol_name_token = parse_token(
+        token_iter,
+        errors,
+        TokenKind::Identifier,
+        ErrorKind::ExpectedBindingIdentifier,
+        ErrorKind::MissingBindingIdentifier,
+    )?;
+
+    // Get the actual symbol name
+    let symbol_name = symbol_name_token.slice(source_files).unwrap().to_string();
+
+    Some((bind, symbol_name))
 }
