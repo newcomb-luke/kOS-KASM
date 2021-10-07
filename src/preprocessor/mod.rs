@@ -1,6 +1,9 @@
+pub mod parser;
+pub mod past;
+/*
 use std::collections::HashMap;
 
-use kerbalobjects::kofile::symbols::{SymBind, SymType};
+use kerbalobjects::kofile::symbols::SymBind;
 
 use crate::{
     errors::{AssemblyError, ErrorKind, ErrorManager, SourceFile},
@@ -9,7 +12,6 @@ use crate::{
         token::{Token, TokenKind},
         TokenIter,
     },
-    output::symbols::Symbol,
     preprocessor::{
         definitions::UnDefinition,
         macros::{MacroArgs, UnMacro},
@@ -162,6 +164,16 @@ impl Preprocessor {
 
                 println!("Defined {}", identifier);
 
+                // If the user is trying to declare a macro with the same name as an instruction
+                // if Opcode::from(identifier.as_str()) != Opcode::Bogus {
+                //     errors.add_assembly(AssemblyError::new(
+                //         ErrorKind::SameNameAsInstrDirective,
+                //         *token,
+                //     ));
+
+                //     return None;
+                // }
+
                 self.definitions.define(&identifier, definition);
             }
             TokenKind::DirectiveUndef => {
@@ -182,6 +194,14 @@ impl Preprocessor {
                 let (our_macro, identifier) = Macro::parse(token_iter, source_files, errors)?;
 
                 println!("Defined macro {}", identifier);
+
+                // If the user is trying to declare a macro with the same name as an instruction
+                if Opcode::from(identifier.as_str()) != Opcode::Bogus {
+                    errors
+                        .add_assembly(AssemblyError::new(ErrorKind::SameNameAsInstrMacro, *token));
+
+                    return None;
+                }
 
                 self.macros.define(&identifier, our_macro);
             }
@@ -221,9 +241,7 @@ impl Preprocessor {
                     self.macros.undef(&identifier);
                 }
             }
-            TokenKind::DirectiveInclude => {
-                todo!("Implement .include");
-            }
+            TokenKind::DirectiveInclude => {}
             TokenKind::DirectiveIf
             | TokenKind::DirectiveIfNot
             | TokenKind::DirectiveIfDef
@@ -340,3 +358,43 @@ fn parse_binding(
 
     Some((bind, symbol_name))
 }
+
+// Parses a .include directive
+//
+// Returns the string representing the path that was parsed
+fn parse_include(
+    token_iter: &mut TokenIter,
+    source_files: &mut Vec<SourceFile>,
+    errors: &mut ErrorManager,
+) -> Option<String> {
+    // .include will always be there
+    token_iter.next();
+
+    // TODO: Support for macro expansion
+    let path = parse_token(
+        token_iter,
+        errors,
+        TokenKind::LiteralString,
+        ErrorKind::ExpectedIncludePath,
+        ErrorKind::MissingIncludePath,
+    )?;
+
+    // Get the path as a string
+    let path_string = path.slice(source_files).unwrap().to_string();
+
+    Some(path_string)
+}
+*/
+
+// Performs an .include directive
+//
+// This returns an Option<()> because it inserts the tokens lexed from the new file into the
+// TokenIter
+// fn do_include(
+//     token_iter: &mut TokenIter,
+//     errors: &mut ErrorManager,
+//     include_path: &String,
+//     path: String,
+// ) -> Option<()> {
+//     //
+// }

@@ -1,17 +1,14 @@
-pub mod token;
+mod token;
 use logos::Logos;
 use token::RawToken;
 pub use token::*;
 
-use crate::errors::{AssemblyError, ErrorManager};
-
-use self::token::{Token, TokenKind};
+use crate::session::Session;
 
 pub struct Lexer<'a> {
     inner: logos::Lexer<'a, RawToken>,
     done: bool,
     current_index: usize,
-    peeked: Option<Token>,
 }
 
 impl<'a> Lexer<'a> {
@@ -21,7 +18,6 @@ impl<'a> Lexer<'a> {
             inner: RawToken::lexer(source),
             done: false,
             current_index: 0,
-            peeked: None,
         }
     }
 
@@ -129,43 +125,6 @@ impl<'a> Lexer<'a> {
             file_id: 0,
             source_index,
             len: len as u16,
-        }
-    }
-}
-
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(peeked) = self.peeked {
-            let peeked_token = peeked;
-            self.peeked = None;
-            Some(peeked_token)
-        } else {
-            let raw_token = self.lex_raw()?;
-            Some(self.raw_to_token(raw_token, self.inner.slice().len() as u16))
-        }
-    }
-}
-
-/// Tokenize a string of KASM into an iterator of tokens.
-pub fn tokenize<'a>(source: &'a str) -> impl Iterator<Item = Token> + 'a {
-    Lexer::new(source)
-}
-
-/// Checks the token iterator for errors, and if one appears, registers it with the error manager
-pub fn check_errors<'a>(tokens: &Vec<Token>, errors: &mut ErrorManager) {
-    for token in tokens.iter() {
-        if token.kind == TokenKind::Error {
-            errors.add_assembly(AssemblyError::new(
-                crate::errors::ErrorKind::TokenParse,
-                *token,
-            ));
-        } else if token.kind == TokenKind::JunkFloatError {
-            errors.add_assembly(AssemblyError::new(
-                crate::errors::ErrorKind::JunkFloat,
-                *token,
-            ));
         }
     }
 }

@@ -1,9 +1,22 @@
+use std::path::PathBuf;
+
+use errors::SourceFile;
+use kerbalobjects::kofile::KOFile;
+
+mod errors;
+mod session;
+
+mod lexer;
+mod preprocessor;
+
+use session::Session;
+
+/*
 use clap::ArgMatches;
 use errors::SourceFile;
 use lexer::check_errors;
 use lexer::token::Token;
 use preprocessor::phase0::phase0;
-use std::collections::HashMap;
 use std::env;
 use std::{error::Error, path::Path};
 use std::{fs, vec};
@@ -11,29 +24,83 @@ use std::{fs, vec};
 use crate::errors::ErrorManager;
 use crate::preprocessor::phase0::phase1;
 use crate::preprocessor::preprocess;
+*/
 
+/*
 pub mod lexer;
 
 pub mod errors;
 
-/*
 pub mod preprocessor;
-use preprocessor::*;
-
-pub mod parser;
-use parser::*;
 
 pub mod output;
-use output::generator::Generator;
 */
-
-pub mod preprocessor;
-
-pub mod output;
 
 pub static VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
-pub fn run(config: &CLIConfig) -> Result<(), Box<dyn Error>> {
+/// Various configuration parameters for altering how the assembler acts
+pub struct Config {
+    /// This value should be true when this assembler is being run in CLI mode, like in this crate
+    /// itself. This causes it to emit errors to stdout, instead of just returning Err(())
+    pub is_cli: bool,
+    /// If warnings should be emitted during assembly
+    pub emit_warnings: bool,
+    /// The "root directory" is usually the directory in which KASM was run, so that file paths can
+    /// be expressed relative to the current location
+    pub root_dir: PathBuf,
+    /// If the preprocessor should be run or not. The benefit of not running it is that the
+    /// assembly process will be faster without it
+    pub run_preprocessor: bool,
+}
+
+/// Assemble a file given by a provided path
+pub fn assemble_path(path: String, config: Config) -> Result<KOFile, ()> {
+    let mut session = Session::new(config);
+
+    // Check if we have been given a valid file
+    if !session.is_file(&path) {
+        session
+            .struct_error(format!("input `{}` is not a file", &path))
+            .emit();
+
+        return Err(());
+    }
+
+    // Read it
+    match session.read_file(&path) {
+        Ok(_) => {}
+        Err(_) => {
+            session
+                .struct_bug(format!("unable to read file `{}`", &path))
+                .emit();
+
+            return Err(());
+        }
+    };
+
+    assemble(session)
+}
+
+/// Assemble a file given by a string
+pub fn assemble_string(source: String, config: Config) -> Result<KOFile, ()> {
+    let mut session = Session::new(config);
+
+    // Create a SourceFile but with some dummy values
+    let source_file = SourceFile::new("<input>".to_owned(), None, None, source, 0);
+
+    session.add_file(source_file);
+
+    assemble(session)
+}
+
+// The core of the assembler. The actual function that runs everything else
+// This should be called with a session that already has the primary source file read
+fn assemble(session: Session) -> Result<KOFile, ()> {
+    todo!();
+}
+
+/*
+pub fn run() -> Result<(), Box<dyn Error>> {
     if !config.file_path.ends_with(".kasm") {
         return Err(format!(
             "Input file must be a KASM file. Found: {}",
@@ -286,3 +353,4 @@ impl InputFiles {
         self.files.get(id).unwrap().to_owned()
     }
 }
+*/
