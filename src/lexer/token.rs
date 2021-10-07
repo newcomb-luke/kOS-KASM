@@ -1,5 +1,7 @@
 use logos::Logos;
 
+use crate::errors::Span;
+
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenKind {
@@ -206,7 +208,7 @@ pub enum RawToken {
     #[regex(r"[0-9]+\.[0-9]+")]
     LiteralFloat,
 
-    #[regex(r"[0-9]+\.[\D&&\S]+")]
+    #[regex(r"[0-9]+\.[0-9\S]*")]
     JunkFloatError,
 
     #[regex(r"0x[0-9a-fA-F][0-9a-fA-f_]*")]
@@ -305,4 +307,15 @@ pub struct Token {
 
     /// The length of the token in the source
     pub len: u16,
+}
+
+impl Token {
+    /// Creates a new Span that envelopes just this token
+    pub fn as_span(&self) -> Span {
+        Span {
+            start: self.source_index as usize,
+            end: (self.source_index + (self.len as u32)) as usize,
+            file: self.file_id as usize,
+        }
+    }
 }

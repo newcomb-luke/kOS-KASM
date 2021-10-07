@@ -9,16 +9,61 @@ pub struct Lexer<'a> {
     inner: logos::Lexer<'a, RawToken>,
     done: bool,
     current_index: usize,
+    session: Session,
 }
 
 impl<'a> Lexer<'a> {
     /// Creates a new lexer
-    pub fn new(source: &'a str) -> Lexer {
+    pub fn new(source: &'a str, session: Session) -> Lexer {
         Lexer {
             inner: RawToken::lexer(source),
             done: false,
             current_index: 0,
+            session,
         }
+    }
+
+    /// This lexes the given input using the lexer. This returns a Result that contains a tuple of
+    /// a token Vec and a Session that was provided when this lexer was created. This consumes the
+    /// lexer
+    pub fn lex(mut self) -> Result<(Vec<Token>, Session), ()> {
+        let mut tokens = Vec::new();
+        let mut fail = false;
+
+        // Get all of the tokens, one by one
+        while let Some(token) = self.next() {
+            // Check if this token is an error token
+            if token.kind == TokenKind::Error {
+                self.session
+                    .struct_span_error(token.as_span(), "unknown token".to_string())
+                    .emit();
+
+                fail = true;
+            } else if token.kind == TokenKind::JunkFloatError {
+                self.session
+                    .struct_span_error(
+                        token.as_span(),
+                        "invalid floating point literal".to_string(),
+                    )
+                    .emit();
+
+                fail = true;
+            }
+
+            tokens.push(token);
+        }
+
+        if fail {
+            Err(())
+        } else {
+            Ok((tokens, self.session))
+        }
+    }
+
+    // Properly gets the next token
+    fn next(&mut self) -> Option<Token> {
+        let raw_token = self.lex_raw()?;
+        Some(self.raw_to_token(raw_token, self.inner.slice().len() as u16))
     }
 
     // Lexes a single RawToken from the source input
@@ -126,5 +171,57 @@ impl<'a> Lexer<'a> {
             source_index,
             len: len as u16,
         }
+    }
+}
+
+/// Replace comments and line continuations with whitespace tokens
+pub fn phase0(tokens: &mut Vec<Token>, session: &mut Session) -> Result<(), ()> {
+    let mut last_was_backslash = false;
+    let mut fail = false;
+
+    // Loop through all of the tokens
+    for token in tokens.iter_mut() {
+        // If the last token was a backslash (line continue)
+        if last_was_backslash {
+            // If it was a newline as expected, then replace it with whitespace and reset
+            if token.kind == TokenKind::Newline {
+                token.kind = TokenKind::Whitespace;
+                last_was_backslash = false;
+            }
+            // If it was whitespace that is fine
+            else if token.kind != TokenKind::Whitespace {
+                // If it wasn't though, that is an error
+                session
+                    .struct_span_error(
+                        token.as_span(),
+                        "unexpected token after backslash".to_string(),
+                    )
+                    .emit();
+
+                // We should try to keep going for errors' sake, so mark this as okay
+                last_was_backslash = false;
+
+                fail = true;
+            }
+        } else {
+            match token.kind {
+                // If it is a comment, replace it with whitespafce
+                TokenKind::Comment => {
+                    token.kind = TokenKind::Whitespace;
+                }
+                // If it is a backslash, replace it and prepare next iteration
+                TokenKind::Backslash => {
+                    token.kind = TokenKind::Whitespace;
+                    last_was_backslash = true;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    if fail {
+        Err(())
+    } else {
+        Ok(())
     }
 }

@@ -1,3 +1,4 @@
+use std::fmt::{format, Display};
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::RwLock;
@@ -38,7 +39,7 @@ impl<'a> DiagnosticBuilder<'a> {
         }
     }
 
-    pub fn set_span(&mut self, span: MultiSpan) -> &mut Self {
+    pub fn set_primary_span(&mut self, span: Span) -> &mut Self {
         self.diagnostic.primary = Some(span);
 
         self
@@ -53,9 +54,7 @@ impl<'a> DiagnosticBuilder<'a> {
     }
 
     pub fn span_label(&mut self, span: Span, label: String) -> &mut Self {
-        let new_span = MultiSpan::Labeled(span, label);
-
-        self.diagnostic.spans.push(new_span);
+        self.diagnostic.spans.push((span, label));
 
         self
     }
@@ -116,8 +115,8 @@ impl<'a> Drop for DiagnosticBuilder<'a> {
 pub struct Diagnostic {
     pub level: Level,
     pub message: String,
-    pub primary: Option<MultiSpan>,
-    pub spans: Vec<MultiSpan>,
+    pub primary: Option<Span>,
+    pub spans: Vec<(Span, String)>,
     pub children: Vec<SubDiagnostic>,
 }
 
@@ -176,27 +175,134 @@ impl Emitter {
         eprintln!("");
 
         if let Some(primary) = &diagnostic.primary {
+            let source_location = self.get_source_location(primary);
             let snippet = self.span_to_snippet(primary);
 
-            match snippet {
-                MultiSnippet::Primary(snippet) => {
-                    eprintln!("{}", snippet.line);
+            match self.emit_snippet(
+                &mut stream,
+                primary,
+                source_location,
+                &snippet,
+                diagnostic.level,
+                None,
+                true,
+            ) {
+                Err(e) => {
+                    panic!("Failed to emit snippet: {}", e);
                 }
-                MultiSnippet::Labeled(snippet, label) => {
-                    eprintln!("{} {}", snippet.line, label);
-                }
+                _ => {}
             }
         }
     }
 
-    fn span_to_snippet(&self, span: &MultiSpan) -> MultiSnippet {
-        let file_id = match span {
-            MultiSpan::Primary(span) => span.file,
-            MultiSpan::Labeled(span, _) => span.file,
-        } as u8;
+    fn emit_snippet(
+        &self,
+        stream: &mut StandardStream,
+        span: &Span,
+        source_location: (String, usize, usize),
+        snippet: &Snippet,
+        level: Level,
+        label: Option<&str>,
+        display_file: bool,
+    ) -> std::io::Result<()> {
+        let (path, line_num, col) = source_location;
 
-        match self.source_manger.read().unwrap().get_by_id(file_id) {
-            Some(source_file) => source_file.span_to_snippet(),
+        let line_num_str = format!("{}", line_num);
+        let line_num_width = line_num_str.len();
+
+        //   --> src/main.kasm:2:4
+        if display_file {
+            let styled_arrow = StyledString::new(
+                format!("{:spaces$}--> ", "", spaces = line_num_width),
+                Style::LineNumber,
+            );
+
+            // Emit the:
+            //    -->
+            self.emit_styled_string(stream, &styled_arrow)?;
+
+            // src/main.kasm:2:4
+            eprintln!(" {}:{}:{}", path, line_num, col);
+        }
+
+        let vert_bar = StyledString::new(
+            format!("{:spaces$} |", "", spaces = line_num_width),
+            Style::LineAndColumn,
+        );
+
+        //     |
+        self.emit_styled_string(stream, &vert_bar)?;
+        eprint!("\n");
+
+        // 200 |
+        self.emit_styled_string(stream, &self.struct_line_num(line_num))?;
+
+        //   push NOT_ALLOWED
+        eprintln!("{}", &snippet.line);
+
+        //     |
+        self.emit_styled_string(stream, &vert_bar)?;
+
+        //    ^^^^^^^^^^^^
+        // Print the spaces
+        eprint!("{:spaces$} ", "", spaces = col);
+
+        // Print the ^'s
+        // If anyone reading this knows a better way, let me know. ^ is a special character in
+        // formatting strings, so.
+        stream.set_color(&Style::Level(level).to_spec())?;
+
+        for _ in 0..(span.end - span.start) {
+            write!(stream, "^")?;
+        }
+
+        write!(stream, " ")?;
+
+        // Add the label if it exists
+        if let Some(label) = label {
+            write!(stream, "{}", label)?;
+        }
+
+        eprint!("\n");
+
+        Ok(())
+    }
+
+    // Constructs a StyledString that contains this line number but formatted like a diagnostic:
+    //
+    // Ex:
+    //
+    //  243 |
+    fn struct_line_num(&self, line_num: usize) -> StyledString {
+        StyledString::new(format!("{} | ", line_num), Style::LineNumber)
+    }
+
+    fn get_source_location(&self, span: &Span) -> (String, usize, usize) {
+        let file_id = span.file;
+
+        match self
+            .source_manger
+            .read()
+            .unwrap()
+            .get_by_id(file_id as usize)
+        {
+            Some(source_file) => source_file.get_source_location(span),
+            None => {
+                panic!("Failed to get source location of span");
+            }
+        }
+    }
+
+    fn span_to_snippet(&self, span: &Span) -> Snippet {
+        let file_id = span.file;
+
+        match self
+            .source_manger
+            .read()
+            .unwrap()
+            .get_by_id(file_id as usize)
+        {
+            Some(source_file) => source_file.span_to_snippet(span),
             None => {
                 panic!("Failed to convert span to snippet");
             }
@@ -208,25 +314,7 @@ impl Emitter {
         stream: &mut StandardStream,
         styled_string: &StyledString,
     ) -> std::io::Result<()> {
-        let color_spec = match styled_string.style {
-            Style::NoStyle => ColorSpec::new(),
-            Style::MainHeaderMsg => {
-                let mut main_msg = ColorSpec::new();
-                main_msg.set_fg(Some(PLAIN_WHITE));
-                main_msg.set_bold(true);
-
-                main_msg
-            }
-            Style::LineNumber | Style::LineAndColumn => {
-                let mut line_num = ColorSpec::new();
-                line_num.set_fg(Some(PROMPT_COLOR));
-                line_num.set_intense(true);
-                line_num.set_bold(true);
-
-                line_num
-            }
-            Style::Level(level) => level.color(),
-        };
+        let color_spec = styled_string.style.to_spec();
 
         stream.set_color(&color_spec)?;
 
@@ -249,6 +337,10 @@ impl StyledString {
     }
 }
 
+pub struct SourceLocation {
+    pub path: PathBuf,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Style {
     MainHeaderMsg,
@@ -256,6 +348,31 @@ pub enum Style {
     NoStyle,
     LineNumber,
     LineAndColumn,
+}
+
+impl Style {
+    /// Converts a Style into a ColorSpec for colored output
+    pub fn to_spec(&self) -> ColorSpec {
+        match self {
+            Style::NoStyle => ColorSpec::new(),
+            Style::MainHeaderMsg => {
+                let mut main_msg = ColorSpec::new();
+                main_msg.set_fg(Some(PLAIN_WHITE));
+                main_msg.set_bold(true);
+
+                main_msg
+            }
+            Style::LineNumber | Style::LineAndColumn => {
+                let mut line_num = ColorSpec::new();
+                line_num.set_fg(Some(PROMPT_COLOR));
+                line_num.set_intense(true);
+                line_num.set_bold(true);
+
+                line_num
+            }
+            Style::Level(level) => level.color(),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -276,14 +393,14 @@ pub struct HandlerFlags {
 pub(crate) struct HandlerInner {
     /// The inner emitter that actually emits the Diagnostics
     pub emitter: Emitter,
-    pub source_manager: Rc<RwLock<SourceManager>>,
+    // pub source_manager: Rc<RwLock<SourceManager>>,
 }
 
 impl HandlerInner {
     pub(crate) fn new(flags: HandlerFlags, source_manager: Rc<RwLock<SourceManager>>) -> Self {
         Self {
             emitter: Emitter::new(flags, source_manager.clone()),
-            source_manager,
+            // source_manager,
         }
     }
 }
@@ -325,7 +442,7 @@ impl Handler {
 }
 
 pub struct SourceManager {
-    source_files: Vec<SourceFile>,
+    source_files: Vec<Rc<SourceFile>>,
 }
 
 impl SourceManager {
@@ -345,7 +462,7 @@ impl SourceManager {
 
             let id = source_file.id;
 
-            self.source_files.push(source_file);
+            self.source_files.push(Rc::new(source_file));
 
             Ok(id)
         } else {
@@ -354,9 +471,9 @@ impl SourceManager {
     }
 
     /// Gets a reference to a SourceFile by the SourceFile's id
-    pub fn get_by_id(&self, id: u8) -> Option<&SourceFile> {
+    pub fn get_by_id(&self, id: usize) -> Option<Rc<SourceFile>> {
         // Because id == index of SourceFile as u8, we can just use it directly
-        self.source_files.get(id as usize)
+        self.source_files.get(id).map(|sf| sf.clone())
     }
 }
 
@@ -391,8 +508,78 @@ impl SourceFile {
         }
     }
 
-    pub fn span_to_snippet(&self) -> MultiSnippet {
-        todo!();
+    /// Gets the source location of a given span
+    ///
+    /// Note: This uses the span.start to determine the line and column
+    ///
+    /// The String returned as the path, is given as:
+    ///
+    /// src/main.kasm
+    ///
+    /// Or if the file has no path, it just returns the name of the file. So if it is from some
+    /// kind of non-file input, then it is just displayed as <input>
+    ///
+    fn get_source_location(&self, span: &Span) -> (String, usize, usize) {
+        let file_path = match &self.rel_path {
+            Some(rel) => rel.to_str().unwrap().to_owned(),
+            None => self.name.to_owned(),
+        };
+
+        let mut line_num = 1;
+        let mut line_start_index = 0;
+
+        // Loop through all characters until the span.start
+        for (idx, c) in self.source.chars().take(span.start).enumerate() {
+            if c == '\n' {
+                line_num += 1;
+                line_start_index = idx + 1;
+            } else if c == '\t' {
+                line_start_index -= 3;
+            }
+        }
+
+        let col = span.start - line_start_index;
+
+        (file_path, line_num, col)
+    }
+
+    /// Converts a Span into a Snippet by getting the source code for the Span
+    pub fn span_to_snippet(&self, span: &Span) -> Snippet {
+        let mut line_begin = span.start;
+        let mut line_end = span.end;
+
+        // Look for the beginning of the line this span is on
+        while line_begin > 0 {
+            if self.source.chars().nth(line_begin).unwrap() != '\n' {
+                line_begin -= 1;
+            } else {
+                // Don't take the '\n' with us
+                line_begin += 1;
+                break;
+            }
+        }
+
+        // Look for the end of the line this span is on
+        while line_end < self.source.len() {
+            if self.source.chars().nth(line_end).unwrap() != '\n' {
+                line_end += 1;
+            } else {
+                break;
+            }
+        }
+
+        let line = (&self.source[line_begin..line_end])
+            .to_owned()
+            .replace("\t", "    ");
+
+        let start_col = span.start - line_begin;
+        let end_col = span.end - line_end;
+
+        Snippet {
+            line,
+            start_col,
+            end_col,
+        }
     }
 }
 
@@ -407,22 +594,16 @@ pub struct Span {
 }
 
 #[derive(Debug, Clone)]
-pub enum MultiSpan {
-    Primary(Span),
-    Labeled(Span, String),
-}
-
-#[derive(Debug, Clone)]
-pub enum MultiSnippet {
-    Primary(Snippet),
-    Labeled(Snippet, String),
-}
-
-#[derive(Debug, Clone)]
 pub struct Snippet {
     pub line: String,
     pub start_col: usize,
     pub end_col: usize,
+}
+
+impl Display for Snippet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.line)
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

@@ -11,6 +11,8 @@ mod preprocessor;
 
 use session::Session;
 
+use crate::lexer::{phase0, Lexer};
+
 /*
 use clap::ArgMatches;
 use errors::SourceFile;
@@ -96,6 +98,17 @@ pub fn assemble_string(source: String, config: Config) -> Result<KOFile, ()> {
 // The core of the assembler. The actual function that runs everything else
 // This should be called with a session that already has the primary source file read
 fn assemble(session: Session) -> Result<KOFile, ()> {
+    let primary_file = session.get_file(0).unwrap();
+
+    // Create the lexer
+    let lexer = Lexer::new(&primary_file.source, session);
+
+    // Lex the tokens, if they are all valid
+    let (mut tokens, mut session) = lexer.lex()?;
+
+    // Replace comments and line continuations
+    phase0(&mut tokens, &mut session)?;
+
     todo!();
 }
 

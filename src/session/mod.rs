@@ -1,9 +1,7 @@
 use std::{path::PathBuf, rc::Rc, sync::RwLock};
 
 use crate::{
-    errors::{
-        DiagnosticBuilder, Handler, HandlerFlags, Level, MultiSpan, SourceFile, SourceManager, Span,
-    },
+    errors::{DiagnosticBuilder, Handler, HandlerFlags, Level, SourceFile, SourceManager, Span},
     Config,
 };
 
@@ -30,6 +28,10 @@ impl Session {
             handler: Handler::new(flags, source_manager),
             num_files: 0,
         }
+    }
+
+    pub fn get_file(&self, file_id: usize) -> Option<Rc<SourceFile>> {
+        self.source_manager.read().unwrap().get_by_id(file_id)
     }
 
     pub fn is_file(&self, path: &str) -> bool {
@@ -80,7 +82,7 @@ impl Session {
     pub fn struct_span_warn(&self, span: Span, message: String) -> DiagnosticBuilder<'_> {
         let mut db = DiagnosticBuilder::new(&self.handler, Level::Warning, message);
 
-        db.set_span(MultiSpan::Primary(span));
+        db.set_primary_span(span);
 
         db
     }
@@ -88,7 +90,7 @@ impl Session {
     pub fn struct_span_error(&self, span: Span, message: String) -> DiagnosticBuilder<'_> {
         let mut db = DiagnosticBuilder::new(&self.handler, Level::Error, message);
 
-        db.set_span(MultiSpan::Primary(span));
+        db.set_primary_span(span);
 
         db
     }
