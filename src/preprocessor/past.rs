@@ -14,7 +14,14 @@ pub struct PAST {
     nodes: Vec<PASTNode>,
 }
 
+impl PAST {
+    pub fn new() -> Self {
+        Self { nodes: Vec::new() }
+    }
+}
+
 pub enum PASTNode {
+    ActiveTokens(ActiveTokens),
     BenignTokens(BenignTokens),
     SLMacroDef(SLMacroDef),
     MacroInvok(MacroInvok),
@@ -39,6 +46,11 @@ impl PartialEq for Ident {
 }
 
 pub struct BenignTokens {
+    span: Span,
+    tokens: Vec<Token>,
+}
+
+pub struct ActiveTokens {
     span: Span,
     tokens: Vec<Token>,
 }

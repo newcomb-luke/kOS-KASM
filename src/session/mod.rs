@@ -111,4 +111,8 @@ impl Session {
     fn colored_output() -> bool {
         atty::is(atty::Stream::Stderr)
     }
+
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
 }

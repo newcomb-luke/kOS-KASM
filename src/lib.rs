@@ -11,7 +11,10 @@ mod preprocessor;
 
 use session::Session;
 
-use crate::lexer::{phase0, Lexer};
+use crate::{
+    lexer::{phase0, Lexer},
+    preprocessor::parser::Parser,
+};
 
 /*
 use clap::ArgMatches;
@@ -108,6 +111,13 @@ fn assemble(session: Session) -> Result<KOFile, ()> {
 
     // Replace comments and line continuations
     phase0(&mut tokens, &mut session)?;
+
+    // If we should run the preprocessor
+    if session.config().run_preprocessor {
+        let mut preprocessor_parser = Parser::new(tokens, session);
+
+        preprocessor_parser.parse()?;
+    }
 
     todo!();
 }
