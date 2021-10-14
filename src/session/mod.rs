@@ -1,7 +1,9 @@
 use std::{path::PathBuf, rc::Rc, sync::RwLock};
 
 use crate::{
-    errors::{DiagnosticBuilder, Handler, HandlerFlags, Level, SourceFile, SourceManager, Span},
+    errors::{
+        DiagnosticBuilder, Handler, HandlerFlags, Level, Snippet, SourceFile, SourceManager, Span,
+    },
     Config,
 };
 
@@ -28,6 +30,15 @@ impl Session {
             handler: Handler::new(flags, source_manager),
             num_files: 0,
         }
+    }
+
+    pub fn span_to_snippet(&self, span: &Span) -> Snippet {
+        self.source_manager
+            .read()
+            .unwrap()
+            .get_by_id(span.file)
+            .unwrap()
+            .span_to_snippet(span)
     }
 
     pub fn get_file(&self, file_id: usize) -> Option<Rc<SourceFile>> {

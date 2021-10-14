@@ -1,4 +1,4 @@
-use std::fmt::{format, Display};
+use std::fmt::Display;
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::RwLock;
@@ -59,16 +59,24 @@ impl<'a> DiagnosticBuilder<'a> {
         self
     }
 
-    pub fn note(&mut self) -> () {
-        todo!();
+    /// Adds a note message to the diagnostic
+    pub fn note(&mut self, message: String) -> &mut Self {
+        let subd = SubDiagnostic::new(Level::Note, message);
+        self.diagnostic.children.push(subd);
+
+        self
     }
 
     pub fn span_note(&mut self) -> () {
         todo!();
     }
 
-    pub fn help(&mut self) -> () {
-        todo!();
+    /// Adds a help message to the diagnostic
+    pub fn help(&mut self, message: String) -> &mut Self {
+        let subd = SubDiagnostic::new(Level::Help, message);
+        self.diagnostic.children.push(subd);
+
+        self
     }
 
     /// Queues this diagnostic to be emitted by the inner Handler/Emitter
@@ -124,6 +132,13 @@ pub struct Diagnostic {
 pub struct SubDiagnostic {
     pub level: Level,
     pub message: String,
+}
+
+impl SubDiagnostic {
+    /// Creates a new sub diagnostic
+    pub fn new(level: Level, message: String) -> Self {
+        Self { level, message }
+    }
 }
 
 pub struct Emitter {
@@ -593,6 +608,12 @@ pub struct Span {
     pub file: usize,
 }
 
+impl Span {
+    pub fn new(start: usize, end: usize, file: usize) -> Self {
+        Self { start, end, file }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Snippet {
     pub line: String,
@@ -600,9 +621,15 @@ pub struct Snippet {
     pub end_col: usize,
 }
 
+impl Snippet {
+    pub fn as_slice(&self) -> &str {
+        &self.line[self.start_col..self.end_col]
+    }
+}
+
 impl Display for Snippet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.line)
+        write!(f, "{}", self.as_slice())
     }
 }
 

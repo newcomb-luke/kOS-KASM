@@ -35,8 +35,8 @@ pub enum PASTNode {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Ident {
-    span: Span,
-    hash: u64,
+    pub span: Span,
+    pub hash: u64,
 }
 
 impl PartialEq for Ident {
@@ -55,21 +55,81 @@ pub struct ActiveTokens {
     tokens: Vec<Token>,
 }
 
+/// A PAST Node representing a single line macro definition
+///
+/// Grammar:
+///
+/// ```
+/// <SLMacroDef> ::= .define <identifier>
+///              |   .define <identifier> <SLMacroDefContents>
+///              |   .define <identifier> <SLMacroDefArgs>
+///              |   .define <identifier> <SLMacroDefArgs> <SLMacroDefContents>
+/// ```
+///
 pub struct SLMacroDef {
-    span: Span,
-    identifier: Ident,
-    args: Option<SLMacroDefArgs>,
-    contents: Option<SLMacroDefContents>,
+    pub span: Span,
+    pub identifier: Ident,
+    pub args: Option<SLMacroDefArgs>,
+    pub contents: Option<SLMacroDefContents>,
 }
 
+impl SLMacroDef {
+    pub fn new(
+        span: Span,
+        identifier: Ident,
+        args: Option<SLMacroDefArgs>,
+        contents: Option<SLMacroDefContents>,
+    ) -> Self {
+        SLMacroDef {
+            span,
+            identifier,
+            args,
+            contents,
+        }
+    }
+}
+
+/// A PAST Node representing a single line macro definition's arguments
+///
+/// Grammar:
+///
+/// ```
+/// <SLMacroDefArgs> ::= ()
+///                  |   (<arguments>)
+///
+/// <arguments> ::= <identifier> | <identifier>, <arguments>
+/// ```
+///
 pub struct SLMacroDefArgs {
-    span: Span,
-    args: Vec<Ident>,
+    pub span: Span,
+    pub args: Vec<Ident>,
 }
 
+impl SLMacroDefArgs {
+    pub fn new(span: Span, args: Vec<Ident>) -> Self {
+        Self { span, args }
+    }
+}
+
+/// A PAST Node representing a single line macro definition's contents
+///
+/// This grammar may be incomplete, however it is meant to convey that this can contain anything
+/// except any preprocessor directives.
+///
+/// Grammar:
+///
+/// ```
+/// <SLMacroDefContents> ::=
+///                      |   <identifier> <SLMacroDefContents>
+///                      |   <literal> <SLMacroDefContents>
+///                      |   <non-definition directive> <SLMacroDefContents>
+///                      |   <operator> <SLMacroDefContents>
+///                      |   <keyword> <SLMacroDefContents>
+/// ```
+///
 pub struct SLMacroDefContents {
-    span: Span,
-    tokens: Vec<PASTNode>,
+    pub span: Span,
+    pub tokens: Vec<PASTNode>,
 }
 
 pub struct MacroInvok {

@@ -12,3 +12,7 @@ Cargo.lock
 *.kasm
 *.ko
 *.ksm
+
+*.txt
+
+*.vim

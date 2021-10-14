@@ -4,8 +4,6 @@ use std::process;
 
 use kasm::assemble_path;
 
-// use kasm::{run, CLIConfig};
-
 fn main() {
     let matches = App::new("Kerbal Assembler")
         .version(kasm::VERSION)
