@@ -208,6 +208,54 @@ impl Emitter {
                 _ => {}
             }
         }
+
+        let styled_dots = StyledString::new("...".to_string(), Style::LineAndColumn);
+
+        if diagnostic.primary.is_some() && diagnostic.spans.len() > 0 {
+            // We need the special dots
+            self.emit_styled_string(&mut stream, &styled_dots)
+                .expect("Failed to emit ...");
+            eprint!("\n");
+        }
+
+        for (index, (span, label)) in diagnostic.spans.iter().enumerate() {
+            if index + 1 < diagnostic.spans.len() {
+                // Put the dots
+                self.emit_styled_string(&mut stream, &styled_dots)
+                    .expect("Failed to emit ...");
+                eprint!("\n");
+            }
+
+            let snippet = self.span_to_snippet(&span);
+            let source_location = self.get_source_location(&span);
+
+            self.emit_snippet(
+                &mut stream,
+                span,
+                source_location,
+                &snippet,
+                diagnostic.level,
+                Some(label),
+                diagnostic.primary.is_none(),
+            )
+            .expect("Failed to emit snippet");
+        }
+
+        for sub_diagnostic in diagnostic.children.iter() {
+            let styled_leader = StyledString::new(String::from(" = "), Style::LineAndColumn);
+            let styled_level = sub_diagnostic.level.as_styled_string();
+            let styled_message =
+                StyledString::new(format!(": {}", sub_diagnostic.message), Style::NoStyle);
+
+            self.emit_styled_string(&mut stream, &styled_leader)
+                .expect("Failed to emit ...");
+
+            self.emit_styled_string(&mut stream, &styled_level)
+                .expect("Failed to emit ...");
+
+            self.emit_styled_string(&mut stream, &styled_message)
+                .expect("Failed to emit ...");
+        }
     }
 
     fn emit_snippet(
@@ -278,6 +326,10 @@ impl Emitter {
             write!(stream, "{}", label)?;
         }
 
+        eprint!("\n");
+
+        //     |
+        self.emit_styled_string(stream, &vert_bar)?;
         eprint!("\n");
 
         Ok(())
@@ -563,6 +615,10 @@ impl SourceFile {
         let mut line_begin = span.start;
         let mut line_end = span.end;
 
+        if self.source.chars().nth(span.start).unwrap() == '\n' {
+            line_begin -= 1;
+        }
+
         // Look for the beginning of the line this span is on
         while line_begin > 0 {
             if self.source.chars().nth(line_begin).unwrap() != '\n' {
@@ -585,10 +641,11 @@ impl SourceFile {
 
         let line = (&self.source[line_begin..line_end])
             .to_owned()
-            .replace("\t", "    ");
+            .replace("\t", "    ")
+            .replace("\n", " ");
 
         let start_col = span.start - line_begin;
-        let end_col = span.end - line_end;
+        let end_col = start_col + (span.end - span.start);
 
         Snippet {
             line,
