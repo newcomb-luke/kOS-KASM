@@ -49,7 +49,7 @@ impl<'a> DiagnosticBuilder<'a> {
         todo!();
     }
 
-    pub fn span_help(&mut self) -> () {
+    pub fn span_help(&mut self, span: Span, label: String) -> &mut Self {
         todo!();
     }
 
@@ -193,6 +193,8 @@ impl Emitter {
             let source_location = self.get_source_location(primary);
             let snippet = self.span_to_snippet(primary);
 
+            let extra_spacer = diagnostic.spans.len() == 0;
+
             match self.emit_snippet(
                 &mut stream,
                 primary,
@@ -200,6 +202,7 @@ impl Emitter {
                 &snippet,
                 diagnostic.level,
                 None,
+                extra_spacer,
                 true,
             ) {
                 Err(e) => {
@@ -219,11 +222,15 @@ impl Emitter {
         }
 
         for (index, (span, label)) in diagnostic.spans.iter().enumerate() {
+            let mut extra_spacer = true;
+
             if index + 1 < diagnostic.spans.len() {
                 // Put the dots
                 self.emit_styled_string(&mut stream, &styled_dots)
                     .expect("Failed to emit ...");
                 eprint!("\n");
+
+                extra_spacer = false;
             }
 
             let snippet = self.span_to_snippet(&span);
@@ -236,6 +243,7 @@ impl Emitter {
                 &snippet,
                 diagnostic.level,
                 Some(label),
+                extra_spacer,
                 diagnostic.primary.is_none(),
             )
             .expect("Failed to emit snippet");
@@ -266,6 +274,7 @@ impl Emitter {
         snippet: &Snippet,
         level: Level,
         label: Option<&str>,
+        extra_spacer: bool,
         display_file: bool,
     ) -> std::io::Result<()> {
         let (path, line_num, col) = source_location;
@@ -328,9 +337,11 @@ impl Emitter {
 
         eprint!("\n");
 
-        //     |
-        self.emit_styled_string(stream, &vert_bar)?;
-        eprint!("\n");
+        if extra_spacer {
+            //     |
+            self.emit_styled_string(stream, &vert_bar)?;
+            eprint!("\n");
+        }
 
         Ok(())
     }
@@ -644,7 +655,15 @@ impl SourceFile {
             .replace("\t", "    ")
             .replace("\n", " ");
 
-        let start_col = span.start - line_begin;
+        let before_start_col = span.start - line_begin;
+        let mut start_col = before_start_col;
+
+        for (col, c) in (&self.source[line_begin..line_end]).chars().enumerate() {
+            if col < before_start_col && c == '\t' {
+                start_col += 3;
+            }
+        }
+
         let end_col = start_col + (span.end - span.start);
 
         Snippet {
@@ -655,7 +674,7 @@ impl SourceFile {
     }
 }
 
-/// A Span is what Diagnostics use to display peices of code. These can be turned into Snippets
+/// A Span is what Diagnostics use to display pieces of code. These can be turned into Snippets
 /// which actually contain the source code that these snippets point to so that the Diagnostic can
 /// be emitted.
 #[derive(Debug, Copy, Clone)]

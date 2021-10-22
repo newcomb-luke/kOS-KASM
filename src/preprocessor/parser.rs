@@ -7,12 +7,13 @@ use kerbalobjects::Opcode;
 use crate::{
     errors::{DiagnosticBuilder, Span},
     lexer::{Token, TokenKind},
-    preprocessor::past::{BenignTokens, SLMacroDef},
+    preprocessor::past::{BenignTokens, MLMacroDef, SLMacroDef},
     session::Session,
 };
 
 use super::past::{
-    Ident, MLMacroArgs, MLMacroUndef, MacroInvok, MacroInvokArgs, PASTNode, SLMacroDefArgs,
+    Ident, Include, IncludePath, MLMacroArgs, MLMacroDefDefaults, MLMacroUndef, MacroInvok,
+    MacroInvokArg, MacroInvokArgs, PASTNode, Repeat, RepeatNumber, SLMacroDefArgs,
     SLMacroDefContents, SLMacroUndef, SLMacroUndefArgs,
 };
 
@@ -67,12 +68,494 @@ impl Parser {
 
         match next.kind {
             TokenKind::DirectiveDefine => self.parse_sl_macro_def(),
+            TokenKind::DirectiveMacro => self.parse_ml_macro_def(),
             TokenKind::DirectiveUndef => self.parse_sl_macro_undef(),
             TokenKind::DirectiveUnmacro => self.parse_ml_macro_undef(),
+            TokenKind::DirectiveRepeat => self.parse_repeat(),
+            TokenKind::DirectiveInclude => self.parse_include(),
+            TokenKind::DirectiveIf
+            | TokenKind::DirectiveIfNot
+            | TokenKind::DirectiveIfDef
+            | TokenKind::DirectiveIfNotDef => self.parse_if_statement(next, true, true),
             _ => {
                 println!("Token was: {:?}", next.kind);
                 return Err(());
             }
+        }
+    }
+
+    // Parses an if statement directive
+    //
+    // See the IfStatement grammar
+    //
+    // The consume_first flag determines if this function should consume the next token or not as
+    // the beginning directive.
+    //
+    // The allow_preprocessor flag determines if preprocessor directives will be allowed or not
+    //
+    fn parse_if_statement(
+        &mut self,
+        token: Token,
+        consume_first: bool,
+        allow_preprocessor: bool,
+    ) -> PResult<PASTNode> {
+        todo!();
+    }
+
+    // Parses a macro directive
+    //
+    // See the MLMacroDef grammar
+    //
+    fn parse_ml_macro_def(&mut self) -> PResult<PASTNode> {
+        let mut span = Span::new(0, 0, 0);
+
+        // Consume the .macro
+        let macro_span = self.assert_next(TokenKind::DirectiveMacro)?;
+
+        // Copy the span values
+        span.start = macro_span.start;
+        span.file = macro_span.file;
+
+        // Skip whitespace
+        self.skip_whitespace();
+
+        let identifier = self.parse_ident()?;
+
+        // Capture the macro arguments
+        let args = self.parse_ml_macro_args()?;
+
+        let defaults = if let Some(args) = &args {
+            // Update this to be passed in
+            span.end = args.span.end;
+
+            if let Some(maximum) = args.maximum {
+                let num_required_defaults = maximum.get() - args.required;
+
+                let defaults = self.parse_ml_macro_defaults(span, num_required_defaults)?;
+
+                span.end = defaults.span.end;
+
+                Some(defaults)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Now we parse the actual contents
+        let contents = self.parse_ml_macro_contents(macro_span)?;
+
+        Ok(PASTNode::MLMacroDef(MLMacroDef::new(
+            span, identifier, args, defaults, contents,
+        )))
+    }
+
+    // Parse a multi line macro's contents
+    fn parse_ml_macro_contents(&mut self, macro_span: Span) -> PResult<Vec<PASTNode>> {
+        let mut contents = Vec::new();
+        let mut benign_tokens = Vec::new();
+        let mut span = Span::new(0, 0, 0);
+        let mut found_end = false;
+
+        // Parse the first token. We will allow this to immediately be an .endmacro
+        if let Some(&token) = self.consume_next() {
+            if token.kind == TokenKind::DirectiveEndmacro {
+                found_end = true;
+            } else {
+                span.start = token.as_span().start;
+                span.file = token.as_span().file;
+
+                benign_tokens.push(token);
+            }
+        } else {
+            self.session
+                .struct_span_error(macro_span, "missing accompanying `.endmacro`".to_string())
+                .emit();
+
+            return Err(());
+        }
+
+        if !found_end {
+            while let Some(&token) = self.consume_next() {
+                match token.kind {
+                    TokenKind::DirectiveDefine
+                    | TokenKind::DirectiveMacro
+                    | TokenKind::DirectiveRepeat
+                    | TokenKind::DirectiveEndRepeat
+                    | TokenKind::DirectiveInclude
+                    | TokenKind::DirectiveUndef
+                    | TokenKind::DirectiveElseIf
+                    | TokenKind::DirectiveElseIfNot
+                    | TokenKind::DirectiveElseIfDef
+                    | TokenKind::DirectiveElseIfNotDef
+                    | TokenKind::DirectiveElse
+                    | TokenKind::DirectiveEndIf
+                    | TokenKind::DirectiveUnmacro => {
+                        self.session
+                            .struct_span_error(
+                                token.as_span(),
+                                "not allowed within .macro block".to_string(),
+                            )
+                            .span_label(macro_span, "in macro".to_string())
+                            .emit();
+
+                        return Err(());
+                    }
+                    TokenKind::DirectiveIf
+                    | TokenKind::DirectiveIfNot
+                    | TokenKind::DirectiveIfDef
+                    | TokenKind::DirectiveIfNotDef => {
+                        let if_statement = match self.parse_if_statement(token, false, false)? {
+                            PASTNode::IfStatement(statement) => statement,
+                            _ => unreachable!(),
+                        };
+
+                        // If we have captured any tokens before this
+                        if benign_tokens.len() > 0 {
+                            let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
+                            contents.push(PASTNode::BenignTokens(benign_tokens_node));
+
+                            benign_tokens = Vec::new();
+                        }
+
+                        // Update this just in case it is the last part of the contents
+                        span.end = if_statement.span.end;
+
+                        contents.push(PASTNode::IfStatement(if_statement));
+                    }
+                    TokenKind::DirectiveEndmacro => {
+                        found_end = true;
+                        break;
+                    }
+                    TokenKind::Identifier => {
+                        let snippet = self.session.span_to_snippet(&token.as_span());
+                        let ident_str = snippet.as_slice();
+
+                        // Tests if this is an instruction or not
+                        if Opcode::from(ident_str) != Opcode::Bogus {
+                            // If it is
+                            // Just push it
+                            benign_tokens.push(token);
+
+                            span.end = token.as_span().end;
+                        } else {
+                            // If it isn't, it is going to be parsed as a macro invokation
+                            let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
+
+                            // If we have captured any tokens before this
+                            if benign_tokens.len() > 0 {
+                                let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
+                                contents.push(PASTNode::BenignTokens(benign_tokens_node));
+
+                                benign_tokens = Vec::new();
+                            }
+
+                            // Update this just in case it is the last part of the contents
+                            span.end = macro_invok.span.end;
+
+                            contents.push(PASTNode::MacroInvok(macro_invok));
+                        }
+                    }
+                    _ => {
+                        // Just push this, it is allowed and not special
+                        benign_tokens.push(token);
+
+                        // Just in case this is the last one
+                        span.end = token.as_span().end;
+                    }
+                }
+            }
+        }
+
+        // If we ended because we ran out of tokens that is bad, so check the flag
+        if !found_end {
+            self.struct_err_expected_eof(self.last_token.unwrap().as_span(), ".endrep")
+                .emit();
+        }
+
+        // Check if benign_tokens didn't end empty
+        if benign_tokens.len() > 0 {
+            contents.push(PASTNode::BenignTokens(BenignTokens::from_vec(
+                benign_tokens,
+            )));
+        }
+
+        Ok(contents)
+    }
+
+    // Parse a multi line macro argument defaults
+    //
+    // See the MLMacroDefDefaults grammar
+    //
+    fn parse_ml_macro_defaults(
+        &mut self,
+        err_span: Span,
+        number: u8,
+    ) -> PResult<MLMacroDefDefaults> {
+        let mut defaults = Vec::new();
+
+        // Collect as many as we can
+        while let Some(default) = self.parse_ml_macro_default()? {
+            defaults.push(default);
+        }
+
+        let defaults = MLMacroDefDefaults::from_vec(defaults);
+
+        // Check if it is how many we need
+        if defaults.values.len() != number as usize {
+            if defaults.values.len() > 0 {
+                self.session
+                    .struct_error(format!("expected {} arguments", number))
+                    .span_label(defaults.span, format!("found {}", defaults.values.len()))
+                    .emit();
+            } else {
+                self.session
+                    .struct_error(format!("expected {} arguments", number))
+                    .span_label(err_span, "found none".to_string())
+                    .emit();
+            }
+
+            Err(())
+        } else {
+            Ok(defaults)
+        }
+    }
+
+    // Parse a single multi line macro argument default
+    //
+    // Only "benign" tokens are allowed. No macro invokations or preprocessor directives
+    //
+    // Returns a tuple of an Option<BenignTokens> that represents if there was a default to parse
+    //
+    fn parse_ml_macro_default(&mut self) -> PResult<Option<BenignTokens>> {
+        // Skip whitespace
+        self.skip_whitespace();
+
+        let mut tokens = Vec::new();
+        let mut comma_span = None;
+
+        while let Some(&token) = self.consume_next() {
+            if token.kind == TokenKind::SymbolComma {
+                comma_span = Some(token.as_span());
+                break;
+            } else if token.kind == TokenKind::Newline {
+                break;
+            }
+
+            tokens.push(token);
+        }
+
+        if tokens.len() == 0 {
+            if let Some(comma_span) = comma_span {
+                self.session
+                    .struct_span_error(
+                        comma_span,
+                        "expected argument default before `,`".to_string(),
+                    )
+                    .emit();
+
+                Err(())
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(Some(BenignTokens::from_vec(tokens)))
+        }
+    }
+
+    // Parse an include directive
+    //
+    // See the Include grammar
+    //
+    fn parse_include(&mut self) -> PResult<PASTNode> {
+        let mut span = Span::new(0, 0, 0);
+
+        // Consume the .include
+        let include_span = self.assert_next(TokenKind::DirectiveInclude)?;
+
+        // Copy the span values
+        span.start = include_span.start;
+        span.file = include_span.file;
+
+        // Skip any whitespace
+        self.skip_whitespace();
+
+        // We now require the actual include path
+        if let Some((path_span, expression)) = self.parse_non_preprocessor()? {
+            span.end = path_span.end;
+
+            // We got one
+            let path = IncludePath::new(path_span, expression);
+
+            Ok(PASTNode::Include(Include::new(span, path)))
+        } else {
+            // This is required
+            self.session
+                .struct_span_error(include_span, ".include with no path".to_string())
+                .emit();
+
+            Err(())
+        }
+    }
+
+    // Parse a repeat directive
+    //
+    // See the Repeat grammar
+    //
+    fn parse_repeat(&mut self) -> PResult<PASTNode> {
+        let mut span = Span::new(0, 0, 0);
+
+        // Consume the .rep
+        let rep_span = self.assert_next(TokenKind::DirectiveRepeat)?;
+
+        // Copy the span values
+        span.start = rep_span.start;
+        span.file = rep_span.file;
+
+        // Skip any whitespace
+        self.skip_whitespace();
+
+        // As per the grammar, the next tokens must not contain preprocessor directives
+        let number = self.parse_repeat_number(rep_span)?;
+
+        let contents = self.parse_repeat_contents(rep_span)?;
+
+        Ok(PASTNode::Repeat(Repeat::new(span, number, contents)))
+    }
+
+    // Parses a repeat preprocessor directive's contents.
+    //
+    // See the Repeat grammar
+    //
+    fn parse_repeat_contents(&mut self, rep_span: Span) -> PResult<Vec<PASTNode>> {
+        let mut contents = Vec::new();
+        let mut benign_tokens = Vec::new();
+        let mut span = Span::new(0, 0, 0);
+        let mut found_end = false;
+
+        // Parse the first token. We will allow this to immediately be an .endrep
+        if let Some(&token) = self.consume_next() {
+            if token.kind == TokenKind::DirectiveEndRepeat {
+                found_end = true;
+            } else {
+                span.start = token.as_span().start;
+                span.file = token.as_span().file;
+
+                benign_tokens.push(token);
+            }
+        } else {
+            self.session
+                .struct_span_error(rep_span, "missing accompanying `.endrep`".to_string())
+                .emit();
+
+            return Err(());
+        }
+
+        if !found_end {
+            while let Some(&token) = self.consume_next() {
+                match token.kind {
+                    TokenKind::DirectiveDefine
+                    | TokenKind::DirectiveMacro
+                    | TokenKind::DirectiveEndmacro
+                    | TokenKind::DirectiveRepeat
+                    | TokenKind::DirectiveInclude
+                    | TokenKind::DirectiveUndef
+                    | TokenKind::DirectiveUnmacro
+                    | TokenKind::DirectiveIf
+                    | TokenKind::DirectiveIfNot
+                    | TokenKind::DirectiveIfDef
+                    | TokenKind::DirectiveIfNotDef
+                    | TokenKind::DirectiveElseIf
+                    | TokenKind::DirectiveElseIfNot
+                    | TokenKind::DirectiveElseIfDef
+                    | TokenKind::DirectiveElseIfNotDef
+                    | TokenKind::DirectiveElse
+                    | TokenKind::DirectiveEndIf => {
+                        self.session
+                            .struct_span_error(
+                                token.as_span(),
+                                "not allowed within .rep block".to_string(),
+                            )
+                            .emit();
+
+                        return Err(());
+                    }
+                    TokenKind::DirectiveEndRepeat => {
+                        found_end = true;
+                        break;
+                    }
+                    TokenKind::Identifier => {
+                        let snippet = self.session.span_to_snippet(&token.as_span());
+                        let ident_str = snippet.as_slice();
+
+                        // Tests if this is an instruction or not
+                        if Opcode::from(ident_str) != Opcode::Bogus {
+                            // If it is
+                            // Just push it
+                            benign_tokens.push(token);
+
+                            span.end = token.as_span().end;
+                        } else {
+                            // If it isn't, it is going to be parsed as a macro invokation
+                            let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
+
+                            // If we have captured any tokens before this
+                            if benign_tokens.len() > 0 {
+                                let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
+                                contents.push(PASTNode::BenignTokens(benign_tokens_node));
+
+                                benign_tokens = Vec::new();
+                            }
+
+                            // Update this just in case it is the last part of the contents
+                            span.end = macro_invok.span.end;
+
+                            contents.push(PASTNode::MacroInvok(macro_invok));
+                        }
+                    }
+                    _ => {
+                        // Just push this, it is allowed and not special
+                        benign_tokens.push(token);
+
+                        // Just in case this is the last one
+                        span.end = token.as_span().end;
+                    }
+                }
+            }
+        }
+
+        // If we ended because we ran out of tokens that is bad, so check the flag
+        if !found_end {
+            self.struct_err_expected_eof(self.last_token.unwrap().as_span(), ".endrep")
+                .emit();
+        }
+
+        // Check if benign_tokens didn't end empty
+        if benign_tokens.len() > 0 {
+            contents.push(PASTNode::BenignTokens(BenignTokens::from_vec(
+                benign_tokens,
+            )));
+        }
+
+        Ok(contents)
+    }
+
+    // Parses a repeat directive number of repetitions, which can be an expression
+    fn parse_repeat_number(&mut self, directive_span: Span) -> PResult<RepeatNumber> {
+        let expression = self.parse_non_preprocessor()?;
+
+        if let Some((span, expression)) = expression {
+            Ok(RepeatNumber::new(span, expression))
+        } else {
+            self.session
+                .struct_span_error(
+                    directive_span,
+                    ".rep requires a number of repetitions".to_string(),
+                )
+                .emit();
+
+            Err(())
         }
     }
 
@@ -477,9 +960,19 @@ impl Parser {
             Ok(None)
         }
     }
-
     // Parse a single line macro definition contents
     fn parse_sl_macro_def_contents(&mut self) -> PResult<Option<SLMacroDefContents>> {
+        if let Some((span, contents)) = self.parse_non_preprocessor()? {
+            Ok(Some(SLMacroDefContents::new(span, contents)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    // Parse a sequence of tokens ended by a newline or EOF that are "benign tokens" or macro
+    // expansions. This just means that preprocessor directives are not allowed. Macro invokations, expressions, etc, are
+    // all allowed.
+    fn parse_non_preprocessor(&mut self) -> PResult<Option<(Span, Vec<PASTNode>)>> {
         // Skip any whitespace
         self.skip_whitespace();
 
@@ -504,7 +997,7 @@ impl Parser {
             span.file = first_span.file;
             span.start = first_span.start;
 
-            let mut contents = Vec::new();
+            let mut nodes = Vec::new();
             let mut benign_tokens = Vec::new();
 
             // Now that we know there is other stuff, loop until a newline/EOF
@@ -557,7 +1050,7 @@ impl Parser {
                             // If we have captured any tokens before this
                             if benign_tokens.len() > 0 {
                                 let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
-                                contents.push(PASTNode::BenignTokens(benign_tokens_node));
+                                nodes.push(PASTNode::BenignTokens(benign_tokens_node));
 
                                 benign_tokens = Vec::new();
                             }
@@ -565,7 +1058,7 @@ impl Parser {
                             // Update this just in case it is the last part of the contents
                             span.end = macro_invok.span.end;
 
-                            contents.push(PASTNode::MacroInvok(macro_invok));
+                            nodes.push(PASTNode::MacroInvok(macro_invok));
                         }
                     }
                     _ => {
@@ -580,11 +1073,11 @@ impl Parser {
 
             // Check if benign_tokens didn't end empty
             if benign_tokens.len() > 0 {
-                contents.push(PASTNode::BenignTokens(BenignTokens::from_vec(
+                nodes.push(PASTNode::BenignTokens(BenignTokens::from_vec(
                     benign_tokens,
                 )));
             }
-            Ok(Some(SLMacroDefContents::new(span, contents)))
+            Ok(Some((span, nodes)))
         } else {
             Ok(None)
         }
@@ -602,20 +1095,276 @@ impl Parser {
         // After the identifier, there could be arguments, or not
         let was_whitespace = self.skip_whitespace();
 
-        if was_whitespace {
+        if was_whitespace
+            || (self.peek_next().is_some() && self.peek_next().unwrap().kind == TokenKind::Newline)
+        {
             span.end = ident_span.end;
 
             Ok(MacroInvok::new(span, identifier, None))
         } else {
-            let args = self.parse_macro_invok_args()?;
+            if let Some(&token) = self.peek_next() {
+                if token.kind == TokenKind::SymbolLeftParen {
+                    self.assert_next(TokenKind::SymbolLeftParen)?;
 
-            Ok(MacroInvok::new(span, identifier, Some(args)))
+                    let args = self.parse_macro_invok_args(token.as_span())?;
+
+                    Ok(MacroInvok::new(span, identifier, Some(args)))
+                } else {
+                    Ok(MacroInvok::new(span, identifier, None))
+                }
+            } else {
+                Ok(MacroInvok::new(span, identifier, None))
+            }
         }
     }
 
     // Parses a macro invokation's arguments
-    fn parse_macro_invok_args(&mut self) -> PResult<MacroInvokArgs> {
-        todo!();
+    fn parse_macro_invok_args(&mut self, paren_span: Span) -> PResult<MacroInvokArgs> {
+        if let None = self.peek_next() {
+            self.session
+                .struct_bug(
+                    "Found non-whitespace after macro invokation, but found no tokens".to_string(),
+                )
+                .emit();
+
+            return Err(());
+        }
+
+        let mut args = Vec::new();
+
+        loop {
+            let (arg, is_last) = self.parse_macro_invok_arg(paren_span)?;
+
+            args.push(arg);
+
+            if is_last {
+                break;
+            }
+        }
+
+        Ok(MacroInvokArgs::from_vec(args))
+    }
+
+    // Parses a single macro invokation argument, ended by a comma, or a `)`
+    //
+    // No preprocessor directives are allowed as argument parts, but other macro invokations are
+    // allowed.
+    //
+    fn parse_macro_invok_arg(&mut self, paren_span: Span) -> PResult<(MacroInvokArg, bool)> {
+        let mut span = Span::new(0, 0, 0);
+
+        let mut contents = Vec::new();
+        let mut benign_tokens = Vec::new();
+        let mut comma_span = None;
+        let mut close_paren_span = None;
+        let mut is_last = false;
+
+        if let Some(&token) = self.consume_next() {
+            let token_span = token.as_span();
+
+            match token.kind {
+                TokenKind::SymbolComma => {
+                    comma_span = Some(token_span);
+
+                    span.start = token_span.start;
+                    span.file = token_span.file;
+                }
+                TokenKind::SymbolRightParen => {
+                    close_paren_span = Some(token.as_span());
+                    is_last = true;
+
+                    span.start = token_span.start;
+                    span.file = token_span.file;
+                }
+                TokenKind::Newline => {
+                    self.session
+                        .struct_span_error(
+                            paren_span,
+                            "Macro invokation requires closing `)`".to_string(),
+                        )
+                        .emit();
+
+                    return Err(());
+                }
+                TokenKind::DirectiveDefine
+                | TokenKind::DirectiveMacro
+                | TokenKind::DirectiveEndmacro
+                | TokenKind::DirectiveUndef
+                | TokenKind::DirectiveUnmacro
+                | TokenKind::DirectiveRepeat
+                | TokenKind::DirectiveEndRepeat
+                | TokenKind::DirectiveInclude
+                | TokenKind::DirectiveIf
+                | TokenKind::DirectiveIfNot
+                | TokenKind::DirectiveIfDef
+                | TokenKind::DirectiveIfNotDef
+                | TokenKind::DirectiveElseIf
+                | TokenKind::DirectiveElseIfNot
+                | TokenKind::DirectiveElseIfDef
+                | TokenKind::DirectiveElseIfNotDef
+                | TokenKind::DirectiveElse
+                | TokenKind::DirectiveEndIf => {
+                    self.session
+                        .struct_error("Not allowed in macro arguments".to_string())
+                        .span_label(token.as_span(), "found preprocessor directive".to_string())
+                        .emit();
+
+                    return Err(());
+                }
+                TokenKind::Identifier => {
+                    let snippet = self.session.span_to_snippet(&token_span);
+                    let ident_str = snippet.as_slice();
+
+                    // Tests if this is an instruction or not
+                    if Opcode::from(ident_str) != Opcode::Bogus {
+                        // If it is
+                        // Just push it
+                        benign_tokens.push(token);
+
+                        span.end = token.as_span().end;
+                    } else {
+                        // If it isn't, it is going to be parsed as a macro invokation
+                        let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
+
+                        // If we have captured any tokens before this
+                        if benign_tokens.len() > 0 {
+                            let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
+                            contents.push(PASTNode::BenignTokens(benign_tokens_node));
+
+                            benign_tokens = Vec::new();
+                        }
+
+                        // Update this just in case it is the last part of the contents
+                        span.end = macro_invok.span.end;
+
+                        contents.push(PASTNode::MacroInvok(macro_invok));
+                    }
+
+                    span.start = token_span.start;
+                    span.file = token_span.file;
+                }
+                _ => {
+                    benign_tokens.push(token);
+
+                    span.start = token_span.start;
+                    span.file = token_span.file;
+                }
+            }
+        }
+
+        while let Some(&token) = self.consume_next() {
+            match token.kind {
+                TokenKind::SymbolComma => {
+                    comma_span = Some(token.as_span());
+                    break;
+                }
+                TokenKind::SymbolRightParen => {
+                    close_paren_span = Some(token.as_span());
+                    is_last = true;
+                    break;
+                }
+                TokenKind::Newline => {
+                    eprintln!("pog");
+                    self.session
+                        .struct_span_error(
+                            paren_span,
+                            "Macro invokation requires closing `)`".to_string(),
+                        )
+                        .emit();
+
+                    return Err(());
+                }
+                TokenKind::DirectiveDefine
+                | TokenKind::DirectiveMacro
+                | TokenKind::DirectiveEndmacro
+                | TokenKind::DirectiveUndef
+                | TokenKind::DirectiveUnmacro
+                | TokenKind::DirectiveRepeat
+                | TokenKind::DirectiveEndRepeat
+                | TokenKind::DirectiveInclude
+                | TokenKind::DirectiveIf
+                | TokenKind::DirectiveIfNot
+                | TokenKind::DirectiveIfDef
+                | TokenKind::DirectiveIfNotDef
+                | TokenKind::DirectiveElseIf
+                | TokenKind::DirectiveElseIfNot
+                | TokenKind::DirectiveElseIfDef
+                | TokenKind::DirectiveElseIfNotDef
+                | TokenKind::DirectiveElse
+                | TokenKind::DirectiveEndIf => {
+                    self.session
+                        .struct_error("Not allowed in macro arguments".to_string())
+                        .span_label(token.as_span(), "found preprocessor directive".to_string())
+                        .emit();
+
+                    return Err(());
+                }
+                TokenKind::Identifier => {
+                    let snippet = self.session.span_to_snippet(&token.as_span());
+                    let ident_str = snippet.as_slice();
+
+                    // Tests if this is an instruction or not
+                    if Opcode::from(ident_str) != Opcode::Bogus {
+                        // If it is
+                        // Just push it
+                        benign_tokens.push(token);
+
+                        span.end = token.as_span().end;
+                    } else {
+                        // If it isn't, it is going to be parsed as a macro invokation
+                        let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
+
+                        // If we have captured any tokens before this
+                        if benign_tokens.len() > 0 {
+                            let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
+                            contents.push(PASTNode::BenignTokens(benign_tokens_node));
+
+                            benign_tokens = Vec::new();
+                        }
+
+                        // Update this just in case it is the last part of the contents
+                        span.end = macro_invok.span.end;
+
+                        contents.push(PASTNode::MacroInvok(macro_invok));
+                    }
+                }
+                _ => {
+                    benign_tokens.push(token);
+                }
+            }
+        }
+
+        // Check if benign_tokens didn't end empty
+        if benign_tokens.len() > 0 {
+            contents.push(PASTNode::BenignTokens(BenignTokens::from_vec(
+                benign_tokens,
+            )));
+        }
+
+        // If we just have nothing
+        if contents.len() == 0 {
+            // This is always an error
+            if let Some(comma_span) = comma_span {
+                self.session
+                    .struct_span_error(comma_span, "no arguments after comma".to_string())
+                    .emit();
+            } else {
+                if let Some(close_paren_span) = close_paren_span {
+                    self.session
+                        .struct_span_error(
+                            close_paren_span,
+                            "expected argument before `)`".to_string(),
+                        )
+                        .emit();
+                }
+            }
+
+            return Err(());
+        } else {
+            span.end = self.last_token.unwrap().as_span().end;
+        }
+
+        Ok((MacroInvokArg::new(span, contents), is_last))
     }
 
     // Peeks the next token from the Parser's tokens

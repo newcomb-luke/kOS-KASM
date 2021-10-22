@@ -1,5 +1,4 @@
 use std::num::NonZeroU8;
-use std::path::PathBuf;
 
 use crate::errors::Span;
 use crate::lexer::Token;
@@ -176,18 +175,62 @@ pub struct MacroInvokArgs {
     pub args: Vec<MacroInvokArg>,
 }
 
+impl MacroInvokArgs {
+    pub fn new(span: Span, args: Vec<MacroInvokArg>) -> Self {
+        Self { span, args }
+    }
+
+    pub fn from_vec(args: Vec<MacroInvokArg>) -> Self {
+        let mut span = Span::new(0, 0, 0);
+
+        let first_span = args.first().unwrap().span;
+        let last_span = args.last().unwrap().span;
+
+        span.start = first_span.start;
+        span.file = first_span.file;
+        span.end = last_span.end;
+
+        MacroInvokArgs { span, args }
+    }
+}
+
 #[derive(Debug)]
 pub struct MacroInvokArg {
-    span: Span,
-    tokens: Vec<PASTNode>,
+    pub span: Span,
+    pub contents: Vec<PASTNode>,
+}
+
+impl MacroInvokArg {
+    pub fn new(span: Span, contents: Vec<PASTNode>) -> Self {
+        Self { span, contents }
+    }
 }
 
 #[derive(Debug)]
 pub struct MLMacroDef {
-    span: Span,
-    identifier: Ident,
-    args: Option<MLMacroArgs>,
-    defaults: Option<MLMacroDefDefaults>,
+    pub span: Span,
+    pub identifier: Ident,
+    pub args: Option<MLMacroArgs>,
+    pub defaults: Option<MLMacroDefDefaults>,
+    pub contents: Vec<PASTNode>,
+}
+
+impl MLMacroDef {
+    pub fn new(
+        span: Span,
+        identifier: Ident,
+        args: Option<MLMacroArgs>,
+        defaults: Option<MLMacroDefDefaults>,
+        contents: Vec<PASTNode>,
+    ) -> Self {
+        Self {
+            span,
+            identifier,
+            args,
+            defaults,
+            contents,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -209,14 +252,27 @@ impl MLMacroArgs {
 
 #[derive(Debug)]
 pub struct MLMacroDefDefaults {
-    span: Span,
-    values: Vec<MLMacroDefDefault>,
+    pub span: Span,
+    pub values: Vec<BenignTokens>,
 }
 
-#[derive(Debug)]
-pub struct MLMacroDefDefault {
-    span: Span,
-    tokens: Vec<BenignTokens>,
+impl MLMacroDefDefaults {
+    pub fn new(span: Span, values: Vec<BenignTokens>) -> Self {
+        Self { span, values }
+    }
+
+    pub fn from_vec(values: Vec<BenignTokens>) -> Self {
+        let mut span = Span::new(0, 0, 0);
+
+        let first_span = values.first().unwrap().span;
+        let last_span = values.last().unwrap().span;
+
+        span.start = first_span.start;
+        span.file = first_span.file;
+        span.end = last_span.end;
+
+        MLMacroDefDefaults { span, values }
+    }
 }
 
 /// A PAST Node that represents a single line macro undefinition
@@ -263,6 +319,15 @@ impl SLMacroUndefArgs {
     }
 }
 
+/// A PAST Node that represents a multi line macro undefinition
+///
+/// Grammar:
+///
+/// ```
+/// <MLMacroUndef> ::= .unmacro <ident>
+///                |   .unmacro <ident> <MLMacroArgs>
+/// ```
+///
 #[derive(Debug)]
 pub struct MLMacroUndef {
     pub span: Span,
@@ -280,37 +345,70 @@ impl MLMacroUndef {
     }
 }
 
+/// A PAST node that represents a repeat directive
+///
+/// Grammar:
+///
+/// ```
+/// <Repeat> ::= .rep <RepeatNumber>
+/// ```
+///
 #[derive(Debug)]
 pub struct Repeat {
-    span: Span,
-    number: RepeatNumber,
+    pub span: Span,
+    pub number: RepeatNumber,
+    pub contents: Vec<PASTNode>,
 }
 
+impl Repeat {
+    pub fn new(span: Span, number: RepeatNumber, contents: Vec<PASTNode>) -> Self {
+        Self {
+            span,
+            number,
+            contents,
+        }
+    }
+}
+
+/// A PAST node that represents a repeat directive's number of repetitions
+///
+/// Grammar:
+///
+/// ```
+/// <RepeatNumber> ::= <BenignTokens> | <MacroInvok>
+/// ```
+///
 #[derive(Debug)]
 pub struct RepeatNumber {
-    span: Span,
-    expression: Vec<PASTNode>,
+    pub span: Span,
+    pub expression: Vec<PASTNode>,
+}
+
+impl RepeatNumber {
+    pub fn new(span: Span, expression: Vec<PASTNode>) -> Self {
+        Self { span, expression }
+    }
 }
 
 #[derive(Debug)]
 pub struct IfStatement {
-    span: Span,
-    clauses: Vec<IfClause>,
+    pub span: Span,
+    pub clauses: Vec<IfClause>,
 }
 
 #[derive(Debug)]
 pub struct IfClause {
-    span: Span,
-    begin: IfClauseBegin,
-    condition: IfCondition,
-    contents: Vec<PASTNode>,
+    pub span: Span,
+    pub begin: IfClauseBegin,
+    pub condition: IfCondition,
+    pub contents: Vec<PASTNode>,
 }
 
 /// This represents a single part like .if or .ifn
 #[derive(Debug)]
 pub struct IfClauseBegin {
-    span: Span,
-    inverse: bool,
+    pub span: Span,
+    pub inverse: bool,
 }
 
 #[derive(Debug)]
@@ -321,25 +419,37 @@ pub enum IfCondition {
 
 #[derive(Debug)]
 pub struct IfDefCondition {
-    span: Span,
-    identifier: Ident,
-    args: Option<MLMacroArgs>,
+    pub span: Span,
+    pub identifier: Ident,
+    pub args: Option<MLMacroArgs>,
 }
 
 #[derive(Debug)]
 pub struct IfExpCondition {
-    span: Span,
-    expression: Vec<PASTNode>,
+    pub span: Span,
+    pub expression: Vec<PASTNode>,
 }
 
 #[derive(Debug)]
 pub struct Include {
-    span: Span,
-    path: IncludePath,
+    pub span: Span,
+    pub path: IncludePath,
+}
+
+impl Include {
+    pub fn new(span: Span, path: IncludePath) -> Self {
+        Self { span, path }
+    }
 }
 
 #[derive(Debug)]
 pub struct IncludePath {
-    span: Span,
-    path: PathBuf,
+    pub span: Span,
+    pub expression: Vec<PASTNode>,
+}
+
+impl IncludePath {
+    pub fn new(span: Span, expression: Vec<PASTNode>) -> Self {
+        Self { span, expression }
+    }
 }
