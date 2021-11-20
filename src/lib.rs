@@ -15,7 +15,7 @@ use session::Session;
 
 use crate::{
     lexer::{phase0, Lexer},
-    preprocessor::parser::Parser,
+    preprocessor::{executor::Executor, parser::Parser},
 };
 
 pub static VERSION: &'_ str = env!("CARGO_PKG_VERSION");
@@ -95,9 +95,9 @@ fn assemble(session: Session) -> Result<KOFile, ()> {
 
         let nodes = preprocessor_parser.parse()?;
 
-        for node in nodes {
-            println!("{:#?}", node);
-        }
+        let mut executor = Executor::new(nodes);
+
+        tokens = executor.execute()?;
     }
 
     todo!();
