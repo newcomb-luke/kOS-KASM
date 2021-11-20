@@ -1,3 +1,5 @@
+#![allow(clippy::result_unit_err)]
+
 mod token;
 use logos::Logos;
 use token::RawToken;
@@ -70,13 +72,11 @@ impl<'a> Lexer<'a> {
     fn lex_raw(&mut self) -> Option<RawToken> {
         if self.done {
             None
+        } else if let Some(raw) = self.inner.next() {
+            Some(raw)
         } else {
-            if let Some(raw) = self.inner.next() {
-                Some(raw)
-            } else {
-                self.done = true;
-                None
-            }
+            self.done = true;
+            None
         }
     }
 

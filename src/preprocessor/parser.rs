@@ -1,8 +1,13 @@
+#![allow(clippy::result_unit_err)]
+
 use std::{collections::hash_map::DefaultHasher, hash::Hasher, num::NonZeroU8};
+
+use kerbalobjects::Opcode;
 
 type PResult<T> = Result<T, ()>;
 
-use kerbalobjects::Opcode;
+// Only used in the parsing of a number, but it is useful nonetheless
+type NumPResult<'a> = Result<(Span, i32), (DiagnosticBuilder<'a>, Option<(String, Token)>)>;
 
 use crate::{
     errors::{DiagnosticBuilder, Span},
@@ -18,6 +23,7 @@ use super::past::{
     SLMacroUndef, SLMacroUndefArgs,
 };
 
+/// The parser for the preprocessor, which turns tokenized source code into preprocessable PASTNodes
 pub struct Parser {
     tokens: Vec<Token>,
     token_cursor: usize,
@@ -90,7 +96,7 @@ impl Parser {
                     )
                     .emit();
 
-                return Err(());
+                Err(())
             }
             TokenKind::Identifier => {
                 let snippet = self.session.span_to_snippet(&next.as_span());
@@ -168,8 +174,7 @@ impl Parser {
     // integer literals, etc.
     //
     fn parse_benign_tokens(&mut self, start: Token) -> PResult<PASTNode> {
-        let mut tokens = Vec::new();
-        tokens.push(start);
+        let mut tokens = vec![start];
 
         while let Some(&next) = self.peek_next() {
             match next.kind {
@@ -368,13 +373,13 @@ impl Parser {
     }
 
     fn parse_if_clause_begin(&mut self, if_token: Token) -> PResult<IfClauseBegin> {
-        let inverse = match if_token.kind {
+        let inverse = !matches!(
+            if_token.kind,
             TokenKind::DirectiveIf
-            | TokenKind::DirectiveIfDef
-            | TokenKind::DirectiveElseIf
-            | TokenKind::DirectiveElseIfDef => false,
-            _ => true,
-        };
+                | TokenKind::DirectiveIfDef
+                | TokenKind::DirectiveElseIf
+                | TokenKind::DirectiveElseIfDef
+        );
 
         let span = if_token.as_span();
 
@@ -471,7 +476,7 @@ impl Parser {
                         let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
 
                         // If we have captured any tokens before this
-                        if benign_tokens.len() > 0 {
+                        if !benign_tokens.is_empty() {
                             let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
                             expression.push(PASTNode::BenignTokens(benign_tokens_node));
 
@@ -495,7 +500,7 @@ impl Parser {
         }
 
         // Check if benign_tokens didn't end empty
-        if benign_tokens.len() > 0 {
+        if !benign_tokens.is_empty() {
             expression.push(PASTNode::BenignTokens(BenignTokens::from_vec(
                 benign_tokens,
             )));
@@ -634,7 +639,7 @@ impl Parser {
                         };
 
                         // If we have captured any tokens before this
-                        if benign_tokens.len() > 0 {
+                        if !benign_tokens.is_empty() {
                             let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
                             contents.push(PASTNode::BenignTokens(benign_tokens_node));
 
@@ -666,7 +671,7 @@ impl Parser {
                             let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
 
                             // If we have captured any tokens before this
-                            if benign_tokens.len() > 0 {
+                            if !benign_tokens.is_empty() {
                                 let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
                                 contents.push(PASTNode::BenignTokens(benign_tokens_node));
 
@@ -697,7 +702,7 @@ impl Parser {
         }
 
         // Check if benign_tokens didn't end empty
-        if benign_tokens.len() > 0 {
+        if !benign_tokens.is_empty() {
             contents.push(PASTNode::BenignTokens(BenignTokens::from_vec(
                 benign_tokens,
             )));
@@ -726,7 +731,7 @@ impl Parser {
 
         // Check if it is how many we need
         if defaults.values.len() != number as usize {
-            if defaults.values.len() > 0 {
+            if !defaults.values.is_empty() {
                 self.session
                     .struct_error(format!("expected {} arguments", number))
                     .span_label(defaults.span, format!("found {}", defaults.values.len()))
@@ -768,7 +773,7 @@ impl Parser {
             tokens.push(token);
         }
 
-        if tokens.len() == 0 {
+        if tokens.is_empty() {
             if let Some(comma_span) = comma_span {
                 self.session
                     .struct_span_error(
@@ -923,7 +928,7 @@ impl Parser {
                             let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
 
                             // If we have captured any tokens before this
-                            if benign_tokens.len() > 0 {
+                            if !benign_tokens.is_empty() {
                                 let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
                                 contents.push(PASTNode::BenignTokens(benign_tokens_node));
 
@@ -954,7 +959,7 @@ impl Parser {
         }
 
         // Check if benign_tokens didn't end empty
-        if benign_tokens.len() > 0 {
+        if !benign_tokens.is_empty() {
             contents.push(PASTNode::BenignTokens(BenignTokens::from_vec(
                 benign_tokens,
             )));
@@ -1203,9 +1208,7 @@ impl Parser {
     // i32 is the return type because that is the maximum value that any kOS value can have, and it
     // works for our purposes as well
     //
-    fn parse_number(
-        &mut self,
-    ) -> Result<(Span, i32), (DiagnosticBuilder<'_>, Option<(String, Token)>)> {
+    fn parse_number(&mut self) -> NumPResult {
         if let Some(&token) = self.consume_next() {
             let span = token.as_span();
             let snippet = self.session.span_to_snippet(&span);
@@ -1470,7 +1473,7 @@ impl Parser {
                             let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
 
                             // If we have captured any tokens before this
-                            if benign_tokens.len() > 0 {
+                            if !benign_tokens.is_empty() {
                                 let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
                                 nodes.push(PASTNode::BenignTokens(benign_tokens_node));
 
@@ -1494,7 +1497,7 @@ impl Parser {
             }
 
             // Check if benign_tokens didn't end empty
-            if benign_tokens.len() > 0 {
+            if !benign_tokens.is_empty() {
                 nodes.push(PASTNode::BenignTokens(BenignTokens::from_vec(
                     benign_tokens,
                 )));
@@ -1523,26 +1526,24 @@ impl Parser {
             span.end = ident_span.end;
 
             Ok(MacroInvok::new(span, identifier, None))
-        } else {
-            if let Some(&token) = self.peek_next() {
-                if token.kind == TokenKind::SymbolLeftParen {
-                    self.assert_next(TokenKind::SymbolLeftParen)?;
+        } else if let Some(&token) = self.peek_next() {
+            if token.kind == TokenKind::SymbolLeftParen {
+                self.assert_next(TokenKind::SymbolLeftParen)?;
 
-                    let args = self.parse_macro_invok_args(token.as_span())?;
+                let args = self.parse_macro_invok_args(token.as_span())?;
 
-                    Ok(MacroInvok::new(span, identifier, Some(args)))
-                } else {
-                    Ok(MacroInvok::new(span, identifier, None))
-                }
+                Ok(MacroInvok::new(span, identifier, Some(args)))
             } else {
                 Ok(MacroInvok::new(span, identifier, None))
             }
+        } else {
+            Ok(MacroInvok::new(span, identifier, None))
         }
     }
 
     // Parses a macro invokation's arguments
     fn parse_macro_invok_args(&mut self, paren_span: Span) -> PResult<MacroInvokArgs> {
-        if let None = self.peek_next() {
+        if self.peek_next().is_none() {
             self.session
                 .struct_bug(
                     "Found non-whitespace after macro invokation, but found no tokens".to_string(),
@@ -1649,7 +1650,7 @@ impl Parser {
                         let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
 
                         // If we have captured any tokens before this
-                        if benign_tokens.len() > 0 {
+                        if !benign_tokens.is_empty() {
                             let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
                             contents.push(PASTNode::BenignTokens(benign_tokens_node));
 
@@ -1686,7 +1687,6 @@ impl Parser {
                     break;
                 }
                 TokenKind::Newline => {
-                    eprintln!("pog");
                     self.session
                         .struct_span_error(
                             paren_span,
@@ -1737,7 +1737,7 @@ impl Parser {
                         let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
 
                         // If we have captured any tokens before this
-                        if benign_tokens.len() > 0 {
+                        if !benign_tokens.is_empty() {
                             let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
                             contents.push(PASTNode::BenignTokens(benign_tokens_node));
 
@@ -1757,28 +1757,23 @@ impl Parser {
         }
 
         // Check if benign_tokens didn't end empty
-        if benign_tokens.len() > 0 {
+        if !benign_tokens.is_empty() {
             contents.push(PASTNode::BenignTokens(BenignTokens::from_vec(
                 benign_tokens,
             )));
         }
 
         // If we just have nothing
-        if contents.len() == 0 {
+        if contents.is_empty() {
             // This is always an error
             if let Some(comma_span) = comma_span {
                 self.session
                     .struct_span_error(comma_span, "no arguments after comma".to_string())
                     .emit();
-            } else {
-                if let Some(close_paren_span) = close_paren_span {
-                    self.session
-                        .struct_span_error(
-                            close_paren_span,
-                            "expected argument before `)`".to_string(),
-                        )
-                        .emit();
-                }
+            } else if let Some(close_paren_span) = close_paren_span {
+                self.session
+                    .struct_span_error(close_paren_span, "expected argument before `)`".to_string())
+                    .emit();
             }
 
             return Err(());
@@ -1880,7 +1875,7 @@ impl Parser {
         let message = format!("expected {}", expected);
         let mut db = self.session.struct_error(message);
 
-        db.span_label(last, format!("found end of file"));
+        db.span_label(last, "found end of file".to_string());
 
         db
     }

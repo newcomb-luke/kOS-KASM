@@ -84,7 +84,7 @@ fn main() {
         run_preprocessor,
     };
 
-    if let Err(_) = assemble_path(path, config) {
+    if assemble_path(path, config).is_err() {
         process::exit(1);
     }
 }

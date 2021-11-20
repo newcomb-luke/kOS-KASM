@@ -1,3 +1,5 @@
+#![allow(clippy::result_unit_err)]
+
 use std::path::PathBuf;
 
 use errors::SourceFile;
@@ -16,7 +18,7 @@ use crate::{
     preprocessor::parser::Parser,
 };
 
-pub static VERSION: &'static str = env!("CARGO_PKG_VERSION");
+pub static VERSION: &'_ str = env!("CARGO_PKG_VERSION");
 
 /// Various configuration parameters for altering how the assembler acts
 pub struct Config {

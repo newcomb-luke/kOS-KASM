@@ -5,6 +5,7 @@ use std::sync::RwLock;
 use std::{path::PathBuf, sync::Mutex};
 
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+
 // To-do list:
 // * Trim code to the right of the area of interest, we don't want comments clogging it up
 //
@@ -159,54 +160,41 @@ impl Emitter {
 
         let level_msg = diagnostic.level.as_styled_string();
 
-        match self.emit_styled_string(&mut stream, &level_msg) {
-            Err(e) => {
-                panic!("Failed to emit error: {}", e);
-            }
-            _ => {}
+        if let Err(e) = self.emit_styled_string(&mut stream, &level_msg) {
+            panic!("Failed to emit error: {}", e);
         }
 
         let styled_string =
             StyledString::new(format!(": {}", diagnostic.message), Style::MainHeaderMsg);
 
-        match self.emit_styled_string(&mut stream, &styled_string) {
-            Err(e) => {
-                panic!("Failed to emit error: {}", e);
-            }
-            _ => {}
+        if let Err(e) = self.emit_styled_string(&mut stream, &styled_string) {
+            panic!("Failed to emit error: {}", e);
         }
-        eprintln!("");
+        eprintln!();
 
         if let Some(primary) = &diagnostic.primary {
-            let source_location = self.get_source_location(primary);
-            let snippet = self.span_to_snippet(primary);
+            let extra_spacer = diagnostic.spans.is_empty();
 
-            let extra_spacer = diagnostic.spans.len() == 0;
-
-            match self.emit_snippet(
+            if let Err(e) = self.emit_snippet(
                 &mut stream,
                 primary,
-                source_location,
-                &snippet,
                 diagnostic.level,
                 None,
                 extra_spacer,
                 true,
             ) {
-                Err(e) => {
-                    panic!("Failed to emit snippet: {}", e);
-                }
-                _ => {}
+                panic!("Failed to emit snippet: {}", e);
             }
         }
 
         let styled_dots = StyledString::new("...".to_string(), Style::LineAndColumn);
 
-        if diagnostic.primary.is_some() && diagnostic.spans.len() > 0 {
+        if diagnostic.primary.is_some() && !diagnostic.spans.is_empty() {
             // We need the special dots
             self.emit_styled_string(&mut stream, &styled_dots)
                 .expect("Failed to emit ...");
-            eprint!("\n");
+
+            eprintln!();
         }
 
         for (index, (span, label)) in diagnostic.spans.iter().enumerate() {
@@ -216,19 +204,15 @@ impl Emitter {
                 // Put the dots
                 self.emit_styled_string(&mut stream, &styled_dots)
                     .expect("Failed to emit ...");
-                eprint!("\n");
+
+                eprintln!();
 
                 extra_spacer = false;
             }
 
-            let snippet = self.span_to_snippet(&span);
-            let source_location = self.get_source_location(&span);
-
             self.emit_snippet(
                 &mut stream,
                 span,
-                source_location,
-                &snippet,
                 diagnostic.level,
                 Some(label),
                 extra_spacer,
@@ -258,14 +242,13 @@ impl Emitter {
         &self,
         stream: &mut StandardStream,
         span: &Span,
-        source_location: (String, usize, usize),
-        snippet: &Snippet,
         level: Level,
         label: Option<&str>,
         extra_spacer: bool,
         display_file: bool,
     ) -> std::io::Result<()> {
-        let (path, line_num, col) = source_location;
+        let (path, line_num, col) = self.get_source_location(span);
+        let snippet = self.span_to_snippet(span);
 
         let line_num_str = format!("{}", line_num);
         let line_num_width = line_num_str.len();
@@ -292,7 +275,7 @@ impl Emitter {
 
         //     |
         self.emit_styled_string(stream, &vert_bar)?;
-        eprint!("\n");
+        eprintln!();
 
         // 200 |
         self.emit_styled_string(stream, &self.struct_line_num(line_num))?;
@@ -323,12 +306,12 @@ impl Emitter {
             write!(stream, "{}", label)?;
         }
 
-        eprint!("\n");
+        eprintln!();
 
         if extra_spacer {
             //     |
             self.emit_styled_string(stream, &vert_bar)?;
-            eprint!("\n");
+            eprintln!();
         }
 
         Ok(())
@@ -465,7 +448,7 @@ pub(crate) struct HandlerInner {
 impl HandlerInner {
     pub(crate) fn new(flags: HandlerFlags, source_manager: Rc<RwLock<SourceManager>>) -> Self {
         Self {
-            emitter: Emitter::new(flags, source_manager.clone()),
+            emitter: Emitter::new(flags, source_manager),
             // source_manager,
         }
     }
@@ -507,11 +490,20 @@ impl Handler {
     }
 }
 
+/// If adding a SourceFile to a SourceManager, and that fails, this describes why
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SourceError {
+    /// The maximum number of sources have been reached by the user (255)
+    MaxSourcesReached,
+}
+
 pub struct SourceManager {
     source_files: Vec<Rc<SourceFile>>,
 }
 
 impl SourceManager {
+    /// Creates a new SourceManager
     pub fn new() -> Self {
         Self {
             source_files: Vec::new(),
@@ -521,7 +513,7 @@ impl SourceManager {
     /// Adds a SourceFile to this SourceManager. The id field of the SourceFile is overwriten by
     /// this SourceManager so that it can be internally identified. Every other field of the
     /// SourceFile is left the same.
-    pub fn add(&mut self, mut source_file: SourceFile) -> Result<u8, ()> {
+    pub fn add(&mut self, mut source_file: SourceFile) -> Result<u8, SourceError> {
         // Right now we require that the user only include a max of 256 files
         if self.source_files.len() < u8::MAX as usize {
             source_file.id = self.source_files.len() as u8;
@@ -532,14 +524,20 @@ impl SourceManager {
 
             Ok(id)
         } else {
-            Err(())
+            Err(SourceError::MaxSourcesReached)
         }
     }
 
     /// Gets a reference to a SourceFile by the SourceFile's id
     pub fn get_by_id(&self, id: usize) -> Option<Rc<SourceFile>> {
         // Because id == index of SourceFile as u8, we can just use it directly
-        self.source_files.get(id).map(|sf| sf.clone())
+        self.source_files.get(id).cloned()
+    }
+}
+
+impl Default for SourceManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
