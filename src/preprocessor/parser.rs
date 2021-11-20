@@ -109,6 +109,7 @@ impl Parser {
                     self.parse_benign_tokens(next)
                 } else {
                     // If it isn't, it is going to be parsed as a macro invokation
+                    self.consume_next();
                     let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
 
                     // If we have captured any tokens before this
