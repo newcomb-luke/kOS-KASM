@@ -3,8 +3,8 @@ name: Rust CI
 on: [push, pull_request]
 
 jobs:
-  test:
-    name: Test
+  build:
+    name: Build
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -14,7 +14,19 @@ jobs:
 
     steps:
     - uses: actions/checkout@master
-    - name: Build and Test
+    - name: Build
+      run: |
+        rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+        cargo build
+
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    needs: [build]
+
+    steps:
+    - uses: actions/checkout@master
+    - name: Test
       run: |
         rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
         cargo test
