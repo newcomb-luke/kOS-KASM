@@ -45,14 +45,6 @@ impl<'a> DiagnosticBuilder<'a> {
         self
     }
 
-    pub fn span_suggestion(&mut self) -> () {
-        todo!();
-    }
-
-    pub fn span_help(&mut self, span: Span, label: String) -> &mut Self {
-        todo!();
-    }
-
     pub fn span_label(&mut self, span: Span, label: String) -> &mut Self {
         self.diagnostic.spans.push((span, label));
 
@@ -65,10 +57,6 @@ impl<'a> DiagnosticBuilder<'a> {
         self.diagnostic.children.push(subd);
 
         self
-    }
-
-    pub fn span_note(&mut self) -> () {
-        todo!();
     }
 
     /// Adds a help message to the diagnostic

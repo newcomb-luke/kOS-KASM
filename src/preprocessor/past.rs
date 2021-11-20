@@ -86,7 +86,7 @@ impl BenignTokens {
 ///
 /// Grammar:
 ///
-/// ```
+/// ```sh,ignore,no_run
 /// <SLMacroDef> ::= .define <identifier>
 ///              |   .define <identifier> <SLMacroDefContents>
 ///              |   .define <identifier> <SLMacroDefArgs>
@@ -121,7 +121,7 @@ impl SLMacroDef {
 ///
 /// Grammar:
 ///
-/// ```
+/// ```sh,ignore,no_run
 /// <SLMacroDefArgs> ::= ()
 ///                  |   (<arguments>)
 ///
@@ -147,7 +147,7 @@ impl SLMacroDefArgs {
 ///
 /// Grammar:
 ///
-/// ```
+/// ```sh,ignore,no_run
 /// <SLMacroDefContents> ::=
 ///                      |   <identifier> <SLMacroDefContents>
 ///                      |   <literal> <SLMacroDefContents>
@@ -295,7 +295,7 @@ impl MLMacroDefDefaults {
 ///
 /// Grammar:
 ///
-/// ```
+/// ```sh,ignore,no_run
 /// <SLMacroUndef> ::= .undef <ident>
 ///                |   .undef <ident> <SLMacroUndefArgs>
 /// ```
@@ -319,7 +319,7 @@ impl SLMacroUndef {
 
 /// Represents a single line macro's number of arguments
 ///
-/// ```
+/// ```sh,ignore,no_run
 /// <SLMacroUndefArgs> ::= <number>
 /// ```
 ///
@@ -339,7 +339,7 @@ impl SLMacroUndefArgs {
 ///
 /// Grammar:
 ///
-/// ```
+/// ```sh,ignore,no_run
 /// <MLMacroUndef> ::= .unmacro <ident>
 ///                |   .unmacro <ident> <MLMacroArgs>
 /// ```
@@ -365,7 +365,7 @@ impl MLMacroUndef {
 ///
 /// Grammar:
 ///
-/// ```
+/// ```sh,ignore,no_run
 /// <Repeat> ::= .rep <RepeatNumber>
 /// ```
 ///
@@ -390,7 +390,7 @@ impl Repeat {
 ///
 /// Grammar:
 ///
-/// ```
+/// ```sh,ignore,no_run
 /// <RepeatNumber> ::= <BenignTokens> | <MacroInvok>
 /// ```
 ///
