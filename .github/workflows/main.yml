@@ -24,6 +24,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: [build]
 
+    strategy:
+      matrix:
+        rust: [stable, nightly]
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
     steps:
     - uses: actions/checkout@master
     - name: Test
