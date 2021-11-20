@@ -117,7 +117,10 @@ impl Parser {
                     Ok(PASTNode::MacroInvok(macro_invok))
                 }
             }
-            _ => self.parse_benign_tokens(next),
+            _ => {
+                self.consume_next();
+                self.parse_benign_tokens(next)
+            }
         }
     }
 
