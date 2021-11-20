@@ -1,0 +1,20 @@
+name: Rust CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        rust: [stable, nightly]
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@master
+    - name: Build and Test
+      run: |
+        rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+        cargo test
