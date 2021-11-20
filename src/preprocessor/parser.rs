@@ -7,14 +7,15 @@ use kerbalobjects::Opcode;
 use crate::{
     errors::{DiagnosticBuilder, Span},
     lexer::{Token, TokenKind},
-    preprocessor::past::{BenignTokens, MLMacroDef, SLMacroDef},
+    preprocessor::past::{BenignTokens, IfStatement, MLMacroDef, SLMacroDef},
     session::Session,
 };
 
 use super::past::{
-    Ident, Include, IncludePath, MLMacroArgs, MLMacroDefDefaults, MLMacroUndef, MacroInvok,
-    MacroInvokArg, MacroInvokArgs, PASTNode, Repeat, RepeatNumber, SLMacroDefArgs,
-    SLMacroDefContents, SLMacroUndef, SLMacroUndefArgs,
+    Ident, IfClause, IfClauseBegin, IfCondition, IfDefCondition, IfExpCondition, Include,
+    IncludePath, MLMacroArgs, MLMacroDefDefaults, MLMacroUndef, MacroInvok, MacroInvokArg,
+    MacroInvokArgs, PASTNode, Repeat, RepeatNumber, SLMacroDefArgs, SLMacroDefContents,
+    SLMacroUndef, SLMacroUndefArgs,
 };
 
 pub struct Parser {
@@ -77,10 +78,39 @@ impl Parser {
             | TokenKind::DirectiveIfNot
             | TokenKind::DirectiveIfDef
             | TokenKind::DirectiveIfNotDef => self.parse_if_statement(next, true, true),
-            _ => {
-                println!("Token was: {:?}", next.kind);
+            TokenKind::DirectiveElseIf
+            | TokenKind::DirectiveElseIfDef
+            | TokenKind::DirectiveElseIfNot
+            | TokenKind::DirectiveElseIfNotDef
+            | TokenKind::DirectiveEndIf => {
+                self.session
+                    .struct_span_error(
+                        next.as_span(),
+                        "If directive with no previous .if".to_string(),
+                    )
+                    .emit();
+
                 return Err(());
             }
+            TokenKind::Identifier => {
+                let snippet = self.session.span_to_snippet(&next.as_span());
+                let ident_str = snippet.as_slice();
+
+                // Tests if this is an instruction or not
+                if Opcode::from(ident_str) != Opcode::Bogus {
+                    // If it is, we parse it as such
+                    self.consume_next();
+                    self.parse_benign_tokens(next)
+                } else {
+                    // If it isn't, it is going to be parsed as a macro invokation
+                    let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
+
+                    // If we have captured any tokens before this
+                    // Update this just in case it is the last part of the contents
+                    Ok(PASTNode::MacroInvok(macro_invok))
+                }
+            }
+            _ => self.parse_benign_tokens(next),
         }
     }
 
@@ -95,11 +125,403 @@ impl Parser {
     //
     fn parse_if_statement(
         &mut self,
-        token: Token,
+        mut token: Token,
         consume_first: bool,
         allow_preprocessor: bool,
     ) -> PResult<PASTNode> {
-        todo!();
+        if consume_first {
+            // Consume the .if*
+            token = *self.consume_next().unwrap();
+        }
+
+        let mut clauses = Vec::new();
+
+        let (first_clause, end_kind) = self.parse_if_clause(token, allow_preprocessor)?;
+        clauses.push(first_clause);
+
+        if end_kind != TokenKind::DirectiveEndIf {
+            loop {
+                // Parse the clause
+                let (if_clause, end_kind) = self.parse_if_clause(token, allow_preprocessor)?;
+
+                // Add it
+                clauses.push(if_clause);
+
+                // If it isn't the end, set the next token
+                if end_kind != TokenKind::DirectiveEndIf {
+                    token = *self.consume_next().unwrap();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Consume the .endif
+        self.assert_next(TokenKind::DirectiveEndIf)?;
+
+        Ok(PASTNode::IfStatement(IfStatement::from_vec(clauses)))
+    }
+
+    // Parses 0 or more "benign tokens" from the token stream
+    //
+    // "Benign tokens" are tokens that are non-preprocessor, things like normal identifiers,
+    // integer literals, etc.
+    //
+    fn parse_benign_tokens(&mut self, start: Token) -> PResult<PASTNode> {
+        let mut tokens = Vec::new();
+        tokens.push(start);
+
+        while let Some(&next) = self.peek_next() {
+            match next.kind {
+                TokenKind::DirectiveDefine
+                | TokenKind::DirectiveUndef
+                | TokenKind::DirectiveMacro
+                | TokenKind::DirectiveEndmacro
+                | TokenKind::DirectiveUnmacro
+                | TokenKind::DirectiveRepeat
+                | TokenKind::DirectiveEndRepeat
+                | TokenKind::DirectiveInclude
+                | TokenKind::DirectiveIf
+                | TokenKind::DirectiveIfDef
+                | TokenKind::DirectiveIfNot
+                | TokenKind::DirectiveIfNotDef
+                | TokenKind::DirectiveElseIf
+                | TokenKind::DirectiveElseIfDef
+                | TokenKind::DirectiveElseIfNot
+                | TokenKind::DirectiveElseIfNotDef
+                | TokenKind::DirectiveEndIf => {
+                    break;
+                }
+                TokenKind::Identifier => {
+                    let snippet = self.session.span_to_snippet(&next.as_span());
+                    let ident_str = snippet.as_slice();
+
+                    // Tests if this is an instruction or not
+                    if Opcode::from(ident_str) != Opcode::Bogus {
+                        // It is, which is "benign"
+                        tokens.push(next);
+
+                        self.consume_next();
+                    } else {
+                        break;
+                    }
+                }
+                _ => {
+                    tokens.push(next);
+                    self.consume_next();
+                }
+            }
+        }
+
+        Ok(PASTNode::BenignTokens(BenignTokens::from_vec(tokens)))
+    }
+
+    // Parses an if statement clause
+    //
+    // See the IfClause grammar
+    //
+    // The if_token is passed in to parse the if clause type and condition
+    //
+    // The allow_preprocessor flag determines if preprocessor directives will be allowed or not
+    //
+    fn parse_if_clause(
+        &mut self,
+        if_token: Token,
+        allow_preprocessor: bool,
+    ) -> PResult<(IfClause, TokenKind)> {
+        let mut span = Span::new(0, 0, 0);
+        let begin = self.parse_if_clause_begin(if_token)?;
+        let condition = self.parse_if_condition(if_token)?;
+        let mut contents = Vec::new();
+        let mut end_kind = TokenKind::Error;
+
+        span.start = begin.span.start;
+        span.file = begin.span.file;
+
+        // Two different loops is pretty bad, but it avoids checking the allow_preprocessor flag
+        // every loop
+        if allow_preprocessor {
+            while let Some(&next) = self.peek_next() {
+                let node = match next.kind {
+                    TokenKind::DirectiveDefine => self.parse_sl_macro_def(),
+                    TokenKind::DirectiveMacro => self.parse_ml_macro_def(),
+                    TokenKind::DirectiveUndef => self.parse_sl_macro_undef(),
+                    TokenKind::DirectiveUnmacro => self.parse_ml_macro_undef(),
+                    TokenKind::DirectiveRepeat => self.parse_repeat(),
+                    TokenKind::DirectiveInclude => self.parse_include(),
+                    TokenKind::DirectiveIf
+                    | TokenKind::DirectiveIfNot
+                    | TokenKind::DirectiveIfDef
+                    | TokenKind::DirectiveIfNotDef => self.parse_if_statement(next, true, true),
+                    TokenKind::DirectiveEndIf
+                    | TokenKind::DirectiveElseIf
+                    | TokenKind::DirectiveElseIfDef
+                    | TokenKind::DirectiveElseIfNot
+                    | TokenKind::DirectiveElseIfNotDef => {
+                        end_kind = next.kind;
+                        break;
+                    }
+                    TokenKind::Identifier => {
+                        let snippet = self.session.span_to_snippet(&next.as_span());
+                        let ident_str = snippet.as_slice();
+
+                        // Tests if this is an instruction or not
+                        if Opcode::from(ident_str) != Opcode::Bogus {
+                            // If it is, we parse it as such
+                            self.consume_next();
+                            let benign_tokens = self.parse_benign_tokens(next)?;
+
+                            Ok(benign_tokens)
+                        } else {
+                            // If it isn't, it is going to be parsed as a macro invokation
+                            let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
+
+                            // If we have captured any tokens before this
+                            // Update this just in case it is the last part of the contents
+                            Ok(PASTNode::MacroInvok(macro_invok))
+                        }
+                    }
+                    _ => self.parse_benign_tokens(next),
+                }?;
+
+                span.end = node.span_end();
+
+                contents.push(node);
+            }
+        } else {
+            while let Some(&next) = self.peek_next() {
+                let node = match next.kind {
+                    TokenKind::DirectiveDefine
+                    | TokenKind::DirectiveMacro
+                    | TokenKind::DirectiveEndmacro
+                    | TokenKind::DirectiveUndef
+                    | TokenKind::DirectiveUnmacro
+                    | TokenKind::DirectiveRepeat
+                    | TokenKind::DirectiveEndRepeat
+                    | TokenKind::DirectiveInclude => {
+                        self.session
+                            .struct_span_error(
+                                next.as_span(),
+                                "preprocessor directives not allowed here".to_string(),
+                            )
+                            .emit();
+
+                        return Err(());
+                    }
+                    TokenKind::DirectiveIf
+                    | TokenKind::DirectiveIfNot
+                    | TokenKind::DirectiveIfDef
+                    | TokenKind::DirectiveIfNotDef => self.parse_if_statement(next, true, true),
+                    TokenKind::DirectiveEndIf
+                    | TokenKind::DirectiveElseIf
+                    | TokenKind::DirectiveElseIfDef
+                    | TokenKind::DirectiveElseIfNot
+                    | TokenKind::DirectiveElseIfNotDef => {
+                        end_kind = next.kind;
+                        break;
+                    }
+                    TokenKind::Identifier => {
+                        let snippet = self.session.span_to_snippet(&next.as_span());
+                        let ident_str = snippet.as_slice();
+
+                        // Tests if this is an instruction or not
+                        if Opcode::from(ident_str) != Opcode::Bogus {
+                            // If it is, we parse it as such
+                            self.consume_next();
+                            let benign_tokens = self.parse_benign_tokens(next)?;
+
+                            Ok(benign_tokens)
+                        } else {
+                            // If it isn't, it is going to be parsed as a macro invokation
+                            let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
+
+                            // If we have captured any tokens before this
+                            // Update this just in case it is the last part of the contents
+                            Ok(PASTNode::MacroInvok(macro_invok))
+                        }
+                    }
+                    _ => self.parse_benign_tokens(next),
+                }?;
+
+                span.end = node.span_end();
+
+                contents.push(node);
+            }
+        }
+
+        // If we have ended by running out of tokens, but the last token isn't an endif
+        if self.peek_next().is_none() && end_kind != TokenKind::DirectiveEndIf {
+            // Error
+            self.session
+                .struct_error("if clause has no .endif".to_string())
+                .span_label(if_token.as_span(), "this clause".to_string())
+                .span_label(
+                    self.last_token.unwrap().as_span(),
+                    "file ended unexpectedly".to_string(),
+                )
+                .emit();
+
+            return Err(());
+        }
+
+        Ok((IfClause::new(span, begin, condition, contents), end_kind))
+    }
+
+    fn parse_if_clause_begin(&mut self, if_token: Token) -> PResult<IfClauseBegin> {
+        let inverse = match if_token.kind {
+            TokenKind::DirectiveIf
+            | TokenKind::DirectiveIfDef
+            | TokenKind::DirectiveElseIf
+            | TokenKind::DirectiveElseIfDef => false,
+            _ => true,
+        };
+
+        let span = if_token.as_span();
+
+        Ok(IfClauseBegin::new(span, inverse))
+    }
+
+    fn parse_if_condition(&mut self, if_token: Token) -> PResult<IfCondition> {
+        Ok(match if_token.kind {
+            TokenKind::DirectiveIfDef
+            | TokenKind::DirectiveIfNotDef
+            | TokenKind::DirectiveElseIfDef
+            | TokenKind::DirectiveElseIfNotDef => IfCondition::Def(self.parse_if_def_condition()?),
+            _ => IfCondition::Exp(self.parse_if_exp_condition(if_token)?),
+        })
+    }
+
+    fn parse_if_def_condition(&mut self) -> PResult<IfDefCondition> {
+        let mut span = Span::new(0, 0, 0);
+
+        self.skip_whitespace();
+
+        // We need an identifier, that is the entire idea of an .ifdef
+        let identifier = self.parse_ident()?;
+
+        // A number of arguments is optional though
+        let args = self.parse_ml_macro_args()?;
+
+        span.start = identifier.span.start;
+        span.file = identifier.span.file;
+
+        if let Some(args) = &args {
+            span.end = args.span.end;
+        } else {
+            span.end = identifier.span.end;
+        }
+
+        Ok(IfDefCondition::new(span, identifier, args))
+    }
+
+    fn parse_if_exp_condition(&mut self, if_token: Token) -> PResult<IfExpCondition> {
+        let mut span = Span::new(0, 0, 0);
+
+        let mut expression = Vec::new();
+
+        let mut benign_tokens = Vec::new();
+
+        let mut ended = false;
+
+        // Skip any whitespace
+        self.skip_whitespace();
+
+        while let Some(&token) = self.consume_next() {
+            match token.kind {
+                TokenKind::Newline => {
+                    ended = true;
+                    break;
+                }
+                TokenKind::DirectiveDefine
+                | TokenKind::DirectiveUndef
+                | TokenKind::DirectiveMacro
+                | TokenKind::DirectiveEndmacro
+                | TokenKind::DirectiveUnmacro
+                | TokenKind::DirectiveRepeat
+                | TokenKind::DirectiveEndRepeat
+                | TokenKind::DirectiveInclude
+                | TokenKind::DirectiveIf
+                | TokenKind::DirectiveIfDef
+                | TokenKind::DirectiveIfNot
+                | TokenKind::DirectiveIfNotDef
+                | TokenKind::DirectiveElseIf
+                | TokenKind::DirectiveElseIfDef
+                | TokenKind::DirectiveElseIfNot
+                | TokenKind::DirectiveElseIfNotDef
+                | TokenKind::DirectiveEndIf => {
+                    self.session
+                        .struct_span_error(token.as_span(), "Expected condition".to_string())
+                        .emit();
+
+                    return Err(());
+                }
+                TokenKind::Identifier => {
+                    let snippet = self.session.span_to_snippet(&token.as_span());
+                    let ident_str = snippet.as_slice();
+
+                    // Tests if this is an instruction or not
+                    if Opcode::from(ident_str) != Opcode::Bogus {
+                        // If it is
+                        // Just push it
+                        benign_tokens.push(token);
+
+                        span.end = token.as_span().end;
+                    } else {
+                        // If it isn't, it is going to be parsed as a macro invokation
+                        let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
+
+                        // If we have captured any tokens before this
+                        if benign_tokens.len() > 0 {
+                            let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
+                            expression.push(PASTNode::BenignTokens(benign_tokens_node));
+
+                            benign_tokens = Vec::new();
+                        }
+
+                        // Update this just in case it is the last part of the contents
+                        span.end = macro_invok.span.end;
+
+                        expression.push(PASTNode::MacroInvok(macro_invok));
+                    }
+                }
+                _ => {
+                    // Just push this, it is allowed and not special
+                    benign_tokens.push(token);
+
+                    // Just in case this is the last one
+                    span.end = token.as_span().end;
+                }
+            }
+        }
+
+        // Check if benign_tokens didn't end empty
+        if benign_tokens.len() > 0 {
+            expression.push(PASTNode::BenignTokens(BenignTokens::from_vec(
+                benign_tokens,
+            )));
+        }
+
+        // If our expression is completely empty
+        if expression.is_empty() {
+            // Emit an error
+            self.session
+                .struct_span_error(if_token.as_span(), "expected expression".to_string())
+                .emit();
+
+            return Err(());
+        }
+
+        // We didn't end with a newline, we ended with an EOF
+        if !ended {
+            // At this point due to the upper check, we are guaranteed to have a valid span
+            self.session
+                .struct_span_error(span, "expected newline after expression".to_string())
+                .emit();
+
+            return Err(());
+        }
+
+        Ok(IfExpCondition::new(span, expression))
     }
 
     // Parses a macro directive

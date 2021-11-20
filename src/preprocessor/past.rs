@@ -23,6 +23,22 @@ pub enum PASTNode {
     Include(Include),
 }
 
+impl PASTNode {
+    pub fn span_end(&self) -> usize {
+        match self {
+            PASTNode::BenignTokens(benign_tokens) => benign_tokens.span.end,
+            PASTNode::SLMacroDef(sl_macro_def) => sl_macro_def.span.end,
+            PASTNode::MacroInvok(macro_invok) => macro_invok.span.end,
+            PASTNode::MLMacroDef(ml_macro_def) => ml_macro_def.span.end,
+            PASTNode::SLMacroUndef(sl_macro_undef) => sl_macro_undef.span.end,
+            PASTNode::MLMacroUndef(ml_macro_undef) => ml_macro_undef.span.end,
+            PASTNode::Repeat(repeat) => repeat.span.end,
+            PASTNode::IfStatement(if_statement) => if_statement.span.end,
+            PASTNode::Include(include) => include.span.end,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Ident {
     pub span: Span,
@@ -43,8 +59,8 @@ impl PartialEq for Ident {
 
 #[derive(Debug)]
 pub struct BenignTokens {
-    span: Span,
-    tokens: Vec<Token>,
+    pub span: Span,
+    pub tokens: Vec<Token>,
 }
 
 impl BenignTokens {
@@ -396,6 +412,25 @@ pub struct IfStatement {
     pub clauses: Vec<IfClause>,
 }
 
+impl IfStatement {
+    pub fn new(span: Span, clauses: Vec<IfClause>) -> Self {
+        Self { span, clauses }
+    }
+
+    pub fn from_vec(clauses: Vec<IfClause>) -> Self {
+        let mut span = Span::new(0, 0, 0);
+
+        let first_span = clauses.first().unwrap().span;
+        let last_span = clauses.last().unwrap().span;
+
+        span.start = first_span.start;
+        span.file = first_span.file;
+        span.end = last_span.end;
+
+        Self { span, clauses }
+    }
+}
+
 #[derive(Debug)]
 pub struct IfClause {
     pub span: Span,
@@ -404,11 +439,33 @@ pub struct IfClause {
     pub contents: Vec<PASTNode>,
 }
 
+impl IfClause {
+    pub fn new(
+        span: Span,
+        begin: IfClauseBegin,
+        condition: IfCondition,
+        contents: Vec<PASTNode>,
+    ) -> Self {
+        Self {
+            span,
+            begin,
+            condition,
+            contents,
+        }
+    }
+}
+
 /// This represents a single part like .if or .ifn
 #[derive(Debug)]
 pub struct IfClauseBegin {
     pub span: Span,
     pub inverse: bool,
+}
+
+impl IfClauseBegin {
+    pub fn new(span: Span, inverse: bool) -> Self {
+        Self { span, inverse }
+    }
 }
 
 #[derive(Debug)]
@@ -424,10 +481,26 @@ pub struct IfDefCondition {
     pub args: Option<MLMacroArgs>,
 }
 
+impl IfDefCondition {
+    pub fn new(span: Span, identifier: Ident, args: Option<MLMacroArgs>) -> Self {
+        Self {
+            span,
+            identifier,
+            args,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct IfExpCondition {
     pub span: Span,
     pub expression: Vec<PASTNode>,
+}
+
+impl IfExpCondition {
+    pub fn new(span: Span, expression: Vec<PASTNode>) -> Self {
+        Self { span, expression }
+    }
 }
 
 #[derive(Debug)]

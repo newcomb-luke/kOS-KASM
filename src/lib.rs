@@ -92,6 +92,10 @@ fn assemble(session: Session) -> Result<KOFile, ()> {
         let mut preprocessor_parser = Parser::new(tokens, session);
 
         let nodes = preprocessor_parser.parse()?;
+
+        for node in nodes {
+            println!("{:#?}", node);
+        }
     }
 
     todo!();
