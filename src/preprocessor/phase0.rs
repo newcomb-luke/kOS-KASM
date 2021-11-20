@@ -1,10 +1,10 @@
 use crate::{
-    errors::KASMError,
+    errors::{AssemblyError, ErrorManager},
     lexer::token::{Token, TokenKind},
 };
 
 /// Phase 0 replaces comments and line continues with whitespace
-pub fn phase0(tokens: &mut Vec<Token>) -> Result<(), KASMError> {
+pub fn phase0(tokens: &mut Vec<Token>, errors: &mut ErrorManager) {
     let mut last_was_backslash = false;
 
     // Loop through all of the tokens
@@ -19,7 +19,7 @@ pub fn phase0(tokens: &mut Vec<Token>) -> Result<(), KASMError> {
             // If it was whitespace that is fine
             else if token.kind != TokenKind::Whitespace {
                 // If it wasn't though, that is an error
-                return Err(KASMError::new(
+                errors.add_assembly(AssemblyError::new(
                     crate::errors::ErrorKind::JunkAfterBackslash,
                     *token,
                 ));
@@ -39,8 +39,6 @@ pub fn phase0(tokens: &mut Vec<Token>) -> Result<(), KASMError> {
             }
         }
     }
-
-    Ok(())
 }
 
 /// Phase 1 replaces removes all whitespace
@@ -63,11 +61,12 @@ pub fn phase1(tokens: Vec<Token>) -> Vec<Token> {
 #[cfg(test)]
 mod tests {
     use crate::{
+        errors::{ErrorManager, SourceFile},
         lexer::{
             token::{Token, TokenKind},
             tokenize,
         },
-        preprocessor::phase0::phase0,
+        preprocessor::phase0::{phase0, phase1},
     };
 
     #[test]
@@ -76,9 +75,15 @@ mod tests {
 
         let mut tokens: Vec<Token> = tokenize(source).collect();
 
-        let phase0_result = phase0(&mut tokens);
+        let mut error_manager = ErrorManager::new();
 
-        assert!(phase0_result.is_ok());
+        phase0(&mut tokens, &mut error_manager);
+
+        let source_files = vec![SourceFile::new("test".to_string(), source.to_string())];
+
+        if error_manager.emit(&source_files).expect("") {
+            panic!("Fatal error");
+        }
 
         for token in tokens {
             assert_ne!(token.kind, TokenKind::Backslash);
@@ -91,8 +96,14 @@ mod tests {
 
         let mut tokens: Vec<Token> = tokenize(source).collect();
 
-        let phase0_result = phase0(&mut tokens);
+        let mut error_manager = ErrorManager::new();
 
-        assert!(phase0_result.is_err());
+        tokens = phase1(tokens);
+
+        let source_files = vec![SourceFile::new("test".to_string(), source.to_string())];
+
+        if error_manager.emit(&source_files).expect("") {
+            panic!("Fatal error");
+        }
     }
 }

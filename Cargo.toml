@@ -11,7 +11,9 @@ homepage = "https://github.com/newcomb-luke/kOS-KASM"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = "~2.27.0"
+clap = "2.33.3"
 kerbalobjects = "3.1.10"
 logos = "0.12.0"
 termcolor = "1.1"
+atty = "0.2.14"
+pathdiff = "0.2.1"

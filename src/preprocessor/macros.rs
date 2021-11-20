@@ -1,341 +1,324 @@
-use std::{iter::Peekable, slice::Iter};
+use crate::{
+    errors::{AssemblyError, ErrorKind, ErrorManager, SourceFile},
+    lexer::{
+        parse_token, test_next_is,
+        token::{Token, TokenKind},
+        TokenIter,
+    },
+};
 
-use crate::{Token, TokenData, TokenType};
+pub struct UnMacro {}
 
-use super::{MacroError, PreprocessError, PreprocessResult};
+impl UnMacro {
+    /// Parse an .unmacro directive
+    pub fn parse(
+        token_iter: &mut TokenIter,
+        source_files: &mut Vec<SourceFile>,
+        errors: &mut ErrorManager,
+    ) -> Option<(String, Option<MacroArgs>)> {
+        // .unmacro will always be there
+        token_iter.next();
 
-#[derive(Debug, Clone)]
-pub struct MacroArg {
-    required: bool,
-    default: Vec<Token>,
+        // The identifier
+        let identifier_token = parse_token(
+            token_iter,
+            errors,
+            TokenKind::Identifier,
+            ErrorKind::ExpectedUnmacroIdentifier,
+            ErrorKind::MissingUnmacroIdentifier,
+        )?;
+
+        // Get the actual identifier out of it
+        let identifier = identifier_token.slice(source_files).unwrap().to_string();
+
+        // It is perfectly valid to end the file here, so we should test if there is even another
+        // token
+        if let Some(token) = token_iter.peek() {
+            // Now there could either be a newline, or a number indicating a number of arguments
+            if token.kind == TokenKind::Newline {
+                // Consume it
+                token_iter.next();
+
+                Some((identifier, None))
+            } else {
+                // TODO: Support for binary and hex literals
+                let args_min_token = parse_token(
+                    token_iter,
+                    errors,
+                    TokenKind::LiteralInteger,
+                    ErrorKind::ExpectedUnmacroNumArgs,
+                    ErrorKind::ShouldNotBeShown,
+                )?;
+
+                let args_min = args_min_token
+                    .slice(source_files)
+                    .unwrap()
+                    .parse::<usize>()
+                    .unwrap();
+
+                // See if we have another token at all
+                if let Some(token) = token_iter.peek() {
+                    // It could be a newline, or a '-', indicating a range
+                    if token.kind == TokenKind::Newline {
+                        let args = MacroArgs::Fixed(args_min);
+
+                        Some((identifier, Some(args)))
+                    } else {
+                        // '-'?
+                        parse_token(
+                            token_iter,
+                            errors,
+                            TokenKind::OperatorMinus,
+                            ErrorKind::ExpectedUnmacroRange,
+                            ErrorKind::ShouldNotBeShown,
+                        )?;
+
+                        // Now there definitely should be a maximum number
+                        let args_max_token = parse_token(
+                            token_iter,
+                            errors,
+                            TokenKind::LiteralInteger,
+                            ErrorKind::ExpectedUnmacroMaxArguments,
+                            ErrorKind::MissingUnmacroMaxArguments,
+                        )?;
+
+                        let args_max = args_max_token
+                            .slice(source_files)
+                            .unwrap()
+                            .parse::<usize>()
+                            .unwrap();
+
+                        let args = MacroArgs::Range(args_min, args_max, Vec::new());
+
+                        Some((identifier, Some(args)))
+                    }
+                } else {
+                    let args = MacroArgs::Fixed(args_min);
+
+                    Some((identifier, Some(args)))
+                }
+            }
+        } else {
+            Some((identifier, None))
+        }
+    }
 }
 
-impl MacroArg {
-    /// Create a new macro argument.
-    pub fn new(required: bool, default: Vec<Token>) -> MacroArg {
-        MacroArg { required, default }
-    }
-
-    /// Returns true of this argument is required.
-    pub fn required(&self) -> bool {
-        self.required
-    }
-
-    /// Returns the default value of this argument.
-    pub fn default_owned(&self) -> Vec<Token> {
-        self.default.to_owned()
-    }
+/// Represents possible numbers of macro arguments
+///
+/// Fixed represents a constant number of arguments
+///
+/// Range represents a range of amounts of arguments, the first field being the minimum, the second
+/// being the maximum, and the third being a vector of token vectors that represent the defaults
+/// for arguments not provided
+#[derive(Debug)]
+pub enum MacroArgs {
+    Fixed(usize),
+    Range(usize, usize, Vec<Vec<Token>>),
 }
 
+#[derive(Debug)]
 pub struct Macro {
-    id: String,
+    args: Option<MacroArgs>,
     contents: Vec<Token>,
-    args: Vec<MacroArg>,
-    num_required_args: usize,
 }
 
 impl Macro {
-    /// Creates a new macro
-    pub fn new(
-        id: &str,
-        contents: Vec<Token>,
-        args: Vec<MacroArg>,
-        num_required_args: usize,
-    ) -> Macro {
-        Macro {
-            id: id.to_owned(),
-            contents,
-            args,
-            num_required_args,
-        }
-    }
+    /// Parses a single macro from KASM tokens
+    ///
+    /// There are various types of macros and therefore a few different types of valid syntax:
+    ///
+    /// .macro HELP
+    ///     push "HELP"
+    /// .endmacro
+    ///
+    /// .macro ADD_CONST 1
+    ///     push &1
+    ///     add
+    /// .endmacro
+    ///
+    /// .macro ADD 1-2 2
+    ///     push &1
+    ///     push &2
+    ///     add
+    /// .endmacro
+    ///
+    pub fn parse(
+        token_iter: &mut TokenIter,
+        source_files: &Vec<SourceFile>,
+        errors: &mut ErrorManager,
+    ) -> Option<(Self, String)> {
+        // .macro will always be there
+        token_iter.next();
 
-    /// Parses a macro from the provided token iterator
-    pub fn parse_macro(
-        start_line: usize,
-        token_iter: &mut Peekable<Iter<Token>>,
-    ) -> PreprocessResult<Macro> {
-        // Check to see if we have a token, and it is an identifier
-        if token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::IDENTIFIER {
-            let id = match token_iter.next().unwrap().data() {
-                TokenData::STRING(s) => s,
-                _ => unreachable!(),
-            };
-            let mut contents = Vec::new();
-            let mut args = Vec::new();
-            let mut clean_exit = false;
-            let mut min_args = 0;
-            let mut max_args = 0;
+        // The identifier
+        let identifier_token = parse_token(
+            token_iter,
+            errors,
+            TokenKind::Identifier,
+            ErrorKind::ExpectedMacroIdentifier,
+            ErrorKind::MissingMacroIdentifier,
+        )?;
 
-            // There needs to be an .endmacro directive, so no more tokens is an error
-            if token_iter.peek().is_none() {
-                return Err(PreprocessError::MacroParseError(
-                    id.to_owned(),
-                    start_line,
-                    MacroError::IncompleteMacroDefinition.into(),
-                )
-                .into());
-            }
-            // If there are arguments to this macro
-            else if token_iter.peek().unwrap().tt() != TokenType::NEWLINE {
-                // Now we either have a number of arguments, or a range.
+        // Get the actual identifier out of it
+        let identifier = identifier_token.slice(source_files).unwrap().to_string();
 
-                // It has to be an int
-                if token_iter.peek().unwrap().tt() != TokenType::INT {
-                    return Err(PreprocessError::MacroParseError(
-                        id.to_owned(),
-                        start_line,
-                        MacroError::InvalidNumberOfArguments(token_iter.peek().unwrap().as_str())
-                            .into(),
-                    )
-                    .into());
-                }
-                min_args = match token_iter.next().unwrap().data() {
-                    TokenData::INT(i) => *i,
-                    _ => unreachable!(),
-                };
-                max_args = min_args;
-
-                // The next token can either be a newline or a -
-                if token_iter.peek().unwrap().tt() == TokenType::NEWLINE {
-                    // If it is a newline that means that all arguments are required.
-                    for _ in 0..min_args {
-                        args.push(MacroArg::new(true, Vec::new()));
-                    }
-                }
-                // If the next token was not a newline, it must be a minus, followed by a max numberof args
-                else if token_iter.peek().unwrap().tt() == TokenType::MINUS {
-                    let num_required_default_values;
-
-                    // Consume the comma
-                    token_iter.next();
-
-                    // Next has to be an int
-                    if token_iter.peek().unwrap().tt() != TokenType::INT {
-                        return Err(PreprocessError::MacroParseError(
-                            id.to_owned(),
-                            start_line,
-                            MacroError::ExpectedArgumentRange(token_iter.peek().unwrap().as_str())
-                                .into(),
-                        )
-                        .into());
-                    }
-                    max_args = match token_iter.next().unwrap().data() {
-                        TokenData::INT(i) => *i,
-                        _ => unreachable!(),
-                    };
-
-                    // Test if the range makes sense...
-                    if min_args >= max_args {
-                        return Err(PreprocessError::MacroParseError(
-                            id.to_owned(),
-                            start_line,
-                            MacroError::InvalidArgumentRange((min_args, max_args)).into(),
-                        )
-                        .into());
-                    }
-
-                    num_required_default_values = max_args - min_args;
-
-                    // Populate all of the really required arguments
-                    for _ in 0..min_args {
-                        args.push(MacroArg::new(true, Vec::new()));
-                    }
-
-                    // If it is a range, now we have to deal with all of the default values
-                    for _ in 0..num_required_default_values {
-                        let mut argument_contents = Vec::new();
-
-                        // We need to have all of the macro argument default values, if one is missing, there is a problem.
-                        if token_iter.peek().is_none()
-                            || token_iter.peek().unwrap().tt() == TokenType::NEWLINE
-                        {
-                            return Err(PreprocessError::MacroParseError(
-                                id.to_owned(),
-                                start_line,
-                                MacroError::MissingDefaultArgumentValue.into(),
-                            )
-                            .into());
-                        }
-
-                        // Go until we run out or hit a comma or newline
-                        while token_iter.peek().is_some()
-                            && token_iter.peek().unwrap().tt() != TokenType::COMMA
-                            && token_iter.peek().unwrap().tt() != TokenType::NEWLINE
-                        {
-                            let token = token_iter.next().unwrap();
-
-                            argument_contents.push(token.clone());
-                        }
-
-                        // If it was a comma that stopped us, consume it
-                        if token_iter.peek().unwrap().tt() == TokenType::COMMA {
-                            token_iter.next();
-                        }
-
-                        // Now that we have the argument contents, add it to the list
-                        args.push(MacroArg::new(false, argument_contents));
-                    }
-
-                    // There MUST be a newline here
-                    if token_iter.peek().is_none()
-                        || token_iter.peek().unwrap().tt() != TokenType::NEWLINE
-                    {
-                        let token_str = match token_iter.peek() {
-                            Some(t) => t.as_str(),
-                            None => String::new(),
-                        };
-
-                        return Err(PreprocessError::MacroParseError(
-                            id.to_owned(),
-                            start_line,
-                            MacroError::TokenAfterMacroArguments(token_str).into(),
-                        )
-                        .into());
-                    }
-                }
-                // If it isn't either, that is an error
-                else {
-                    let invalid_token = token_iter.peek().unwrap();
-
-                    return Err(PreprocessError::MacroParseError(
-                        id.to_owned(),
-                        start_line,
-                        MacroError::InvalidTokenInDeclaration(invalid_token.as_str()).into(),
-                    )
-                    .into());
-                }
-            }
-            // If there are no arguments, we just move on, but consume the newline
+        // If we have a newline, then this macro takes no arguments
+        let args = if test_next_is(
+            token_iter,
+            errors,
+            TokenKind::Newline,
+            ErrorKind::MissingMacroContents,
+        )? {
+            // Consume the newline
             token_iter.next();
 
-            // Now we can fill in the body of the macro
-            while token_iter.peek().is_some() {
-                // If the next token on the line is a directive, then test if it is the .endmacro directive
-                if token_iter.peek().unwrap().tt() == TokenType::DIRECTIVE {
-                    let directive = match token_iter.peek().unwrap().data() {
-                        TokenData::STRING(s) => s,
-                        _ => unreachable!(),
-                    };
+            None
+        } else {
+            // If we do have a token, and it isn't a newline, then it must be at least part of the
+            // arguments
+            // TODO: Binary and hex literal support
+            let args_min_token = parse_token(
+                token_iter,
+                errors,
+                TokenKind::LiteralInteger,
+                ErrorKind::ExpectedMacroNumArguments,
+                ErrorKind::ShouldNotBeShown,
+            )?;
 
-                    if *directive == "endmacro" {
-                        // Consume the directive
+            let args_min = args_min_token
+                .slice(source_files)
+                .unwrap()
+                .parse::<usize>()
+                .unwrap();
+
+            // Now we check if there is a -, because that means that this is in fact a token range
+            if test_next_is(
+                token_iter,
+                errors,
+                TokenKind::OperatorMinus,
+                ErrorKind::MissingMacroContents,
+            )? {
+                // If so, collect that
+                token_iter.next();
+
+                // Now it should be another number that says the maximum number of arguments
+                let args_max_token = parse_token(
+                    token_iter,
+                    errors,
+                    TokenKind::LiteralInteger,
+                    ErrorKind::ExpectedMacroMaxArguments,
+                    ErrorKind::MissingMacroMaxArguments,
+                )?;
+
+                let args_max = args_max_token
+                    .slice(source_files)
+                    .unwrap()
+                    .parse::<usize>()
+                    .unwrap();
+
+                // Check if max > min
+                if args_max > args_min {
+                    // Now we have to collect as many default arguments as there are optional
+                    // arguments
+                    let amount_optional = args_max - args_min;
+
+                    let mut defaults = Vec::new();
+
+                    // If the number of optional tokens is > 1, then run this loop. This loop
+                    // checks for commas
+                    for _ in 0..(amount_optional - 1) {
+                        let mut default = Vec::new();
+
+                        // While we haven't yet reached a comma
+                        while !test_next_is(
+                            token_iter,
+                            errors,
+                            TokenKind::SymbolComma,
+                            ErrorKind::MissingMacroArgumentDefault,
+                        )? {
+                            default.push(*token_iter.next().unwrap());
+                        }
+
+                        // Consume the comma
                         token_iter.next();
-                        // Set clean exit to true
-                        clean_exit = true;
-                        // Break from this loop
-                        break;
-                    }
-                    // If it isn't the endmacro directive, then just treat it like any other token
-                    else {
-                        contents.push(token_iter.next().unwrap().clone());
-                    }
-                }
-                // We should also test for argument placeholders
-                else if token_iter.peek().unwrap().tt() == TokenType::AMPERSAND {
-                    let argument_number;
-                    let line;
 
-                    // Consume it
+                        defaults.push(default);
+                    }
+
+                    let mut last_default = Vec::new();
+
+                    // At this point we are looking for one more default, but the end will be a
+                    // newline
+                    while !test_next_is(
+                        token_iter,
+                        errors,
+                        TokenKind::Newline,
+                        ErrorKind::MissingMacroArgumentDefault,
+                    )? {
+                        last_default.push(*token_iter.next().unwrap());
+                    }
+
+                    // Consume the newline
                     token_iter.next();
 
-                    // Now we MUST have an integer follow this
-                    if token_iter.peek().is_none()
-                        || token_iter.peek().unwrap().tt() != TokenType::INT
-                    {
-                        let token_str = match token_iter.peek() {
-                            Some(t) => {
-                                line = t.line();
-                                t.as_str()
-                            }
-                            None => {
-                                line = start_line;
-                                String::new()
-                            }
-                        };
+                    defaults.push(last_default);
 
-                        return Err(PreprocessError::MacroParseError(
-                            id.to_owned(),
-                            line,
-                            MacroError::InvalidArgumentReference(token_str).into(),
-                        )
-                        .into());
-                    } else {
-                        line = token_iter.peek().unwrap().line();
-                    }
-
-                    // Get the number of the argument
-                    argument_number = match token_iter.next().unwrap().data() {
-                        TokenData::INT(i) => *i,
-                        _ => unreachable!(),
-                    };
-
-                    // Make sure it isn't out of bounds
-                    if argument_number > max_args {
-                        return Err(PreprocessError::MacroParseError(
-                            id.to_owned(),
-                            line,
-                            MacroError::ArgumentReferenceOutOfBounds(argument_number).into(),
-                        )
-                        .into());
-                    }
-
-                    // Now replace it with a placeholder
-                    contents.push(Token::new(
-                        TokenType::PLACEHOLDER,
-                        TokenData::INT(argument_number),
+                    Some(MacroArgs::Range(args_min, args_max, defaults))
+                }
+                // They could still be equal. If they are, we can just emit a warning and keep
+                // going
+                else if args_max == args_min {
+                    errors.add_assembly(AssemblyError::new(
+                        ErrorKind::WarnMacroMinMaxEqual,
+                        args_max_token,
                     ));
+
+                    Some(MacroArgs::Fixed(args_max))
                 }
-                // If it isn't either, just push the token
+                // Definitely error
                 else {
-                    contents.push(token_iter.next().unwrap().clone());
+                    errors.add_assembly(AssemblyError::new(
+                        ErrorKind::InvalidMacroArgumentsRange,
+                        args_max_token,
+                    ));
+
+                    return None;
                 }
-            }
-
-            // If this loop ended because we ran out of tokens... that is bad
-            if !clean_exit {
-                Err(PreprocessError::MacroParseError(
-                    id.to_owned(),
-                    start_line,
-                    MacroError::EndedWithoutClosing.into(),
-                )
-                .into())
             } else {
-                Ok(Macro::new(id, contents, args, min_args as usize))
+                // If not, then it should be a newline
+                parse_token(
+                    token_iter,
+                    errors,
+                    TokenKind::Newline,
+                    ErrorKind::ExpectedMacroNewline,
+                    ErrorKind::MissingMacroContents,
+                )?;
+
+                // Then, this is just the fixed number of arguments
+                Some(MacroArgs::Fixed(args_min))
             }
+        };
+
+        let mut contents = Vec::new();
+
+        // Now that we have parsed the arguments, we deal with the contents
+        while !test_next_is(
+            token_iter,
+            errors,
+            TokenKind::DirectiveEndmacro,
+            ErrorKind::ExpectedEndMacro,
+        )? {
+            contents.push(*token_iter.next().unwrap());
         }
-        // If we don't that is an error because it is required
-        else {
-            Err(PreprocessError::MacroParseError(
-                String::new(),
-                start_line,
-                MacroError::MissingIdentifier.into(),
-            )
-            .into())
-        }
+
+        // Consume the .endmacro
+        token_iter.next();
+
+        Some((Self { args, contents }, identifier))
     }
 
-    pub fn id(&self) -> String {
-        self.id.to_owned()
-    }
-
-    pub fn contents_cloned(&self) -> Vec<Token> {
-        self.contents.to_owned()
-    }
-
-    pub fn args_cloned(&self) -> Vec<MacroArg> {
-        self.args.to_owned()
-    }
-
-    pub fn get_contents_iter(&self) -> Peekable<Iter<Token>> {
-        self.contents.iter().peekable()
-    }
-
-    pub fn args(&self) -> &Vec<MacroArg> {
+    pub fn args(&self) -> &Option<MacroArgs> {
         &self.args
-    }
-
-    pub fn num_required_args(&self) -> usize {
-        self.num_required_args
     }
 }

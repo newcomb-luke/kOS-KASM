@@ -1,7 +1,8 @@
 use clap::{App, Arg};
+use kasm::Config;
 use std::process;
 
-use kasm::{run, CLIConfig};
+use kasm::assemble_path;
 
 fn main() {
     let matches = App::new("Kerbal Assembler")
@@ -13,6 +14,12 @@ fn main() {
                 .help("Sets the input file to use")
                 .required(true)
                 .index(1),
+        )
+        .arg(
+            Arg::with_name("disable_warnings")
+                .help("Disables warnings from being displayed")
+                .short("w")
+                .long("no-warn"),
         )
         .arg(
             Arg::with_name("output_path")
@@ -36,6 +43,13 @@ fn main() {
                 .long("preprocess-only")
         )
         .arg(
+            Arg::with_name("no_preprocess")
+                .help("Run the assembly process without running the preprocessor.")
+                .short("a")
+                .long("no-preprocess")
+                .conflicts_with("preprocess_only")
+            )
+        .arg(
             Arg::with_name("comment")
                 .help("Sets the comment field of the output object file to the value of this. Defaults to KASM and the current version.")
                 .short("c")
@@ -51,11 +65,26 @@ fn main() {
         )
         .get_matches();
 
-    let config = CLIConfig::new(matches);
+    // This is a required argument, so it won't panic
+    let path = matches.value_of("INPUT").unwrap().to_string();
 
-    if let Err(e) = run(&config) {
-        eprintln!("{}", e);
+    // Do conversion for the arguments
+    let emit_warnings = !matches.is_present("disable_warnings");
 
+    let run_preprocessor = !matches.is_present("no_preprocess");
+
+    // Get the directory this was run from
+    let root_dir =
+        std::env::current_dir().expect("KASM run in directory that doesn't exist anymore");
+
+    let config = Config {
+        is_cli: true, // Always true, this is main.rs!
+        emit_warnings,
+        root_dir,
+        run_preprocessor,
+    };
+
+    if assemble_path(path, config).is_err() {
         process::exit(1);
     }
 }

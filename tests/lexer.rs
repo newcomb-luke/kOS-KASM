@@ -1,5 +1,38 @@
-use kasm::lexer;
-use kasm::lexer::token::{Token, TokenKind};
+use std::path::PathBuf;
+
+use kasm::{
+    errors::SourceFile,
+    lexer::{Lexer, Token, TokenKind},
+    session::Session,
+    Config,
+};
+
+// Lexes a source string to a vector, but can panic
+fn lex_from_text(source: &str) -> Vec<Token> {
+    let config = Config {
+        is_cli: true,
+        emit_warnings: false,
+        root_dir: PathBuf::new(),
+        run_preprocessor: false,
+    };
+
+    let mut session = Session::new(config);
+
+    // Create a SourceFile but with some dummy values
+    let source_file = SourceFile::new("<input>".to_owned(), None, None, source.to_string(), 0);
+
+    session.add_file(source_file);
+
+    let primary_file = session.get_file(0).unwrap();
+
+    // Create the lexer
+    let lexer = Lexer::new(&primary_file.source, session);
+
+    // Lex the tokens, if they are all valid
+    let (tokens, _) = lexer.lex().expect("Lexing failed");
+
+    tokens
+}
 
 #[test]
 fn lex_operators() {
@@ -25,7 +58,7 @@ fn lex_operators() {
 
     let source = " - + ~ * / % && || == != ! > < >= <=";
 
-    let tokens: Vec<Token> = lexer::tokenize(source).collect();
+    let tokens = lex_from_text(source);
 
     let mut token_iter = tokens.iter();
 
@@ -51,7 +84,7 @@ fn lex_keywords() {
 
     let source = "\n.section\n.text\n.data";
 
-    let tokens: Vec<Token> = lexer::tokenize(source).collect();
+    let tokens = lex_from_text(source);
 
     let mut token_iter = tokens.iter();
 
@@ -70,12 +103,16 @@ fn lex_directives() {
     let correct_kinds = vec![
         TokenKind::DirectiveDefine,
         TokenKind::DirectiveMacro,
+        TokenKind::DirectiveEndmacro,
         TokenKind::DirectiveRepeat,
+        TokenKind::DirectiveEndRepeat,
         TokenKind::DirectiveInclude,
         TokenKind::DirectiveExtern,
         TokenKind::DirectiveGlobal,
         TokenKind::DirectiveLocal,
         TokenKind::DirectiveLine,
+        TokenKind::DirectiveType,
+        TokenKind::DirectiveValue,
         TokenKind::DirectiveUndef,
         TokenKind::DirectiveUnmacro,
         TokenKind::DirectiveFunc,
@@ -96,12 +133,16 @@ fn lex_directives() {
     let source = "
 .define
 .macro
+.endmacro
 .rep
+.endrep
 .include
 .extern
 .global
 .local
 .line
+.type
+.value
 .undef
 .unmacro
 .func
@@ -116,7 +157,7 @@ fn lex_directives() {
 .else
 .endif";
 
-    let tokens: Vec<Token> = lexer::tokenize(source).collect();
+    let tokens = lex_from_text(source);
 
     let mut token_iter = tokens.iter();
 
@@ -151,7 +192,7 @@ loop_3231:
 .woohoo
 loop_3231";
 
-    let tokens: Vec<Token> = lexer::tokenize(source).collect();
+    let tokens = lex_from_text(source);
 
     let mut token_iter = tokens.iter();
 
@@ -194,7 +235,7 @@ false
 \"Hello world\"
 \"\\tThe man said \\\"Who goes there?\\\"\\n\"";
 
-    let tokens: Vec<Token> = lexer::tokenize(source).collect();
+    let tokens = lex_from_text(source);
 
     let mut token_iter = tokens.iter();
 
@@ -220,7 +261,7 @@ fn lex_delimiters() {
 
     let source = " \n\\";
 
-    let tokens: Vec<Token> = lexer::tokenize(source).collect();
+    let tokens = lex_from_text(source);
 
     let mut token_iter = tokens.iter();
 
@@ -247,7 +288,7 @@ fn lex_symbols() {
 
     let source = " ( , # @ & ) ; This is a comment";
 
-    let tokens: Vec<Token> = lexer::tokenize(source).collect();
+    let tokens = lex_from_text(source);
 
     let mut token_iter = tokens.iter();
 
