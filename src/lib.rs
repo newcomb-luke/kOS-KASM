@@ -91,9 +91,9 @@ fn assemble(session: Session) -> Result<KOFile, ()> {
 
     // If we should run the preprocessor
     if session.config().run_preprocessor {
-        let mut preprocessor_parser = Parser::new(tokens, session);
+        let preprocessor_parser = Parser::new(tokens, session);
 
-        let nodes = preprocessor_parser.parse()?;
+        let (nodes, _session) = preprocessor_parser.parse()?;
 
         let mut executor = Executor::new(nodes);
 

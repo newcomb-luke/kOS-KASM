@@ -43,7 +43,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> PResult<Vec<PASTNode>> {
+    pub fn parse(mut self) -> PResult<(Vec<PASTNode>, Session)> {
         let mut nodes = Vec::new();
 
         while let Some(&next) = self.peek_next() {
@@ -62,7 +62,7 @@ impl Parser {
             }
         }
 
-        Ok(nodes)
+        Ok((nodes, self.session))
     }
 
     // This usually parses a line, but in the case of any multi-line construct, this parses more
@@ -101,15 +101,14 @@ impl Parser {
             TokenKind::Identifier => {
                 let snippet = self.session.span_to_snippet(&next.as_span());
                 let ident_str = snippet.as_slice();
+                self.consume_next();
 
                 // Tests if this is an instruction or not
                 if Opcode::from(ident_str) != Opcode::Bogus {
                     // If it is, we parse it as such
-                    self.consume_next();
                     self.parse_benign_tokens(next)
                 } else {
                     // If it isn't, it is going to be parsed as a macro invokation
-                    self.consume_next();
                     let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
 
                     // If we have captured any tokens before this
@@ -273,14 +272,12 @@ impl Parser {
                     TokenKind::Identifier => {
                         let snippet = self.session.span_to_snippet(&next.as_span());
                         let ident_str = snippet.as_slice();
+                        self.consume_next();
 
                         // Tests if this is an instruction or not
                         if Opcode::from(ident_str) != Opcode::Bogus {
                             // If it is, we parse it as such
-                            self.consume_next();
-                            let benign_tokens = self.parse_benign_tokens(next)?;
-
-                            Ok(benign_tokens)
+                            self.parse_benign_tokens(next)
                         } else {
                             // If it isn't, it is going to be parsed as a macro invokation
                             let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
@@ -290,7 +287,10 @@ impl Parser {
                             Ok(PASTNode::MacroInvok(macro_invok))
                         }
                     }
-                    _ => self.parse_benign_tokens(next),
+                    _ => {
+                        self.consume_next();
+                        self.parse_benign_tokens(next)
+                    }
                 }?;
 
                 span.end = node.span_end();
@@ -333,13 +333,12 @@ impl Parser {
                         let snippet = self.session.span_to_snippet(&next.as_span());
                         let ident_str = snippet.as_slice();
 
+                        self.consume_next();
+
                         // Tests if this is an instruction or not
                         if Opcode::from(ident_str) != Opcode::Bogus {
                             // If it is, we parse it as such
-                            self.consume_next();
-                            let benign_tokens = self.parse_benign_tokens(next)?;
-
-                            Ok(benign_tokens)
+                            self.parse_benign_tokens(next)
                         } else {
                             // If it isn't, it is going to be parsed as a macro invokation
                             let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
@@ -349,7 +348,10 @@ impl Parser {
                             Ok(PASTNode::MacroInvok(macro_invok))
                         }
                     }
-                    _ => self.parse_benign_tokens(next),
+                    _ => {
+                        self.consume_next();
+                        self.parse_benign_tokens(next)
+                    }
                 }?;
 
                 span.end = node.span_end();
@@ -1919,6 +1921,7 @@ pub fn parse_integer_literal(string: &str) -> Result<i32, ()> {
 
 /// Parses a hexadecimal literal from the given &str
 pub fn parse_hexadecimal_literal(string: &str) -> Result<i32, ()> {
+    let string = &string[2..];
     let mut no_separators = String::with_capacity(string.len());
 
     for c in string.chars() {
@@ -1929,11 +1932,12 @@ pub fn parse_hexadecimal_literal(string: &str) -> Result<i32, ()> {
         }
     }
 
-    Ok(no_separators.parse().unwrap())
+    Ok(i32::from_str_radix(&no_separators, 16).unwrap())
 }
 
 /// Parses a binary literal from the given &str
 pub fn parse_binary_literal(string: &str) -> Result<i32, ()> {
+    let string = &string[2..];
     let mut no_separators = String::with_capacity(string.len());
 
     for c in string.chars() {
@@ -1944,5 +1948,5 @@ pub fn parse_binary_literal(string: &str) -> Result<i32, ()> {
         }
     }
 
-    Ok(no_separators.parse().unwrap())
+    Ok(i32::from_str_radix(&no_separators, 2).unwrap())
 }
