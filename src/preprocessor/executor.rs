@@ -1,6 +1,6 @@
 use crate::{lexer::Token, session::Session};
 
-use super::past::{IfClause, IfCondition, IfStatement, PASTNode};
+use super::past::{BenignTokens, IfClause, IfCondition, IfStatement, PASTNode};
 
 pub type EResult<T> = Result<T, ()>;
 
@@ -15,25 +15,41 @@ impl Executor {
     }
 
     /// Run the executor
-    pub fn execute(&mut self) -> EResult<Vec<Token>> {
-        for node in self.nodes.iter() {
+    pub fn execute(self) -> EResult<(Vec<Token>, Session)> {
+        for node in &self.nodes {
             println!("{:#?}", node);
+            let new_tokens = match node {
+                PASTNode::IfStatement(statement) => self.execute_if_statement(&statement)?,
+                _ => unimplemented!(),
+            };
         }
 
-        todo!();
+        unimplemented!()
     }
 
     // Executes an if statement
-    fn execute_if_statement(&mut self, statement: IfStatement) -> EResult<Option<Vec<Token>>> {
-        todo!();
+    fn execute_if_statement(&self, statement: &IfStatement) -> EResult<Option<Vec<Token>>> {
+        for clause in &statement.clauses {
+            if let Some(tokens) = self.execute_if_clause(clause)? {
+                return Ok(Some(tokens));
+            }
+        }
+
+        Ok(None)
     }
 
-    fn execute_if_clause(&mut self, clause: IfClause) -> EResult<Option<Vec<Token>>> {
+    fn execute_if_clause(&self, clause: &IfClause) -> EResult<Option<Vec<Token>>> {
         let inverse = clause.begin.inverse;
+
+        println!("Inverse: {}", inverse);
         todo!();
     }
 
-    fn execute_if_condition(&mut self, condition: IfCondition) -> EResult<bool> {
+    fn evaluate_if_condition(&self, condition: IfCondition) -> EResult<bool> {
+        todo!();
+    }
+
+    fn expand_macros(&self, nodes: &Vec<PASTNode>) -> EResult<BenignTokens> {
         todo!();
     }
 }

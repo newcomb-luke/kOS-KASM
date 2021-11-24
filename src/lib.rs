@@ -93,11 +93,15 @@ fn assemble(session: Session) -> Result<KOFile, ()> {
     if session.config().run_preprocessor {
         let preprocessor_parser = Parser::new(tokens, session);
 
-        let (nodes, session) = preprocessor_parser.parse()?;
+        let temp = preprocessor_parser.parse()?;
+        let nodes = temp.0;
+        session = temp.1;
 
-        let mut executor = Executor::new(nodes, session);
+        let executor = Executor::new(nodes, session);
 
-        tokens = executor.execute()?;
+        let temp = executor.execute()?;
+        tokens = temp.0;
+        session = temp.1;
     }
 
     todo!();
