@@ -1950,3 +1950,8 @@ pub fn parse_binary_literal(string: &str) -> Result<i32, ()> {
 
     Ok(i32::from_str_radix(&no_separators, 2).unwrap())
 }
+
+/// Parses a float literal from the given &str
+pub fn parse_float_literal(string: &str) -> Result<f64, ()> {
+    Ok(string.parse().unwrap())
+}

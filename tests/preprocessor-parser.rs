@@ -4,9 +4,12 @@ use kasm::{
     errors::SourceFile,
     lexer::{Lexer, Token, TokenKind},
     preprocessor::parser::parse_binary_literal,
-    preprocessor::parser::parse_hexadecimal_literal,
-    preprocessor::parser::parse_integer_literal,
     preprocessor::past::PASTNode,
+    preprocessor::{expressions::ExpressionParser, parser::parse_hexadecimal_literal},
+    preprocessor::{
+        expressions::{BinOp, ExpNode, UnOp, Value},
+        parser::parse_integer_literal,
+    },
     session::Session,
     Config,
 };
@@ -158,6 +161,58 @@ fn parse_bin_literal() {
             let num = parse_binary_literal(s).expect(&format!("Invalid binary literal: {}", s));
 
             assert_eq!(num, 0b0000_1111);
+        }
+    } else {
+        panic!("PASTNode was not BenignTokens");
+    }
+}
+
+#[test]
+fn parse_expression() {
+    let source = "!(2 == -(4 * 4))";
+
+    let (nodes, session) = parse_source(source);
+
+    assert_eq!(nodes.len(), 1);
+
+    if let PASTNode::BenignTokens(benign_tokens) = nodes.first().unwrap() {
+        let tokens = &benign_tokens.tokens;
+
+        assert_eq!(tokens.len(), 15);
+
+        let mut tokens = tokens.iter().peekable();
+
+        match ExpressionParser::parse_expression(&mut tokens, &session) {
+            Ok(expression) => match expression {
+                Some(expression) => {
+                    let correct = ExpNode::UnOp(
+                        UnOp::Not,
+                        Box::new(ExpNode::BinOp(
+                            Box::new(ExpNode::Constant(Value::Int(2))),
+                            BinOp::Eq,
+                            Box::new(ExpNode::UnOp(
+                                UnOp::Negate,
+                                Box::new(ExpNode::BinOp(
+                                    Box::new(ExpNode::Constant(Value::Int(4))),
+                                    BinOp::Mult,
+                                    Box::new(ExpNode::Constant(Value::Int(4))),
+                                )),
+                            )),
+                        )),
+                    );
+
+                    println!("Expression: {:#?}", expression);
+                    assert_eq!(correct, expression);
+                }
+                None => {
+                    panic!("No expression parsed");
+                }
+            },
+            Err(mut e) => {
+                e.emit();
+
+                panic!("Failed to parse expression");
+            }
         }
     } else {
         panic!("PASTNode was not BenignTokens");
