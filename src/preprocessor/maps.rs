@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::past::{MacroInvok, SLMacroDef, SLMacroUndef};
+use super::past::{MLMacroArgs, MLMacroDef, MLMacroUndef, MacroInvok, SLMacroDef, SLMacroUndef};
 
 pub struct SLMacroMap {
     map: HashMap<(u64, u8), SLMacroDef>,
@@ -40,7 +40,118 @@ impl SLMacroMap {
         self.map.get(&(hash, args))
     }
 
+    /// Returns true if a single-line macro with the identifier hash and number of arguments is
+    /// defined in the map
     pub fn contains(&self, hash: u64, num_args: u8) -> bool {
         self.map.contains_key(&(hash, num_args))
+    }
+
+    /// Returns the first single-line macro defined with the given identifier hash or None if none
+    /// exists with that hash
+    pub fn find_by_hash(&self, hash: u64) -> Option<&SLMacroDef> {
+        self.map
+            .iter()
+            .find(|((entry_hash, _), _)| *entry_hash == hash)
+            .map(|((_, _), entry)| entry)
+    }
+
+    /// Returns true if a single-line macro with the identifier hash is defined in the map
+    pub fn contains_hash(&self, hash: u64) -> bool {
+        self.map.keys().find(|key| key.0 == hash).is_some()
+    }
+}
+
+pub struct MLMacroMap {
+    macros: Vec<(u64, MLMacroDef)>,
+}
+
+impl MLMacroMap {
+    /// Creates a new empty MLMacroMap
+    pub fn new() -> Self {
+        Self { macros: Vec::new() }
+    }
+
+    /// Defines a new multi-line macro. This function returns true if this macro was redefined, and
+    /// false otherwise.
+    pub fn define(&mut self, ml_macro: MLMacroDef) -> bool {
+        let hash = ml_macro.identifier.hash;
+
+        let replace_index = self.find(hash, &ml_macro.args);
+
+        if let Some(replace_index) = replace_index {
+            self.macros.swap_remove(replace_index);
+            self.macros.push((hash, ml_macro));
+
+            true
+        } else {
+            self.macros.push((hash, ml_macro));
+
+            false
+        }
+    }
+
+    /// Undefines a multi-line macro if it exists
+    pub fn undefine(&mut self, ml_macro_undef: MLMacroUndef) {
+        let hash = ml_macro_undef.identifier.hash;
+
+        let index = self.find(hash, &Some(ml_macro_undef.args));
+
+        if let Some(index) = index {
+            self.macros.swap_remove(index);
+        }
+    }
+
+    /// Returns true if a multi-line macro with the identifier hash and argument range is defined
+    /// in the map
+    pub fn contains(&self, hash: u64, ml_args: &Option<MLMacroArgs>) -> bool {
+        self.find(hash, ml_args).is_some()
+    }
+
+    /// Returns the first multi-line macro defined with the given identifier hash or None if none
+    /// exists with that hash
+    pub fn find_by_hash(&self, hash: u64) -> Option<&MLMacroDef> {
+        self.macros
+            .iter()
+            .find(|entry| entry.0 == hash)
+            .map(|entry| &entry.1)
+    }
+
+    /// Returns true if a multi-line macro with the identifier hash is defined in the map
+    pub fn contains_hash(&self, hash: u64) -> bool {
+        self.macros.iter().find(|entry| entry.0 == hash).is_some()
+    }
+
+    // Returns a "range" with the None case being replaced with (0, 0), and the case where there is
+    // no range and in fact only the required number (x) specified as (x, x)
+    fn get_arg_range(ml_macro_args: &Option<MLMacroArgs>) -> (u8, u8) {
+        match ml_macro_args {
+            Some(args) => (
+                args.required,
+                args.maximum.map(|arg| arg.get()).unwrap_or(args.required),
+            ),
+            None => (0, 0),
+        }
+    }
+
+    // Returns the index of the macro with overlapping macro arguments, or None of none is found
+    fn find(&self, hash: u64, ml_args: &Option<MLMacroArgs>) -> Option<usize> {
+        let range = Self::get_arg_range(&ml_args);
+        let mut replace_index = None;
+
+        for (index, (other_hash, other_macro)) in self.macros.iter().enumerate() {
+            let other_range = Self::get_arg_range(&other_macro.args);
+
+            if hash == *other_hash && Self::overlaps(range, other_range) {
+                replace_index = Some(index);
+                break;
+            }
+        }
+
+        replace_index
+    }
+
+    fn overlaps(range1: (u8, u8), range2: (u8, u8)) -> bool {
+        // https://stackoverflow.com/questions/3269434/whats-the-most-efficient-way-to-test-if-two-ranges-overlap
+        range1.0 <= range2.1 && range2.0 <= range1.1
     }
 }
