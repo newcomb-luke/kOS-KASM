@@ -97,9 +97,9 @@ fn assemble(session: Session) -> Result<KOFile, ()> {
         let nodes = temp.0;
         session = temp.1;
 
-        let executor = Executor::new(nodes, session);
+        let executor = Executor::new(session);
 
-        let temp = executor.execute()?;
+        let temp = executor.execute(nodes)?;
         tokens = temp.0;
         session = temp.1;
     }

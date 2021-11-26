@@ -10,7 +10,7 @@ use crate::lexer::Token;
 /// in KASM's subsequent operation.
 ///
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PASTNode {
     BenignTokens(BenignTokens),
     SLMacroDef(SLMacroDef),
@@ -57,7 +57,7 @@ impl PartialEq for Ident {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BenignTokens {
     pub span: Span,
     pub tokens: Vec<Token>,
@@ -93,7 +93,7 @@ impl BenignTokens {
 ///              |   .define <identifier> <SLMacroDefArgs> <SLMacroDefContents>
 /// ```
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SLMacroDef {
     pub span: Span,
     pub identifier: Ident,
@@ -128,7 +128,7 @@ impl SLMacroDef {
 /// <arguments> ::= <identifier> | <identifier>, <arguments>
 /// ```
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SLMacroDefArgs {
     pub span: Span,
     pub args: Vec<Ident>,
@@ -156,7 +156,7 @@ impl SLMacroDefArgs {
 ///                      |   <keyword> <SLMacroDefContents>
 /// ```
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SLMacroDefContents {
     pub span: Span,
     pub contents: Vec<PASTNode>,
@@ -168,7 +168,7 @@ impl SLMacroDefContents {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MacroInvok {
     pub span: Span,
     pub identifier: Ident,
@@ -185,7 +185,7 @@ impl MacroInvok {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MacroInvokArgs {
     pub span: Span,
     pub args: Vec<MacroInvokArg>,
@@ -210,7 +210,7 @@ impl MacroInvokArgs {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MacroInvokArg {
     pub span: Span,
     pub contents: Vec<PASTNode>,
@@ -222,7 +222,7 @@ impl MacroInvokArg {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MLMacroDef {
     pub span: Span,
     pub identifier: Ident,
@@ -249,7 +249,7 @@ impl MLMacroDef {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MLMacroArgs {
     pub span: Span,
     pub required: u8,
@@ -266,7 +266,7 @@ impl MLMacroArgs {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MLMacroDefDefaults {
     pub span: Span,
     pub values: Vec<BenignTokens>,
@@ -300,7 +300,7 @@ impl MLMacroDefDefaults {
 ///                |   .undef <ident> <SLMacroUndefArgs>
 /// ```
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SLMacroUndef {
     pub span: Span,
     pub identifier: Ident,
@@ -323,7 +323,7 @@ impl SLMacroUndef {
 /// <SLMacroUndefArgs> ::= <number>
 /// ```
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SLMacroUndefArgs {
     pub span: Span,
     pub num: u8,
@@ -344,7 +344,7 @@ impl SLMacroUndefArgs {
 ///                |   .unmacro <ident> <MLMacroArgs>
 /// ```
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MLMacroUndef {
     pub span: Span,
     pub identifier: Ident,
@@ -369,7 +369,7 @@ impl MLMacroUndef {
 /// <Repeat> ::= .rep <RepeatNumber>
 /// ```
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Repeat {
     pub span: Span,
     pub number: RepeatNumber,
@@ -394,7 +394,7 @@ impl Repeat {
 /// <RepeatNumber> ::= <BenignTokens> | <MacroInvok>
 /// ```
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RepeatNumber {
     pub span: Span,
     pub expression: Vec<PASTNode>,
@@ -406,7 +406,7 @@ impl RepeatNumber {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IfStatement {
     pub span: Span,
     pub clauses: Vec<IfClause>,
@@ -431,7 +431,7 @@ impl IfStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IfClause {
     pub span: Span,
     pub begin: IfClauseBegin,
@@ -456,7 +456,7 @@ impl IfClause {
 }
 
 /// This represents a single part like .if or .ifn
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IfClauseBegin {
     pub span: Span,
     pub inverse: bool,
@@ -468,13 +468,13 @@ impl IfClauseBegin {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum IfCondition {
     Exp(IfExpCondition),
     Def(IfDefCondition),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IfDefCondition {
     pub span: Span,
     pub identifier: Ident,
@@ -491,7 +491,7 @@ impl IfDefCondition {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IfExpCondition {
     pub span: Span,
     pub expression: Vec<PASTNode>,
@@ -503,7 +503,7 @@ impl IfExpCondition {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Include {
     pub span: Span,
     pub path: IncludePath,
@@ -515,7 +515,7 @@ impl Include {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IncludePath {
     pub span: Span,
     pub expression: Vec<PASTNode>,
