@@ -729,8 +729,12 @@ impl Parser {
         let mut defaults = Vec::new();
 
         // Collect as many as we can
-        while let Some(default) = self.parse_ml_macro_default()? {
+        while let (Some(default), end) = self.parse_ml_macro_default()? {
             defaults.push(default);
+
+            if end {
+                break;
+            }
         }
 
         let defaults = MLMacroDefDefaults::from_vec(defaults);
@@ -761,18 +765,20 @@ impl Parser {
     //
     // Returns a tuple of an Option<BenignTokens> that represents if there was a default to parse
     //
-    fn parse_ml_macro_default(&mut self) -> PResult<Option<BenignTokens>> {
+    fn parse_ml_macro_default(&mut self) -> PResult<(Option<BenignTokens>, bool)> {
         // Skip whitespace
         self.skip_whitespace();
 
         let mut tokens = Vec::new();
         let mut comma_span = None;
+        let mut end = false;
 
         while let Some(&token) = self.consume_next() {
             if token.kind == TokenKind::SymbolComma {
                 comma_span = Some(token.as_span());
                 break;
             } else if token.kind == TokenKind::Newline {
+                end = true;
                 break;
             }
 
@@ -790,10 +796,10 @@ impl Parser {
 
                 Err(())
             } else {
-                Ok(None)
+                Ok((None, end))
             }
         } else {
-            Ok(Some(BenignTokens::from_vec(tokens)))
+            Ok((Some(BenignTokens::from_vec(tokens)), end))
         }
     }
 
