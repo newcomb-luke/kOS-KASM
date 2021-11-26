@@ -33,6 +33,8 @@ impl Executor {
     fn execute_nodes(&mut self, nodes: Vec<PASTNode>) -> EResult<Vec<Token>> {
         let mut new_tokens = Vec::new();
 
+        // println!("{:#?}", nodes);
+
         for node in nodes {
             if let Some(mut tokens) = match node {
                 PASTNode::IfStatement(statement) => self.execute_if_statement(statement)?,
@@ -140,6 +142,7 @@ impl Executor {
                     }),
                 }
             }
+            IfCondition::Else => Ok(true),
         }
     }
 }

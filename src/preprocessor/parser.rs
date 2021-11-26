@@ -85,6 +85,7 @@ impl Parser {
             | TokenKind::DirectiveIfDef
             | TokenKind::DirectiveIfNotDef => self.parse_if_statement(next, true, true),
             TokenKind::DirectiveElseIf
+            | TokenKind::DirectiveElse
             | TokenKind::DirectiveElseIfDef
             | TokenKind::DirectiveElseIfNot
             | TokenKind::DirectiveElseIfNotDef
@@ -92,7 +93,7 @@ impl Parser {
                 self.session
                     .struct_span_error(
                         next.as_span(),
-                        "If directive with no previous .if".to_string(),
+                        "if directive with no previous .if".to_string(),
                     )
                     .emit();
 
@@ -144,20 +145,42 @@ impl Parser {
         }
 
         let mut clauses = Vec::new();
+        let mut else_encountered = false;
 
         let (first_clause, end_kind) = self.parse_if_clause(token, allow_preprocessor)?;
         clauses.push(first_clause);
 
         if end_kind != TokenKind::DirectiveEndIf {
+            if end_kind == TokenKind::DirectiveElse {
+                else_encountered = true;
+            }
+
+            token = *self.consume_next().unwrap();
+
             loop {
                 // Parse the clause
                 let (if_clause, end_kind) = self.parse_if_clause(token, allow_preprocessor)?;
+
+                if else_encountered && !matches!(if_clause.condition, IfCondition::Else) {
+                    self.session
+                        .struct_span_error(
+                            if_clause.begin.span,
+                            ".endif expected after .else clause".to_string(),
+                        )
+                        .emit();
+
+                    return Err(());
+                }
 
                 // Add it
                 clauses.push(if_clause);
 
                 // If it isn't the end, set the next token
                 if end_kind != TokenKind::DirectiveEndIf {
+                    if end_kind == TokenKind::DirectiveElse {
+                        else_encountered = true;
+                    }
+
                     token = *self.consume_next().unwrap();
                 } else {
                     break;
@@ -193,6 +216,7 @@ impl Parser {
                 | TokenKind::DirectiveIfDef
                 | TokenKind::DirectiveIfNot
                 | TokenKind::DirectiveIfNotDef
+                | TokenKind::DirectiveElse
                 | TokenKind::DirectiveElseIf
                 | TokenKind::DirectiveElseIfDef
                 | TokenKind::DirectiveElseIfNot
@@ -262,6 +286,7 @@ impl Parser {
                     | TokenKind::DirectiveIfDef
                     | TokenKind::DirectiveIfNotDef => self.parse_if_statement(next, true, true),
                     TokenKind::DirectiveEndIf
+                    | TokenKind::DirectiveElse
                     | TokenKind::DirectiveElseIf
                     | TokenKind::DirectiveElseIfDef
                     | TokenKind::DirectiveElseIfNot
@@ -322,6 +347,7 @@ impl Parser {
                     | TokenKind::DirectiveIfDef
                     | TokenKind::DirectiveIfNotDef => self.parse_if_statement(next, true, true),
                     TokenKind::DirectiveEndIf
+                    | TokenKind::DirectiveElse
                     | TokenKind::DirectiveElseIf
                     | TokenKind::DirectiveElseIfDef
                     | TokenKind::DirectiveElseIfNot
@@ -360,6 +386,14 @@ impl Parser {
             }
         }
 
+        if end_kind == TokenKind::Error {
+            self.session
+                .struct_bug("if clause didn't end properly in parser".to_string())
+                .emit();
+
+            return Err(());
+        }
+
         // If we have ended by running out of tokens, but the last token isn't an endif
         if self.peek_next().is_none() && end_kind != TokenKind::DirectiveEndIf {
             // Error
@@ -385,6 +419,7 @@ impl Parser {
                 | TokenKind::DirectiveIfDef
                 | TokenKind::DirectiveElseIf
                 | TokenKind::DirectiveElseIfDef
+                | TokenKind::DirectiveElse
         );
 
         let span = if_token.as_span();
@@ -398,8 +433,30 @@ impl Parser {
             | TokenKind::DirectiveIfNotDef
             | TokenKind::DirectiveElseIfDef
             | TokenKind::DirectiveElseIfNotDef => IfCondition::Def(self.parse_if_def_condition()?),
+            TokenKind::DirectiveElse => {
+                self.parse_if_else_condition()?;
+                IfCondition::Else
+            }
             _ => IfCondition::Exp(self.parse_if_exp_condition(if_token)?),
         })
+    }
+
+    fn parse_if_else_condition(&mut self) -> PResult<()> {
+        self.skip_whitespace();
+
+        while let Some(&next) = self.consume_next() {
+            if next.kind == TokenKind::Newline {
+                break;
+            } else {
+                self.session
+                    .struct_span_error(next.as_span(), "unexpected token".to_string())
+                    .emit();
+
+                return Err(());
+            }
+        }
+
+        Ok(())
     }
 
     fn parse_if_def_condition(&mut self) -> PResult<IfDefCondition> {
@@ -455,6 +512,7 @@ impl Parser {
                 | TokenKind::DirectiveIfDef
                 | TokenKind::DirectiveIfNot
                 | TokenKind::DirectiveIfNotDef
+                | TokenKind::DirectiveElse
                 | TokenKind::DirectiveElseIf
                 | TokenKind::DirectiveElseIfDef
                 | TokenKind::DirectiveElseIfNot

@@ -12,14 +12,14 @@ use crate::lexer::Token;
 
 #[derive(Debug, Clone)]
 pub enum PASTNode {
-    BenignTokens(BenignTokens),
-    SLMacroDef(SLMacroDef),
+    BenignTokens(BenignTokens), //
+    SLMacroDef(SLMacroDef),     //
     MacroInvok(MacroInvok),
-    MLMacroDef(MLMacroDef),
+    MLMacroDef(MLMacroDef), //
     SLMacroUndef(SLMacroUndef),
     MLMacroUndef(MLMacroUndef),
     Repeat(Repeat),
-    IfStatement(IfStatement),
+    IfStatement(IfStatement), //
     Include(Include),
 }
 
@@ -472,6 +472,7 @@ impl IfClauseBegin {
 pub enum IfCondition {
     Exp(IfExpCondition),
     Def(IfDefCondition),
+    Else,
 }
 
 #[derive(Debug, Clone)]
