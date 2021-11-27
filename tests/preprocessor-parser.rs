@@ -35,10 +35,10 @@ fn lex_from_text(source: &str) -> (Vec<Token>, Session) {
     let primary_file = session.get_file(0).unwrap();
 
     // Create the lexer
-    let lexer = Lexer::new(&primary_file.source, session);
+    let lexer = Lexer::new(&primary_file.source, 0, &session);
 
     // Lex the tokens, if they are all valid
-    let (tokens, session) = lexer.lex().expect("Lexing failed");
+    let tokens = lexer.lex().expect("Lexing failed");
 
     (tokens, session)
 }
@@ -46,9 +46,11 @@ fn lex_from_text(source: &str) -> (Vec<Token>, Session) {
 fn parse_source(source: &str) -> (Vec<PASTNode>, Session) {
     let (tokens, session) = lex_from_text(source);
 
-    let preprocessor_parser = Parser::new(tokens, session);
+    let preprocessor_parser = Parser::new(tokens, &session);
 
-    preprocessor_parser.parse().expect("Failed to parse")
+    let nodes = preprocessor_parser.parse().expect("Failed to parse");
+
+    (nodes, session)
 }
 
 #[test]
