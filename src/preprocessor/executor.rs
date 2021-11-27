@@ -1,4 +1,11 @@
-use crate::{lexer::Token, session::Session};
+use crate::{
+    lexer::Token,
+    preprocessor::{
+        evaluator::{EvalError, ExpressionEvaluator, ToBool},
+        expressions::ExpressionParser,
+    },
+    session::Session,
+};
 
 use super::{
     maps::{MLMacroMap, SLMacroMap},
@@ -106,9 +113,7 @@ impl Executor {
     fn execute_if_clause(&mut self, clause: IfClause) -> EMaybe {
         let inverse = clause.begin.inverse;
 
-        let condition = self.evaluate_if_condition(&clause.condition)? ^ inverse;
-
-        println!("Condition: {}", condition);
+        let condition = self.evaluate_if_condition(clause.condition)? ^ inverse;
 
         Ok(if condition {
             let nodes = clause.contents;
@@ -121,10 +126,57 @@ impl Executor {
         })
     }
 
-    fn evaluate_if_condition(&self, condition: &IfCondition) -> EResult<bool> {
+    fn evaluate_if_condition(&mut self, condition: IfCondition) -> EResult<bool> {
         match condition {
             IfCondition::Exp(expression) => {
-                todo!()
+                let expanded_tokens = self.execute_nodes(expression.expression)?;
+                let mut token_iter = expanded_tokens.iter().peekable();
+
+                let root_node =
+                    match ExpressionParser::parse_expression(&mut token_iter, &self.session) {
+                        Ok(maybe_node) => {
+                            if let Some(root_node) = maybe_node {
+                                root_node
+                            } else {
+                                self.session
+                                    .struct_span_error(
+                                        expression.span,
+                                        "expected expression".to_string(),
+                                    )
+                                    .emit();
+
+                                return Err(());
+                            }
+                        }
+                        Err(mut db) => {
+                            db.emit();
+                            todo!()
+                        }
+                    };
+
+                println!("Parsed expression: {:?}", root_node);
+
+                let evaluation = match ExpressionEvaluator::evaluate(&root_node) {
+                    Ok(evaluation) => evaluation,
+                    Err(e) => {
+                        let error_message = match e {
+                            EvalError::NegateBool => "`-` operator invalid for booleans",
+                            EvalError::FlipDouble => "`~` operator invalid for doubles",
+                            EvalError::ZeroDivide => "expression tried to divide by 0",
+                        }
+                        .to_string();
+
+                        self.session
+                            .struct_span_error(expression.span, error_message)
+                            .emit();
+
+                        return Err(());
+                    }
+                };
+
+                println!("Result: {:?}", evaluation);
+
+                Ok(evaluation.to_bool())
             }
             IfCondition::Def(definition) => {
                 let hash = definition.identifier.hash;

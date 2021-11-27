@@ -22,8 +22,11 @@ pub enum Value {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnOp {
+    /// Arithmetic negation. Turns positive numbers negative, and negative numbers positive
     Negate,
+    /// Flips all of the bits of the provided value
     Flip,
+    /// Logical negation. !true = false, and !false = true
     Not,
 }
 
