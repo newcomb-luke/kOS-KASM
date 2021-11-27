@@ -11,7 +11,10 @@ use crate::{
 use super::{
     maps::{MLMacroMap, SLMacroMap},
     parser::Parser,
-    past::{IfClause, IfCondition, IfStatement, Include, MLMacroDef, PASTNode, Repeat, SLMacroDef},
+    past::{
+        IfClause, IfCondition, IfStatement, Include, MLMacroDef, MLMacroUndef, PASTNode, Repeat,
+        SLMacroDef, SLMacroUndef,
+    },
 };
 
 pub type EResult<T> = Result<T, ()>;
@@ -52,6 +55,12 @@ impl<'a> Executor<'a> {
                 PASTNode::BenignTokens(tokens) => Some(tokens.tokens),
                 PASTNode::Repeat(repeat) => self.execute_rep(repeat)?,
                 PASTNode::Include(include) => self.execute_include(include)?,
+                PASTNode::SLMacroUndef(sl_macro_undef) => {
+                    self.execute_sl_macro_undef(sl_macro_undef)?
+                }
+                PASTNode::MLMacroUndef(ml_macro_undef) => {
+                    self.execute_ml_macro_undef(ml_macro_undef)?
+                }
                 _ => unimplemented!(),
             } {
                 new_tokens.append(&mut tokens);
@@ -59,6 +68,18 @@ impl<'a> Executor<'a> {
         }
 
         Ok(new_tokens)
+    }
+
+    fn execute_ml_macro_undef(&mut self, ml_macro_undef: MLMacroUndef) -> EMaybe {
+        self.ml_macros.undefine(ml_macro_undef);
+
+        Ok(None)
+    }
+
+    fn execute_sl_macro_undef(&mut self, sl_macro_undef: SLMacroUndef) -> EMaybe {
+        self.sl_macros.undefine(sl_macro_undef);
+
+        Ok(None)
     }
 
     fn include_path(&mut self, span: &Span, path: &str) -> EResult<Vec<Token>> {

@@ -23,7 +23,7 @@ impl SLMacroMap {
         self.map.insert((hash, args), sl_macro);
     }
 
-    pub fn undefine(&mut self, sl_macro_undef: &SLMacroUndef) {
+    pub fn undefine(&mut self, sl_macro_undef: SLMacroUndef) {
         let hash = sl_macro_undef.identifier.hash;
         let args = sl_macro_undef.args.num;
 
