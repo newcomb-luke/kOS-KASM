@@ -1,15 +1,16 @@
 use crate::{
+    errors::Span,
     lexer::Token,
     preprocessor::{
         evaluator::{EvalError, ExpressionEvaluator, ToBool},
-        expressions::ExpressionParser,
+        expressions::{ExpressionParser, Value},
     },
     session::Session,
 };
 
 use super::{
     maps::{MLMacroMap, SLMacroMap},
-    past::{IfClause, IfCondition, IfStatement, MLMacroDef, PASTNode, SLMacroDef},
+    past::{IfClause, IfCondition, IfStatement, MLMacroDef, PASTNode, Repeat, SLMacroDef},
 };
 
 pub type EResult<T> = Result<T, ()>;
@@ -48,6 +49,7 @@ impl Executor {
                 PASTNode::SLMacroDef(sl_macro) => self.execute_sl_macro_def(sl_macro)?,
                 PASTNode::MLMacroDef(ml_macro) => self.execute_ml_macro_def(ml_macro)?,
                 PASTNode::BenignTokens(tokens) => Some(tokens.tokens),
+                PASTNode::Repeat(repeat) => self.execute_rep(repeat)?,
                 _ => unimplemented!(),
             } {
                 new_tokens.append(&mut tokens);
@@ -55,6 +57,44 @@ impl Executor {
         }
 
         Ok(new_tokens)
+    }
+
+    fn execute_rep(&mut self, repeat: Repeat) -> EMaybe {
+        let evaluation = self.evaluate_expression(&repeat.number.span, repeat.number.expression)?;
+
+        let num = match evaluation {
+            Value::Int(i) => i,
+            Value::Bool(_) => {
+                self.session
+                    .struct_span_error(
+                        repeat.number.span,
+                        "expression resulted in boolean value".to_string(),
+                    )
+                    .help(".rep requires an integer value".to_string())
+                    .emit();
+
+                return Err(());
+            }
+            Value::Double(d) => d as i32,
+        };
+
+        if num < 0 {
+            self.session
+                .struct_span_error(
+                    repeat.number.span,
+                    "expression resulted in negative number".to_string(),
+                )
+                .help(".rep number must be positive".to_string())
+                .emit();
+
+            return Err(());
+        }
+
+        let mut repeat_tokens = self.execute_nodes(repeat.contents)?;
+
+        repeat_tokens = repeat_tokens.repeat(num as usize);
+
+        Ok(Some(repeat_tokens))
     }
 
     fn execute_sl_macro_def(&mut self, sl_macro: SLMacroDef) -> EMaybe {
@@ -126,55 +166,56 @@ impl Executor {
         })
     }
 
+    fn evaluate_expression(&mut self, span: &Span, expression: Vec<PASTNode>) -> EResult<Value> {
+        let expanded_tokens = self.execute_nodes(expression)?;
+        let mut token_iter = expanded_tokens.iter().peekable();
+
+        let root_node = match ExpressionParser::parse_expression(&mut token_iter, &self.session) {
+            Ok(maybe_node) => {
+                if let Some(root_node) = maybe_node {
+                    root_node
+                } else {
+                    self.session
+                        .struct_span_error(*span, "expected expression".to_string())
+                        .emit();
+
+                    return Err(());
+                }
+            }
+            Err(mut db) => {
+                db.emit();
+                todo!()
+            }
+        };
+
+        println!("Parsed expression: {:?}", root_node);
+
+        let evaluation = match ExpressionEvaluator::evaluate(&root_node) {
+            Ok(evaluation) => evaluation,
+            Err(e) => {
+                let error_message = match e {
+                    EvalError::NegateBool => "`-` operator invalid for booleans",
+                    EvalError::FlipDouble => "`~` operator invalid for doubles",
+                    EvalError::ZeroDivide => "expression tried to divide by 0",
+                }
+                .to_string();
+
+                self.session.struct_span_error(*span, error_message).emit();
+
+                return Err(());
+            }
+        };
+
+        println!("Result: {:?}", evaluation);
+
+        Ok(evaluation)
+    }
+
     fn evaluate_if_condition(&mut self, condition: IfCondition) -> EResult<bool> {
         match condition {
             IfCondition::Exp(expression) => {
-                let expanded_tokens = self.execute_nodes(expression.expression)?;
-                let mut token_iter = expanded_tokens.iter().peekable();
-
-                let root_node =
-                    match ExpressionParser::parse_expression(&mut token_iter, &self.session) {
-                        Ok(maybe_node) => {
-                            if let Some(root_node) = maybe_node {
-                                root_node
-                            } else {
-                                self.session
-                                    .struct_span_error(
-                                        expression.span,
-                                        "expected expression".to_string(),
-                                    )
-                                    .emit();
-
-                                return Err(());
-                            }
-                        }
-                        Err(mut db) => {
-                            db.emit();
-                            todo!()
-                        }
-                    };
-
-                println!("Parsed expression: {:?}", root_node);
-
-                let evaluation = match ExpressionEvaluator::evaluate(&root_node) {
-                    Ok(evaluation) => evaluation,
-                    Err(e) => {
-                        let error_message = match e {
-                            EvalError::NegateBool => "`-` operator invalid for booleans",
-                            EvalError::FlipDouble => "`~` operator invalid for doubles",
-                            EvalError::ZeroDivide => "expression tried to divide by 0",
-                        }
-                        .to_string();
-
-                        self.session
-                            .struct_span_error(expression.span, error_message)
-                            .emit();
-
-                        return Err(());
-                    }
-                };
-
-                println!("Result: {:?}", evaluation);
+                let evaluation =
+                    self.evaluate_expression(&expression.span, expression.expression)?;
 
                 Ok(evaluation.to_bool())
             }
