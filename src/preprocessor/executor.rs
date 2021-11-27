@@ -1,6 +1,6 @@
 use crate::{
     errors::Span,
-    lexer::Token,
+    lexer::{phase0, Lexer, Token, TokenKind},
     preprocessor::{
         evaluator::{EvalError, ExpressionEvaluator, ToBool},
         expressions::{ExpressionParser, Value},
@@ -10,20 +10,21 @@ use crate::{
 
 use super::{
     maps::{MLMacroMap, SLMacroMap},
-    past::{IfClause, IfCondition, IfStatement, MLMacroDef, PASTNode, Repeat, SLMacroDef},
+    parser::Parser,
+    past::{IfClause, IfCondition, IfStatement, Include, MLMacroDef, PASTNode, Repeat, SLMacroDef},
 };
 
 pub type EResult<T> = Result<T, ()>;
 pub type EMaybe = Result<Option<Vec<Token>>, ()>;
 
-pub struct Executor {
-    session: Session,
+pub struct Executor<'a> {
+    session: &'a mut Session,
     sl_macros: SLMacroMap,
     ml_macros: MLMacroMap,
 }
 
-impl Executor {
-    pub fn new(session: Session) -> Self {
+impl<'a> Executor<'a> {
+    pub fn new(session: &'a mut Session) -> Self {
         Self {
             session,
             sl_macros: SLMacroMap::new(),
@@ -32,10 +33,10 @@ impl Executor {
     }
 
     /// Run the executor
-    pub fn execute(mut self, nodes: Vec<PASTNode>) -> EResult<(Vec<Token>, Session)> {
+    pub fn execute(mut self, nodes: Vec<PASTNode>) -> EResult<Vec<Token>> {
         let new_tokens = self.execute_nodes(nodes)?;
 
-        Ok((new_tokens, self.session))
+        Ok(new_tokens)
     }
 
     fn execute_nodes(&mut self, nodes: Vec<PASTNode>) -> EResult<Vec<Token>> {
@@ -50,6 +51,7 @@ impl Executor {
                 PASTNode::MLMacroDef(ml_macro) => self.execute_ml_macro_def(ml_macro)?,
                 PASTNode::BenignTokens(tokens) => Some(tokens.tokens),
                 PASTNode::Repeat(repeat) => self.execute_rep(repeat)?,
+                PASTNode::Include(include) => self.execute_include(include)?,
                 _ => unimplemented!(),
             } {
                 new_tokens.append(&mut tokens);
@@ -57,6 +59,81 @@ impl Executor {
         }
 
         Ok(new_tokens)
+    }
+
+    fn include_path(&mut self, span: &Span, path: &str) -> EResult<Vec<Token>> {
+        // Check if we have been given a valid file
+        if !self.session.is_file(&path) {
+            self.session
+                .struct_span_error(*span, format!("path provided `{}` is not a file", path))
+                .emit();
+
+            return Err(());
+        }
+
+        // Read it
+        let file_id = match self.session.read_file(&path) {
+            Ok(file_id) => file_id,
+            Err(e) => {
+                self.session
+                    .struct_bug(format!("unable to read file `{}`: {}", &path, e))
+                    .emit();
+
+                return Err(());
+            }
+        };
+
+        let file = self.session.get_file(file_id as usize).unwrap();
+
+        // Create the lexer
+        let lexer = Lexer::new(&file.source, file_id, &self.session);
+
+        // Lex the tokens, if they are all valid
+        let mut tokens = lexer.lex()?;
+
+        // Replace comments and line continuations
+        phase0(&mut tokens, &self.session)?;
+
+        let preprocessor_parser = Parser::new(tokens, &self.session);
+
+        let nodes = preprocessor_parser.parse()?;
+
+        let tokens = self.execute_nodes(nodes)?;
+
+        Ok(tokens)
+    }
+
+    fn execute_include(&mut self, include: Include) -> EMaybe {
+        let path = self.execute_nodes(include.path.expression)?;
+
+        if let Some(path_token) = path
+            .iter()
+            .find(|token| token.kind != TokenKind::Whitespace)
+        {
+            if path_token.kind == TokenKind::LiteralString {
+                let path_span = path_token.as_span();
+                let path_snippet = self.session.span_to_snippet(&path_span);
+
+                let path_str = path_snippet.as_slice().trim_matches('\"');
+
+                let included_tokens = self.include_path(&include.path.span, path_str)?;
+
+                Ok(Some(included_tokens))
+            } else {
+                self.session
+                    .struct_span_error(include.path.span, "expected path".to_string())
+                    .emit();
+
+                Err(())
+            }
+        } else {
+            self.session
+                .struct_span_error(include.path.span, ".include requires path".to_string())
+                .help("macros may have expanded to nothing".to_string())
+                .emit();
+
+            Err(())
+        }
     }
 
     fn execute_rep(&mut self, repeat: Repeat) -> EMaybe {
@@ -155,6 +232,8 @@ impl Executor {
 
         let condition = self.evaluate_if_condition(clause.condition)? ^ inverse;
 
+        println!("condition: {}", condition);
+
         Ok(if condition {
             let nodes = clause.contents;
 
@@ -188,8 +267,6 @@ impl Executor {
             }
         };
 
-        println!("Parsed expression: {:?}", root_node);
-
         let evaluation = match ExpressionEvaluator::evaluate(&root_node) {
             Ok(evaluation) => evaluation,
             Err(e) => {
@@ -205,8 +282,6 @@ impl Executor {
                 return Err(());
             }
         };
-
-        println!("Result: {:?}", evaluation);
 
         Ok(evaluation)
     }

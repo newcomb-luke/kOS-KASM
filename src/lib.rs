@@ -51,9 +51,9 @@ pub fn assemble_path(path: String, config: Config) -> Result<KOFile, ()> {
     // Read it
     match session.read_file(&path) {
         Ok(_) => {}
-        Err(_) => {
+        Err(e) => {
             session
-                .struct_bug(format!("unable to read file `{}`", &path))
+                .struct_bug(format!("unable to read file `{}`: {}", &path, e))
                 .emit();
 
             return Err(());
@@ -77,33 +77,27 @@ pub fn assemble_string(source: String, config: Config) -> Result<KOFile, ()> {
 
 // The core of the assembler. The actual function that runs everything else
 // This should be called with a session that already has the primary source file read
-fn assemble(session: Session) -> Result<KOFile, ()> {
+fn assemble(mut session: Session) -> Result<KOFile, ()> {
     let primary_file = session.get_file(0).unwrap();
 
     // Create the lexer
-    let lexer = Lexer::new(&primary_file.source, session);
+    let lexer = Lexer::new(&primary_file.source, 0, &session);
 
     // Lex the tokens, if they are all valid
-    let (mut tokens, mut session) = lexer.lex()?;
+    let mut tokens = lexer.lex()?;
 
     // Replace comments and line continuations
-    phase0(&mut tokens, &mut session)?;
+    phase0(&mut tokens, &session)?;
 
     // If we should run the preprocessor
     if session.config().run_preprocessor {
-        let preprocessor_parser = Parser::new(tokens, session);
+        let preprocessor_parser = Parser::new(tokens, &session);
 
-        let temp = preprocessor_parser.parse()?;
-        let nodes = temp.0;
-        session = temp.1;
+        let nodes = preprocessor_parser.parse()?;
 
-        println!("{:#?}", nodes);
+        let executor = Executor::new(&mut session);
 
-        let executor = Executor::new(session);
-
-        let temp = executor.execute(nodes)?;
-        tokens = temp.0;
-        session = temp.1;
+        let tokens = executor.execute(nodes)?;
     }
 
     todo!();

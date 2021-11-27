@@ -24,15 +24,15 @@ use super::past::{
 };
 
 /// The parser for the preprocessor, which turns tokenized source code into preprocessable PASTNodes
-pub struct Parser {
+pub struct Parser<'a> {
     tokens: Vec<Token>,
     token_cursor: usize,
-    session: Session,
+    session: &'a Session,
     last_token: Option<Token>,
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>, session: Session) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(tokens: Vec<Token>, session: &'a Session) -> Self {
         let first_token = tokens.get(0).copied();
 
         Self {
@@ -43,7 +43,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(mut self) -> PResult<(Vec<PASTNode>, Session)> {
+    pub fn parse(mut self) -> PResult<Vec<PASTNode>> {
         let mut nodes = Vec::new();
 
         while let Some(&next) = self.peek_next() {
@@ -62,7 +62,7 @@ impl Parser {
             }
         }
 
-        Ok((nodes, self.session))
+        Ok(nodes)
     }
 
     // This usually parses a line, but in the case of any multi-line construct, this parses more
@@ -384,14 +384,6 @@ impl Parser {
 
                 contents.push(node);
             }
-        }
-
-        if end_kind == TokenKind::Error {
-            self.session
-                .struct_bug("if clause didn't end properly in parser".to_string())
-                .emit();
-
-            return Err(());
         }
 
         // If we have ended by running out of tokens, but the last token isn't an endif
