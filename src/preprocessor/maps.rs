@@ -40,6 +40,53 @@ impl SLMacroMap {
         self.map.get(&(hash, args))
     }
 
+    /// Returns a string explaining the combinations of different numbers of arguments
+    /// that a given macro can receive
+    pub fn get_accepted_num_args(&self, hash: u64) -> Option<String> {
+        let overloaded_macros = self
+            .map
+            .values()
+            .filter(|entry| entry.identifier.hash == hash);
+
+        let mut arg_nums = Vec::new();
+
+        for sl_macro in overloaded_macros {
+            let num_args = sl_macro
+                .args
+                .as_ref()
+                .map(|args| args.args.len() as u8)
+                .unwrap_or(0);
+
+            arg_nums.push(num_args);
+        }
+
+        if arg_nums.is_empty() {
+            None
+        } else {
+            arg_nums.sort();
+
+            Some(if arg_nums.len() == 1 {
+                format!("{}", arg_nums.first().unwrap())
+            } else if arg_nums.len() == 2 {
+                format!(
+                    "{} or {}",
+                    arg_nums.first().unwrap(),
+                    arg_nums.last().unwrap()
+                )
+            } else {
+                let mut s = String::new();
+
+                for num in arg_nums.iter().take(arg_nums.len() - 1) {
+                    s.push_str(&format!("{}, ", num));
+                }
+
+                s.push_str(&format!("or {}", arg_nums.last().unwrap()));
+
+                s
+            })
+        }
+    }
+
     /// Returns true if a single-line macro with the identifier hash and number of arguments is
     /// defined in the map
     pub fn contains(&self, hash: u64, num_args: u8) -> bool {
@@ -121,6 +168,30 @@ impl MLMacroMap {
         self.macros.iter().find(|entry| entry.0 == hash).is_some()
     }
 
+    /// Gets a corresponding macro definition to a macro invokation, if it does match any in the
+    /// map
+    pub fn get(&self, invokation: &MacroInvok) -> Option<&MLMacroDef> {
+        let hash = invokation.identifier.hash;
+
+        let args = match &invokation.args {
+            Some(args) => {
+                let num = args.args.len() as u8;
+                (num, num)
+            }
+            None => (0, 0),
+        };
+
+        for (macro_hash, ml_macro) in self.macros.iter() {
+            let macro_range = Self::get_arg_range(&ml_macro.args);
+
+            if hash == *macro_hash && Self::overlaps(args, macro_range) {
+                return Some(ml_macro);
+            }
+        }
+
+        return None;
+    }
+
     // Returns a "range" with the None case being replaced with (0, 0), and the case where there is
     // no range and in fact only the required number (x) specified as (x, x)
     fn get_arg_range(ml_macro_args: &Option<MLMacroArgs>) -> (u8, u8) {
@@ -133,7 +204,7 @@ impl MLMacroMap {
         }
     }
 
-    // Returns the index of the macro with overlapping macro arguments, or None of none is found
+    // Returns the index of the macro with overlapping macro arguments, or None if none is found
     fn find(&self, hash: u64, ml_args: &Option<MLMacroArgs>) -> Option<usize> {
         let range = Self::get_arg_range(&ml_args);
         let mut replace_index = None;

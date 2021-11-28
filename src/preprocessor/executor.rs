@@ -1,9 +1,15 @@
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
+
 use crate::{
     errors::Span,
     lexer::{phase0, Lexer, Token, TokenKind},
     preprocessor::{
         evaluator::{EvalError, ExpressionEvaluator, ToBool},
         expressions::{ExpressionParser, Value},
+        past::{BenignTokens, Ident},
     },
     session::Session,
 };
@@ -12,8 +18,8 @@ use super::{
     maps::{MLMacroMap, SLMacroMap},
     parser::Parser,
     past::{
-        IfClause, IfCondition, IfStatement, Include, MLMacroDef, MLMacroUndef, PASTNode, Repeat,
-        SLMacroDef, SLMacroUndef,
+        IfClause, IfCondition, IfStatement, Include, MLMacroDef, MLMacroUndef, MacroInvok,
+        PASTNode, Repeat, SLMacroDef, SLMacroUndef,
     },
 };
 
@@ -61,13 +67,175 @@ impl<'a> Executor<'a> {
                 PASTNode::MLMacroUndef(ml_macro_undef) => {
                     self.execute_ml_macro_undef(ml_macro_undef)?
                 }
-                _ => unimplemented!(),
+                PASTNode::MacroInvok(macro_invok) => self.execute_macro_invokation(macro_invok)?,
             } {
                 new_tokens.append(&mut tokens);
             }
         }
 
         Ok(new_tokens)
+    }
+
+    fn expand_sl_macro(
+        &self,
+        sl_macro: &SLMacroDef,
+        arg_replacements: Vec<Vec<Token>>,
+    ) -> EResult<Option<Vec<PASTNode>>> {
+        if let Some(contents) = &sl_macro.contents {
+            let new_contents = if let Some(macro_def_args) = &sl_macro.args {
+                let arg_idents: &[Ident] = &macro_def_args.args;
+
+                println!("possible identifiers: {:?}", arg_idents);
+
+                let mut cleaner_contents = Vec::new();
+
+                for node in &contents.contents {
+                    if let PASTNode::BenignTokens(benign_tokens) = node {
+                        let mut new_benign_tokens = Vec::new();
+
+                        for token in &benign_tokens.tokens {
+                            if token.kind == TokenKind::Identifier {
+                                let ident_snippet = self.session.span_to_snippet(&token.as_span());
+                                let ident_str = ident_snippet.as_slice();
+
+                                let mut hasher = DefaultHasher::new();
+                                hasher.write(ident_str.as_bytes());
+                                let ident_hash = hasher.finish();
+
+                                println!("Candidate: {}:{}", ident_str, ident_hash);
+
+                                if let Some(pos) =
+                                    arg_idents.iter().position(|ident| ident.hash == ident_hash)
+                                {
+                                    let replacement = arg_replacements.get(pos).unwrap();
+
+                                    for replacement_token in replacement {
+                                        new_benign_tokens.push(*replacement_token);
+                                    }
+                                } else {
+                                    new_benign_tokens.push(*token);
+                                }
+                            } else {
+                                new_benign_tokens.push(*token);
+                            }
+                        }
+
+                        cleaner_contents.push(PASTNode::BenignTokens(BenignTokens::from_vec(
+                            new_benign_tokens,
+                        )));
+                    } else {
+                        cleaner_contents.push(node.clone());
+                    }
+                }
+
+                cleaner_contents
+            } else {
+                contents.contents.clone()
+            };
+
+            Ok(Some(new_contents))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn execute_macro_invokation(&mut self, macro_invok: MacroInvok) -> EMaybe {
+        let invok_args = if let Some(args) = &macro_invok.args {
+            args.args.clone()
+        } else {
+            Vec::new()
+        };
+
+        let num_args_provided = invok_args.len();
+
+        // Now we can expand any macros that are in any of the arguments
+        let mut arg_replacements = Vec::with_capacity(num_args_provided);
+
+        for node in invok_args {
+            let tokens = self.execute_nodes(node.contents)?;
+
+            arg_replacements.push(tokens);
+        }
+
+        if let Some(sl_macro) = self.sl_macros.get(&macro_invok) {
+            let new_contents = self.expand_sl_macro(sl_macro, arg_replacements)?;
+
+            if let Some(new_contents) = new_contents {
+                // self.execute_nodes(new_contents).map(|tokens| Some(tokens))
+                let done = self.execute_nodes(new_contents)?;
+
+                for token in done {
+                    println!("{:?}", token);
+                }
+
+                todo!();
+            } else {
+                Ok(None)
+            }
+        } else {
+            if let Some(ml_macro) = self.ml_macros.get(&macro_invok) {
+                todo!();
+            } else {
+                let macro_name_snippet = self.session.span_to_snippet(&macro_invok.identifier.span);
+
+                let macro_name = macro_name_snippet.as_slice();
+
+                // If there were arguments provided (we know this was an attempt at invoking a
+                // macro)
+                if num_args_provided != 0 {
+                    let mut db = self.session.struct_span_error(
+                        macro_invok.identifier.span,
+                        format!(
+                            "use of undeclared macro `{}` with {} argument{}",
+                            macro_name,
+                            num_args_provided,
+                            if num_args_provided == 1 { "" } else { "s" }
+                        ),
+                    );
+
+                    // Note for if it exists as a single-line macro
+                    if let Some(accepted_num_args) = self
+                        .sl_macros
+                        .get_accepted_num_args(macro_invok.identifier.hash)
+                    {
+                        db.note(format!(
+                            "macro `{}` takes {} argument(s)",
+                            macro_name, accepted_num_args
+                        ));
+                    }
+
+                    db.emit();
+
+                    Err(())
+                } else {
+                    // If it exists as a single-line macro
+                    if let Some(accepted_num_args) = self
+                        .sl_macros
+                        .get_accepted_num_args(macro_invok.identifier.hash)
+                    {
+                        self.session
+                            .struct_span_error(
+                                macro_invok.identifier.span,
+                                format!(
+                                    "macro `{}` exists, takes {} argument(s)",
+                                    macro_name, accepted_num_args
+                                ),
+                            )
+                            .emit();
+                    } else {
+                        // We will give a slightly more vague error message
+                        self.session
+                            .struct_span_error(
+                                macro_invok.identifier.span,
+                                "unknown macro or instruction".to_string(),
+                            )
+                            .emit();
+                    }
+
+                    Err(())
+                }
+            }
+        }
     }
 
     fn execute_ml_macro_undef(&mut self, ml_macro_undef: MLMacroUndef) -> EMaybe {
