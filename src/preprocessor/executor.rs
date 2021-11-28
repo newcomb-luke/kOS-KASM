@@ -1,4 +1,4 @@
-use std::{collections::hash_map::DefaultHasher, hash::Hasher};
+use std::{collections::hash_map::DefaultHasher, hash::Hasher, path::PathBuf};
 
 use crate::{
     errors::Span,
@@ -360,21 +360,34 @@ impl<'a> Executor<'a> {
     }
 
     fn include_path(&mut self, span: &Span, path: &str) -> EResult<Vec<Token>> {
+        let mut path_buf = PathBuf::from(path);
+
+        if let Some(include_path) = &self.session.config().include_path {
+            let include_path_buf = PathBuf::from(include_path);
+            path_buf = include_path_buf.join(path_buf);
+        }
+
+        let path_buf_str = path_buf.as_os_str().to_str().unwrap();
+
         // Check if we have been given a valid file
-        if !self.session.is_file(path) {
+        if !path_buf.is_file() {
             self.session
-                .struct_span_error(*span, format!("path provided `{}` is not a file", path))
+                .struct_span_error(
+                    *span,
+                    format!("path provided `{}` is not a file", path_buf_str),
+                )
+                .help("maybe check your include paths".to_string())
                 .emit();
 
             return Err(());
         }
 
         // Read it
-        let file_id = match self.session.read_file(path) {
+        let file_id = match self.session.read_file(path_buf_str) {
             Ok(file_id) => file_id,
             Err(e) => {
                 self.session
-                    .struct_bug(format!("unable to read file `{}`: {}", path, e))
+                    .struct_bug(format!("unable to read file `{}`: {}", path_buf_str, e))
                     .emit();
 
                 return Err(());

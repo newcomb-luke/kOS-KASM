@@ -34,7 +34,6 @@ fn main() {
                 .help("Specifies the include path for the assembler. Defaults to the current working directory.")
                 .short("i")
                 .long("include-path")
-                .require_equals(true)
                 .takes_value(true)
         )
         .arg(
@@ -80,6 +79,8 @@ fn main() {
         }
     };
 
+    let include_path = matches.value_of("include_path").map(|s| s.to_string());
+
     // Do conversion for the arguments
     let emit_warnings = !matches.is_present("disable_warnings");
 
@@ -97,6 +98,7 @@ fn main() {
         root_dir,
         run_preprocessor,
         output_preprocessed,
+        include_path,
     };
 
     if let Ok(output) = assemble_path(path, config) {

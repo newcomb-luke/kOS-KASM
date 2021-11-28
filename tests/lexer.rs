@@ -15,6 +15,7 @@ fn lex_from_text(source: &str) -> Vec<Token> {
         root_dir: PathBuf::new(),
         run_preprocessor: false,
         output_preprocessed: false,
+        include_path: None,
     };
 
     let mut session = Session::new(config);
