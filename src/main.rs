@@ -1,6 +1,6 @@
 use clap::{App, Arg};
-use kasm::Config;
-use std::process;
+use kasm::{AssemblyOutput, Config};
+use std::{io::Write, path::PathBuf, process};
 
 use kasm::assemble_path;
 
@@ -22,8 +22,9 @@ fn main() {
                 .long("no-warn"),
         )
         .arg(
-            Arg::with_name("output_path")
+            Arg::with_name("OUTPUT")
                 .help("Sets the output file to use")
+                .required(true)
                 .short("o")
                 .long("output")
                 .takes_value(true),
@@ -67,11 +68,24 @@ fn main() {
 
     // This is a required argument, so it won't panic
     let path = matches.value_of("INPUT").unwrap().to_string();
+    let output_path = matches.value_of("OUTPUT").unwrap().to_string();
+    let output_pathbuf = PathBuf::from(&output_path);
+
+    let mut output_file = match std::fs::File::create(output_pathbuf) {
+        Ok(file) => file,
+        Err(e) => {
+            eprintln!("Error creating `{}`: {}", output_path, e);
+
+            process::exit(2);
+        }
+    };
 
     // Do conversion for the arguments
     let emit_warnings = !matches.is_present("disable_warnings");
 
     let run_preprocessor = !matches.is_present("no_preprocess");
+
+    let output_preprocessed = matches.is_present("preprocess_only");
 
     // Get the directory this was run from
     let root_dir =
@@ -82,9 +96,21 @@ fn main() {
         emit_warnings,
         root_dir,
         run_preprocessor,
+        output_preprocessed,
     };
 
-    if assemble_path(path, config).is_err() {
+    if let Ok(output) = assemble_path(path, config) {
+        match output {
+            AssemblyOutput::Object(_object) => todo!(),
+            AssemblyOutput::Source(source) => {
+                if let Err(e) = output_file.write_all(source.as_bytes()) {
+                    eprintln!("Error writing to `{}`: {}", output_path, e);
+
+                    process::exit(3);
+                }
+            }
+        }
+    } else {
         process::exit(1);
     }
 }

@@ -14,7 +14,7 @@ pub mod preprocessor;
 use session::Session;
 
 use crate::{
-    lexer::{phase0, Lexer},
+    lexer::{phase0, Lexer, TokenKind},
     preprocessor::{executor::Executor, parser::Parser},
 };
 
@@ -33,10 +33,21 @@ pub struct Config {
     /// If the preprocessor should be run or not. The benefit of not running it is that the
     /// assembly process will be faster without it
     pub run_preprocessor: bool,
+    /// If assembly should take place, or if the output file should be preprocessed source code.
+    /// This can be useful for debugging or just generating code
+    pub output_preprocessed: bool,
+}
+
+/// Represents the two possible types of output that KASM supports
+pub enum AssemblyOutput {
+    /// An assembled object file
+    Object(KOFile),
+    /// Preprocessed source code
+    Source(String),
 }
 
 /// Assemble a file given by a provided path
-pub fn assemble_path(path: String, config: Config) -> Result<KOFile, ()> {
+pub fn assemble_path(path: String, config: Config) -> Result<AssemblyOutput, ()> {
     let mut session = Session::new(config);
 
     // Check if we have been given a valid file
@@ -64,7 +75,7 @@ pub fn assemble_path(path: String, config: Config) -> Result<KOFile, ()> {
 }
 
 /// Assemble a file given by a string
-pub fn assemble_string(source: String, config: Config) -> Result<KOFile, ()> {
+pub fn assemble_string(source: String, config: Config) -> Result<AssemblyOutput, ()> {
     let mut session = Session::new(config);
 
     // Create a SourceFile but with some dummy values
@@ -77,7 +88,7 @@ pub fn assemble_string(source: String, config: Config) -> Result<KOFile, ()> {
 
 // The core of the assembler. The actual function that runs everything else
 // This should be called with a session that already has the primary source file read
-fn assemble(mut session: Session) -> Result<KOFile, ()> {
+fn assemble(mut session: Session) -> Result<AssemblyOutput, ()> {
     let primary_file = session.get_file(0).unwrap();
 
     // Create the lexer
@@ -97,9 +108,94 @@ fn assemble(mut session: Session) -> Result<KOFile, ()> {
 
         let executor = Executor::new(&mut session);
 
-        let tokens = executor.execute(nodes)?;
+        tokens = executor.execute(nodes)?;
+    }
 
-        println!("{:#?}", tokens);
+    // If we should output the preprocessed tokens instead of assembling
+    if session.config().output_preprocessed {
+        let mut output = String::new();
+
+        for token in tokens {
+            let str_rep = match token.kind {
+                TokenKind::Newline => "\n",
+                TokenKind::OperatorMinus => "-",
+                TokenKind::OperatorPlus => "+",
+                TokenKind::OperatorCompliment => "~",
+                TokenKind::OperatorMultiply => "*",
+                TokenKind::OperatorDivide => "/",
+                TokenKind::OperatorMod => "%",
+                TokenKind::OperatorAnd => "&&",
+                TokenKind::OperatorOr => "||",
+                TokenKind::OperatorEquals => "==",
+                TokenKind::OperatorNotEquals => "!=",
+                TokenKind::OperatorNegate => "!",
+                TokenKind::OperatorGreaterThan => ">",
+                TokenKind::OperatorLessThan => "<",
+                TokenKind::OperatorGreaterEquals => ">=",
+                TokenKind::OperatorLessEquals => "<=",
+                TokenKind::SymbolLeftParen => "(",
+                TokenKind::SymbolRightParen => ")",
+                TokenKind::SymbolComma => ",",
+                TokenKind::SymbolHash => "#",
+                TokenKind::SymbolAt => "@",
+                TokenKind::SymbolAnd => "&",
+                TokenKind::LiteralTrue => "true",
+                TokenKind::LiteralFalse => "false",
+                TokenKind::Backslash => "\\",
+                TokenKind::KeywordSection => ".section",
+                TokenKind::KeywordText => ".text",
+                TokenKind::KeywordData => ".data",
+                TokenKind::DirectiveDefine => ".define",
+                TokenKind::DirectiveMacro => ".macro",
+                TokenKind::DirectiveEndmacro => ".endmacro",
+                TokenKind::DirectiveRepeat => ".rep",
+                TokenKind::DirectiveEndRepeat => ".endrep",
+                TokenKind::DirectiveInclude => ".include",
+                TokenKind::DirectiveExtern => ".extern",
+                TokenKind::DirectiveGlobal => ".global",
+                TokenKind::DirectiveLocal => ".local",
+                TokenKind::DirectiveLine => ".line",
+                TokenKind::DirectiveType => ".type",
+                TokenKind::DirectiveValue => ".value",
+                TokenKind::DirectiveUndef => ".undef",
+                TokenKind::DirectiveUnmacro => ".unmacro",
+                TokenKind::DirectiveFunc => ".func",
+                TokenKind::DirectiveIf => ".if",
+                TokenKind::DirectiveIfNot => ".ifn",
+                TokenKind::DirectiveIfDef => ".ifdef",
+                TokenKind::DirectiveIfNotDef => ".ifndef",
+                TokenKind::DirectiveElseIf => ".elif",
+                TokenKind::DirectiveElseIfNot => ".elifn",
+                TokenKind::DirectiveElseIfDef => ".elifdef",
+                TokenKind::DirectiveElseIfNotDef => ".elifndef",
+                TokenKind::DirectiveElse => ".else",
+                TokenKind::DirectiveEndIf => ".endif",
+                TokenKind::InnerLabelReference
+                | TokenKind::InnerLabel
+                | TokenKind::Identifier
+                | TokenKind::Label
+                | TokenKind::Whitespace
+                | TokenKind::LiteralInteger
+                | TokenKind::LiteralFloat
+                | TokenKind::LiteralHex
+                | TokenKind::LiteralBinary
+                | TokenKind::LiteralString
+                | TokenKind::Comment
+                | TokenKind::Error
+                | TokenKind::JunkFloatError => "",
+            };
+
+            if !str_rep.is_empty() {
+                output.push_str(str_rep);
+            } else {
+                let snippet = session.span_to_snippet(&token.as_span());
+                let token_str = snippet.as_slice();
+
+                output.push_str(token_str);
+            }
+        }
+
+        return Ok(AssemblyOutput::Source(output));
     }
 
     todo!();
