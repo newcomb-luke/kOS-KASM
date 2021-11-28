@@ -871,7 +871,7 @@ impl<'a> Parser<'a> {
         self.skip_whitespace();
 
         // We now require the actual include path
-        if let Some((path_span, expression)) = self.parse_non_preprocessor()? {
+        if let Some((path_span, expression)) = self.parse_non_preprocessor(&[])? {
             span.end = path_span.end;
 
             // We got one
@@ -1032,7 +1032,7 @@ impl<'a> Parser<'a> {
 
     // Parses a repeat directive number of repetitions, which can be an expression
     fn parse_repeat_number(&mut self, directive_span: Span) -> PResult<RepeatNumber> {
-        let expression = self.parse_non_preprocessor()?;
+        let expression = self.parse_non_preprocessor(&[])?;
 
         if let Some((span, expression)) = expression {
             Ok(RepeatNumber::new(span, expression))
@@ -1351,8 +1351,13 @@ impl<'a> Parser<'a> {
         // Now we parse the optional arguments
         let args = self.parse_sl_macro_def_args()?;
 
+        let not_macros: &[Ident] = match &args {
+            Some(def_args) => &def_args.args,
+            None => &[],
+        };
+
         // Then the optional contents
-        let contents = self.parse_sl_macro_def_contents()?;
+        let contents = self.parse_sl_macro_def_contents(not_macros)?;
 
         // Adjust this SLMacroDef's span
         if let Some(contents) = &contents {
@@ -1448,8 +1453,11 @@ impl<'a> Parser<'a> {
         }
     }
     // Parse a single line macro definition contents
-    fn parse_sl_macro_def_contents(&mut self) -> PResult<Option<SLMacroDefContents>> {
-        if let Some((span, contents)) = self.parse_non_preprocessor()? {
+    fn parse_sl_macro_def_contents(
+        &mut self,
+        not_macros: &[Ident],
+    ) -> PResult<Option<SLMacroDefContents>> {
+        if let Some((span, contents)) = self.parse_non_preprocessor(not_macros)? {
             Ok(Some(SLMacroDefContents::new(span, contents)))
         } else {
             Ok(None)
@@ -1459,7 +1467,10 @@ impl<'a> Parser<'a> {
     // Parse a sequence of tokens ended by a newline or EOF that are "benign tokens" or macro
     // expansions. This just means that preprocessor directives are not allowed. Macro invokations, expressions, etc, are
     // all allowed.
-    fn parse_non_preprocessor(&mut self) -> PResult<Option<(Span, Vec<PASTNode>)>> {
+    fn parse_non_preprocessor(
+        &mut self,
+        not_macros: &[Ident],
+    ) -> PResult<Option<(Span, Vec<PASTNode>)>> {
         // Skip any whitespace
         self.skip_whitespace();
 
@@ -1511,8 +1522,7 @@ impl<'a> Parser<'a> {
                         self.session
                             .struct_span_error(
                                 next.as_span(),
-                                "preprocessor directives not allowed in single line macros"
-                                    .to_string(),
+                                "preprocessor directives not allowed here".to_string(),
                             )
                             .emit();
 
@@ -1531,21 +1541,40 @@ impl<'a> Parser<'a> {
 
                             span.end = next.as_span().end;
                         } else {
-                            // If it isn't, it is going to be parsed as a macro invokation
-                            let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
+                            let mut hasher = DefaultHasher::new();
+                            hasher.write(ident_str.as_bytes());
+                            let ident_hash = hasher.finish();
 
-                            // If we have captured any tokens before this
-                            if !benign_tokens.is_empty() {
-                                let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
-                                nodes.push(PASTNode::BenignTokens(benign_tokens_node));
+                            // Now check if it is actually the identifier representing an argument
+                            // of this macro
+                            if not_macros
+                                .iter()
+                                .find(|ident| ident.hash == ident_hash)
+                                .is_some()
+                            {
+                                // Just add it to the benign tokens
+                                benign_tokens.push(next);
 
-                                benign_tokens = Vec::new();
+                                // Just in case this is the last one
+                                span.end = next.as_span().end;
+                            } else {
+                                // If it isn't, it is going to be parsed as a macro invokation
+                                let macro_invok =
+                                    self.parse_macro_invok(next.as_span(), ident_str)?;
+
+                                // If we have captured any tokens before this
+                                if !benign_tokens.is_empty() {
+                                    let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
+                                    nodes.push(PASTNode::BenignTokens(benign_tokens_node));
+
+                                    benign_tokens = Vec::new();
+                                }
+
+                                // Update this just in case it is the last part of the contents
+                                span.end = macro_invok.span.end;
+
+                                nodes.push(PASTNode::MacroInvok(macro_invok));
                             }
-
-                            // Update this just in case it is the last part of the contents
-                            span.end = macro_invok.span.end;
-
-                            nodes.push(PASTNode::MacroInvok(macro_invok));
                         }
                     }
                     _ => {

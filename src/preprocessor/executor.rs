@@ -1,7 +1,4 @@
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-};
+use std::{collections::hash_map::DefaultHasher, hash::Hasher};
 
 use crate::{
     errors::Span,
@@ -85,8 +82,6 @@ impl<'a> Executor<'a> {
             let new_contents = if let Some(macro_def_args) = &sl_macro.args {
                 let arg_idents: &[Ident] = &macro_def_args.args;
 
-                println!("possible identifiers: {:?}", arg_idents);
-
                 let mut cleaner_contents = Vec::new();
 
                 for node in &contents.contents {
@@ -101,8 +96,6 @@ impl<'a> Executor<'a> {
                                 let mut hasher = DefaultHasher::new();
                                 hasher.write(ident_str.as_bytes());
                                 let ident_hash = hasher.finish();
-
-                                println!("Candidate: {}:{}", ident_str, ident_hash);
 
                                 if let Some(pos) =
                                     arg_idents.iter().position(|ident| ident.hash == ident_hash)
@@ -161,14 +154,7 @@ impl<'a> Executor<'a> {
             let new_contents = self.expand_sl_macro(sl_macro, arg_replacements)?;
 
             if let Some(new_contents) = new_contents {
-                // self.execute_nodes(new_contents).map(|tokens| Some(tokens))
-                let done = self.execute_nodes(new_contents)?;
-
-                for token in done {
-                    println!("{:?}", token);
-                }
-
-                todo!();
+                self.execute_nodes(new_contents).map(|tokens| Some(tokens))
             } else {
                 Ok(None)
             }
