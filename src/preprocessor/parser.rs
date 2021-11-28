@@ -738,6 +738,35 @@ impl<'a> Parser<'a> {
                             contents.push(PASTNode::MacroInvok(macro_invok));
                         }
                     }
+                    TokenKind::SymbolAnd => {
+                        benign_tokens.push(token);
+
+                        // We expect an integer literal after this
+                        if let Some(&hopefully_num) = self.consume_next() {
+                            // If there is anything at all
+                            if hopefully_num.kind != TokenKind::LiteralInteger {
+                                if hopefully_num.kind != TokenKind::Newline {
+                                    self.session
+                                        .struct_span_error(
+                                            hopefully_num.as_span(),
+                                            "expected argument number".to_string(),
+                                        )
+                                        .emit();
+                                } else {
+                                    self.session
+                                        .struct_span_error(
+                                            token.as_span(),
+                                            "expected argument number after `&`".to_string(),
+                                        )
+                                        .emit();
+                                }
+
+                                return Err(());
+                            } else {
+                                benign_tokens.push(hopefully_num);
+                            }
+                        }
+                    }
                     _ => {
                         // Just push this, it is allowed and not special
                         benign_tokens.push(token);

@@ -98,6 +98,8 @@ fn assemble(mut session: Session) -> Result<KOFile, ()> {
         let executor = Executor::new(&mut session);
 
         let tokens = executor.execute(nodes)?;
+
+        println!("{:#?}", tokens);
     }
 
     todo!();

@@ -12,15 +12,15 @@ use crate::lexer::Token;
 
 #[derive(Debug, Clone)]
 pub enum PASTNode {
-    BenignTokens(BenignTokens), //
-    SLMacroDef(SLMacroDef),     //
+    BenignTokens(BenignTokens),
+    SLMacroDef(SLMacroDef),
     MacroInvok(MacroInvok),
-    MLMacroDef(MLMacroDef),     //
-    SLMacroUndef(SLMacroUndef), //
-    MLMacroUndef(MLMacroUndef), //
-    Repeat(Repeat),             //
-    IfStatement(IfStatement),   //
-    Include(Include),           //
+    MLMacroDef(MLMacroDef),
+    SLMacroUndef(SLMacroUndef),
+    MLMacroUndef(MLMacroUndef),
+    Repeat(Repeat),
+    IfStatement(IfStatement),
+    Include(Include),
 }
 
 impl PASTNode {

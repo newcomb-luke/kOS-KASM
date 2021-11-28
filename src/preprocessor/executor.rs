@@ -6,6 +6,7 @@ use crate::{
     preprocessor::{
         evaluator::{EvalError, ExpressionEvaluator, ToBool},
         expressions::{ExpressionParser, Value},
+        parser::parse_integer_literal,
         past::{BenignTokens, Ident},
     },
     session::Session,
@@ -132,6 +133,129 @@ impl<'a> Executor<'a> {
         }
     }
 
+    fn expand_ml_macro(
+        &self,
+        ml_macro: &MLMacroDef,
+        mut arg_replacements: Vec<Vec<Token>>,
+        num_args_provided: usize,
+    ) -> EResult<Option<Vec<PASTNode>>> {
+        if let Some(ml_args) = &ml_macro.args {
+            // If there are defaults that we might fill in
+            let mut default_replacements = if let Some(arg_defaults) = &ml_macro.defaults {
+                let num_needed_defaults =
+                    ml_args.maximum.map(|val| val.get() as usize).unwrap_or(0) - num_args_provided;
+
+                let replacement_defaults = arg_defaults
+                    .values
+                    .iter()
+                    .rev()
+                    .take(num_needed_defaults)
+                    .rev();
+
+                let mut replacement_tokens = Vec::new();
+
+                for replacement_default in replacement_defaults {
+                    let mut tokens = Vec::new();
+
+                    for token in &replacement_default.tokens {
+                        tokens.push(*token);
+                    }
+
+                    replacement_tokens.push(tokens);
+                }
+
+                replacement_tokens
+            }
+            // If there aren't
+            else {
+                Vec::new()
+            };
+
+            // Append the defaults to the replacements
+            arg_replacements.append(&mut default_replacements);
+
+            println!("All args: {:#?}", arg_replacements);
+
+            let mut cleaner_contents = Vec::new();
+
+            for node in &ml_macro.contents {
+                if let PASTNode::BenignTokens(benign_tokens) = node {
+                    let mut new_benign_tokens = Vec::new();
+                    let mut was_arg_ref = false;
+
+                    for token in &benign_tokens.tokens {
+                        if token.kind == TokenKind::SymbolAnd {
+                            println!("yes");
+                            was_arg_ref = true;
+                        } else if was_arg_ref {
+                            was_arg_ref = false;
+
+                            if token.kind != TokenKind::LiteralInteger {
+                                println!("token kind: {:?}", token.kind);
+                                self.session.struct_bug("didn't properly check for multi-line macro argument references".to_string()).emit();
+                                return Err(());
+                            }
+
+                            let arg_ref_snippet = self.session.span_to_snippet(&token.as_span());
+                            let arg_ref_str = arg_ref_snippet.as_slice();
+                            let arg_ref = match parse_integer_literal(arg_ref_str) {
+                                Ok(num) => num,
+                                Err(_) => {
+                                    self.session
+                                        .struct_span_error(
+                                            token.as_span(),
+                                            "integer value out of bounds for signed 32 bit"
+                                                .to_string(),
+                                        )
+                                        .emit();
+                                    return Err(());
+                                }
+                            };
+
+                            if arg_ref == 0 {
+                                self.session
+                                    .struct_span_error(
+                                        token.as_span(),
+                                        "macro argument indexes start at 1".to_string(),
+                                    )
+                                    .emit();
+                                return Err(());
+                            }
+
+                            // We offset by 1 here, because macro arguments are 1-indexed
+                            if let Some(replacement) = arg_replacements.get((arg_ref as usize) - 1)
+                            {
+                                for token in replacement {
+                                    new_benign_tokens.push(*token);
+                                }
+                            } else {
+                                self.session
+                                    .struct_span_error(
+                                        token.as_span(),
+                                        "argument index out of bounds".to_string(),
+                                    )
+                                    .emit();
+                                return Err(());
+                            }
+                        } else {
+                            new_benign_tokens.push(*token);
+                        }
+                    }
+
+                    cleaner_contents.push(PASTNode::BenignTokens(BenignTokens::from_vec(
+                        new_benign_tokens,
+                    )));
+                } else {
+                    cleaner_contents.push(node.clone());
+                }
+            }
+
+            Ok(Some(cleaner_contents))
+        } else {
+            Ok(Some(ml_macro.contents.clone()))
+        }
+    }
+
     fn execute_macro_invokation(&mut self, macro_invok: MacroInvok) -> EMaybe {
         let invok_args = if let Some(args) = &macro_invok.args {
             args.args.clone()
@@ -159,7 +283,14 @@ impl<'a> Executor<'a> {
                 Ok(None)
             }
         } else if let Some(ml_macro) = self.ml_macros.get(&macro_invok) {
-            todo!();
+            let new_contents =
+                self.expand_ml_macro(ml_macro, arg_replacements, num_args_provided)?;
+
+            if let Some(new_contents) = new_contents {
+                self.execute_nodes(new_contents).map(Some)
+            } else {
+                Ok(None)
+            }
         } else {
             let macro_name_snippet = self.session.span_to_snippet(&macro_invok.identifier.span);
 
@@ -404,8 +535,6 @@ impl<'a> Executor<'a> {
         let inverse = clause.begin.inverse;
 
         let condition = self.evaluate_if_condition(clause.condition)? ^ inverse;
-
-        println!("condition: {}", condition);
 
         Ok(if condition {
             let nodes = clause.contents;
