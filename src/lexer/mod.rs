@@ -7,28 +7,30 @@ pub use token::*;
 
 use crate::session::Session;
 
-pub struct Lexer<'a> {
+pub struct Lexer<'a, 'b> {
     inner: logos::Lexer<'a, RawToken>,
     done: bool,
     current_index: usize,
-    session: Session,
+    session: &'b Session,
+    file_id: u8,
 }
 
-impl<'a> Lexer<'a> {
+impl<'a, 'b> Lexer<'a, 'b> {
     /// Creates a new lexer
-    pub fn new(source: &'a str, session: Session) -> Lexer {
+    pub fn new(source: &'a str, file_id: u8, session: &'b Session) -> Lexer<'a, 'b> {
         Lexer {
             inner: RawToken::lexer(source),
             done: false,
             current_index: 0,
             session,
+            file_id,
         }
     }
 
     /// This lexes the given input using the lexer. This returns a Result that contains a tuple of
     /// a token Vec and a Session that was provided when this lexer was created. This consumes the
     /// lexer
-    pub fn lex(mut self) -> Result<(Vec<Token>, Session), ()> {
+    pub fn lex(mut self) -> Result<Vec<Token>, ()> {
         let mut tokens = Vec::new();
         let mut fail = false;
 
@@ -58,7 +60,7 @@ impl<'a> Lexer<'a> {
         if fail {
             Err(())
         } else {
-            Ok((tokens, self.session))
+            Ok(tokens)
         }
     }
 
@@ -167,7 +169,7 @@ impl<'a> Lexer<'a> {
 
         Token {
             kind,
-            file_id: 0,
+            file_id: self.file_id,
             source_index,
             len: len as u16,
         }
@@ -175,7 +177,7 @@ impl<'a> Lexer<'a> {
 }
 
 /// Replace comments and line continuations with whitespace tokens
-pub fn phase0(tokens: &mut Vec<Token>, session: &mut Session) -> Result<(), ()> {
+pub fn phase0(tokens: &mut Vec<Token>, session: &Session) -> Result<(), ()> {
     let mut last_was_backslash = false;
     let mut fail = false;
 

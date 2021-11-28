@@ -1,33 +1,11 @@
 # kOS-KASM
 
-## The Kerbal Compiler Collection assembler for kOS
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/newcomb-luke/kOS-KASM/Rust%20CI?label=build)
+![GitHub](https://img.shields.io/github/license/newcomb-luke/kOS-KASM)
+![Crates.io](https://img.shields.io/crates/v/kasm?color=%235555cc)
 
-This is not meant to be used by anything yet in this condition!
+## The Kerbal Compiler Collection assembler for kOS
 
 ### Feature list:
 
-- [x] Parsing KASM
-    - [x] Lexer/Tokenizer
-    - [x] Preprocessor
-        - [x] Definitions
-            - [x] Parsing
-            - [x] Expansion
-        - [x] Macros
-            - [x] Parsing
-            - [x] Expansion
-        - [x] Rep
-        - [x] Include
-        - [x] Extern
-        - [x] Global
-        - [x] If*
-        - [x] Undef
-        - [x] Unmacro
-        - [x] Func
-        - [ ] Line
-    - [x] Parser
-        - [x] Expression parser
-        - [x] Expression evaluator
-        - [x] Instruction parser
-- [x] First pass
-- [x] Second pass
-    - [x] Generating KO files
+* Preprocessor!

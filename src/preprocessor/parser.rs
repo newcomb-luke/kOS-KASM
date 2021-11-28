@@ -24,15 +24,15 @@ use super::past::{
 };
 
 /// The parser for the preprocessor, which turns tokenized source code into preprocessable PASTNodes
-pub struct Parser {
+pub struct Parser<'a> {
     tokens: Vec<Token>,
     token_cursor: usize,
-    session: Session,
+    session: &'a Session,
     last_token: Option<Token>,
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>, session: Session) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(tokens: Vec<Token>, session: &'a Session) -> Self {
         let first_token = tokens.get(0).copied();
 
         Self {
@@ -43,7 +43,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> PResult<Vec<PASTNode>> {
+    pub fn parse(mut self) -> PResult<Vec<PASTNode>> {
         let mut nodes = Vec::new();
 
         while let Some(&next) = self.peek_next() {
@@ -85,6 +85,7 @@ impl Parser {
             | TokenKind::DirectiveIfDef
             | TokenKind::DirectiveIfNotDef => self.parse_if_statement(next, true, true),
             TokenKind::DirectiveElseIf
+            | TokenKind::DirectiveElse
             | TokenKind::DirectiveElseIfDef
             | TokenKind::DirectiveElseIfNot
             | TokenKind::DirectiveElseIfNotDef
@@ -92,7 +93,7 @@ impl Parser {
                 self.session
                     .struct_span_error(
                         next.as_span(),
-                        "If directive with no previous .if".to_string(),
+                        "if directive with no previous .if".to_string(),
                     )
                     .emit();
 
@@ -101,11 +102,11 @@ impl Parser {
             TokenKind::Identifier => {
                 let snippet = self.session.span_to_snippet(&next.as_span());
                 let ident_str = snippet.as_slice();
+                self.consume_next();
 
                 // Tests if this is an instruction or not
                 if Opcode::from(ident_str) != Opcode::Bogus {
                     // If it is, we parse it as such
-                    self.consume_next();
                     self.parse_benign_tokens(next)
                 } else {
                     // If it isn't, it is going to be parsed as a macro invokation
@@ -116,7 +117,10 @@ impl Parser {
                     Ok(PASTNode::MacroInvok(macro_invok))
                 }
             }
-            _ => self.parse_benign_tokens(next),
+            _ => {
+                self.consume_next();
+                self.parse_benign_tokens(next)
+            }
         }
     }
 
@@ -141,20 +145,42 @@ impl Parser {
         }
 
         let mut clauses = Vec::new();
+        let mut else_encountered = false;
 
         let (first_clause, end_kind) = self.parse_if_clause(token, allow_preprocessor)?;
         clauses.push(first_clause);
 
         if end_kind != TokenKind::DirectiveEndIf {
+            if end_kind == TokenKind::DirectiveElse {
+                else_encountered = true;
+            }
+
+            token = *self.consume_next().unwrap();
+
             loop {
                 // Parse the clause
                 let (if_clause, end_kind) = self.parse_if_clause(token, allow_preprocessor)?;
+
+                if else_encountered && !matches!(if_clause.condition, IfCondition::Else) {
+                    self.session
+                        .struct_span_error(
+                            if_clause.begin.span,
+                            ".endif expected after .else clause".to_string(),
+                        )
+                        .emit();
+
+                    return Err(());
+                }
 
                 // Add it
                 clauses.push(if_clause);
 
                 // If it isn't the end, set the next token
                 if end_kind != TokenKind::DirectiveEndIf {
+                    if end_kind == TokenKind::DirectiveElse {
+                        else_encountered = true;
+                    }
+
                     token = *self.consume_next().unwrap();
                 } else {
                     break;
@@ -190,6 +216,7 @@ impl Parser {
                 | TokenKind::DirectiveIfDef
                 | TokenKind::DirectiveIfNot
                 | TokenKind::DirectiveIfNotDef
+                | TokenKind::DirectiveElse
                 | TokenKind::DirectiveElseIf
                 | TokenKind::DirectiveElseIfDef
                 | TokenKind::DirectiveElseIfNot
@@ -259,6 +286,7 @@ impl Parser {
                     | TokenKind::DirectiveIfDef
                     | TokenKind::DirectiveIfNotDef => self.parse_if_statement(next, true, true),
                     TokenKind::DirectiveEndIf
+                    | TokenKind::DirectiveElse
                     | TokenKind::DirectiveElseIf
                     | TokenKind::DirectiveElseIfDef
                     | TokenKind::DirectiveElseIfNot
@@ -269,14 +297,12 @@ impl Parser {
                     TokenKind::Identifier => {
                         let snippet = self.session.span_to_snippet(&next.as_span());
                         let ident_str = snippet.as_slice();
+                        self.consume_next();
 
                         // Tests if this is an instruction or not
                         if Opcode::from(ident_str) != Opcode::Bogus {
                             // If it is, we parse it as such
-                            self.consume_next();
-                            let benign_tokens = self.parse_benign_tokens(next)?;
-
-                            Ok(benign_tokens)
+                            self.parse_benign_tokens(next)
                         } else {
                             // If it isn't, it is going to be parsed as a macro invokation
                             let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
@@ -286,7 +312,10 @@ impl Parser {
                             Ok(PASTNode::MacroInvok(macro_invok))
                         }
                     }
-                    _ => self.parse_benign_tokens(next),
+                    _ => {
+                        self.consume_next();
+                        self.parse_benign_tokens(next)
+                    }
                 }?;
 
                 span.end = node.span_end();
@@ -318,6 +347,7 @@ impl Parser {
                     | TokenKind::DirectiveIfDef
                     | TokenKind::DirectiveIfNotDef => self.parse_if_statement(next, true, true),
                     TokenKind::DirectiveEndIf
+                    | TokenKind::DirectiveElse
                     | TokenKind::DirectiveElseIf
                     | TokenKind::DirectiveElseIfDef
                     | TokenKind::DirectiveElseIfNot
@@ -329,13 +359,12 @@ impl Parser {
                         let snippet = self.session.span_to_snippet(&next.as_span());
                         let ident_str = snippet.as_slice();
 
+                        self.consume_next();
+
                         // Tests if this is an instruction or not
                         if Opcode::from(ident_str) != Opcode::Bogus {
                             // If it is, we parse it as such
-                            self.consume_next();
-                            let benign_tokens = self.parse_benign_tokens(next)?;
-
-                            Ok(benign_tokens)
+                            self.parse_benign_tokens(next)
                         } else {
                             // If it isn't, it is going to be parsed as a macro invokation
                             let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
@@ -345,7 +374,10 @@ impl Parser {
                             Ok(PASTNode::MacroInvok(macro_invok))
                         }
                     }
-                    _ => self.parse_benign_tokens(next),
+                    _ => {
+                        self.consume_next();
+                        self.parse_benign_tokens(next)
+                    }
                 }?;
 
                 span.end = node.span_end();
@@ -379,6 +411,7 @@ impl Parser {
                 | TokenKind::DirectiveIfDef
                 | TokenKind::DirectiveElseIf
                 | TokenKind::DirectiveElseIfDef
+                | TokenKind::DirectiveElse
         );
 
         let span = if_token.as_span();
@@ -392,8 +425,28 @@ impl Parser {
             | TokenKind::DirectiveIfNotDef
             | TokenKind::DirectiveElseIfDef
             | TokenKind::DirectiveElseIfNotDef => IfCondition::Def(self.parse_if_def_condition()?),
+            TokenKind::DirectiveElse => {
+                self.parse_if_else_condition()?;
+                IfCondition::Else
+            }
             _ => IfCondition::Exp(self.parse_if_exp_condition(if_token)?),
         })
+    }
+
+    fn parse_if_else_condition(&mut self) -> PResult<()> {
+        self.skip_whitespace();
+
+        if let Some(&next) = self.consume_next() {
+            if next.kind != TokenKind::Newline {
+                self.session
+                    .struct_span_error(next.as_span(), "unexpected token".to_string())
+                    .emit();
+
+                return Err(());
+            }
+        }
+
+        Ok(())
     }
 
     fn parse_if_def_condition(&mut self) -> PResult<IfDefCondition> {
@@ -449,6 +502,7 @@ impl Parser {
                 | TokenKind::DirectiveIfDef
                 | TokenKind::DirectiveIfNot
                 | TokenKind::DirectiveIfNotDef
+                | TokenKind::DirectiveElse
                 | TokenKind::DirectiveElseIf
                 | TokenKind::DirectiveElseIfDef
                 | TokenKind::DirectiveElseIfNot
@@ -684,6 +738,35 @@ impl Parser {
                             contents.push(PASTNode::MacroInvok(macro_invok));
                         }
                     }
+                    TokenKind::SymbolAnd => {
+                        benign_tokens.push(token);
+
+                        // We expect an integer literal after this
+                        if let Some(&hopefully_num) = self.consume_next() {
+                            // If there is anything at all
+                            if hopefully_num.kind != TokenKind::LiteralInteger {
+                                if hopefully_num.kind != TokenKind::Newline {
+                                    self.session
+                                        .struct_span_error(
+                                            hopefully_num.as_span(),
+                                            "expected argument number".to_string(),
+                                        )
+                                        .emit();
+                                } else {
+                                    self.session
+                                        .struct_span_error(
+                                            token.as_span(),
+                                            "expected argument number after `&`".to_string(),
+                                        )
+                                        .emit();
+                                }
+
+                                return Err(());
+                            } else {
+                                benign_tokens.push(hopefully_num);
+                            }
+                        }
+                    }
                     _ => {
                         // Just push this, it is allowed and not special
                         benign_tokens.push(token);
@@ -723,8 +806,12 @@ impl Parser {
         let mut defaults = Vec::new();
 
         // Collect as many as we can
-        while let Some(default) = self.parse_ml_macro_default()? {
+        while let (Some(default), end) = self.parse_ml_macro_default()? {
             defaults.push(default);
+
+            if end {
+                break;
+            }
         }
 
         let defaults = MLMacroDefDefaults::from_vec(defaults);
@@ -755,18 +842,20 @@ impl Parser {
     //
     // Returns a tuple of an Option<BenignTokens> that represents if there was a default to parse
     //
-    fn parse_ml_macro_default(&mut self) -> PResult<Option<BenignTokens>> {
+    fn parse_ml_macro_default(&mut self) -> PResult<(Option<BenignTokens>, bool)> {
         // Skip whitespace
         self.skip_whitespace();
 
         let mut tokens = Vec::new();
         let mut comma_span = None;
+        let mut end = false;
 
         while let Some(&token) = self.consume_next() {
             if token.kind == TokenKind::SymbolComma {
                 comma_span = Some(token.as_span());
                 break;
             } else if token.kind == TokenKind::Newline {
+                end = true;
                 break;
             }
 
@@ -784,10 +873,10 @@ impl Parser {
 
                 Err(())
             } else {
-                Ok(None)
+                Ok((None, end))
             }
         } else {
-            Ok(Some(BenignTokens::from_vec(tokens)))
+            Ok((Some(BenignTokens::from_vec(tokens)), end))
         }
     }
 
@@ -809,7 +898,7 @@ impl Parser {
         self.skip_whitespace();
 
         // We now require the actual include path
-        if let Some((path_span, expression)) = self.parse_non_preprocessor()? {
+        if let Some((path_span, expression)) = self.parse_non_preprocessor(&[])? {
             span.end = path_span.end;
 
             // We got one
@@ -970,7 +1059,7 @@ impl Parser {
 
     // Parses a repeat directive number of repetitions, which can be an expression
     fn parse_repeat_number(&mut self, directive_span: Span) -> PResult<RepeatNumber> {
-        let expression = self.parse_non_preprocessor()?;
+        let expression = self.parse_non_preprocessor(&[])?;
 
         if let Some((span, expression)) = expression {
             Ok(RepeatNumber::new(span, expression))
@@ -1289,8 +1378,13 @@ impl Parser {
         // Now we parse the optional arguments
         let args = self.parse_sl_macro_def_args()?;
 
+        let not_macros: &[Ident] = match &args {
+            Some(def_args) => &def_args.args,
+            None => &[],
+        };
+
         // Then the optional contents
-        let contents = self.parse_sl_macro_def_contents()?;
+        let contents = self.parse_sl_macro_def_contents(not_macros)?;
 
         // Adjust this SLMacroDef's span
         if let Some(contents) = &contents {
@@ -1386,8 +1480,11 @@ impl Parser {
         }
     }
     // Parse a single line macro definition contents
-    fn parse_sl_macro_def_contents(&mut self) -> PResult<Option<SLMacroDefContents>> {
-        if let Some((span, contents)) = self.parse_non_preprocessor()? {
+    fn parse_sl_macro_def_contents(
+        &mut self,
+        not_macros: &[Ident],
+    ) -> PResult<Option<SLMacroDefContents>> {
+        if let Some((span, contents)) = self.parse_non_preprocessor(not_macros)? {
             Ok(Some(SLMacroDefContents::new(span, contents)))
         } else {
             Ok(None)
@@ -1397,7 +1494,10 @@ impl Parser {
     // Parse a sequence of tokens ended by a newline or EOF that are "benign tokens" or macro
     // expansions. This just means that preprocessor directives are not allowed. Macro invokations, expressions, etc, are
     // all allowed.
-    fn parse_non_preprocessor(&mut self) -> PResult<Option<(Span, Vec<PASTNode>)>> {
+    fn parse_non_preprocessor(
+        &mut self,
+        not_macros: &[Ident],
+    ) -> PResult<Option<(Span, Vec<PASTNode>)>> {
         // Skip any whitespace
         self.skip_whitespace();
 
@@ -1449,8 +1549,7 @@ impl Parser {
                         self.session
                             .struct_span_error(
                                 next.as_span(),
-                                "preprocessor directives not allowed in single line macros"
-                                    .to_string(),
+                                "preprocessor directives not allowed here".to_string(),
                             )
                             .emit();
 
@@ -1469,21 +1568,36 @@ impl Parser {
 
                             span.end = next.as_span().end;
                         } else {
-                            // If it isn't, it is going to be parsed as a macro invokation
-                            let macro_invok = self.parse_macro_invok(next.as_span(), ident_str)?;
+                            let mut hasher = DefaultHasher::new();
+                            hasher.write(ident_str.as_bytes());
+                            let ident_hash = hasher.finish();
 
-                            // If we have captured any tokens before this
-                            if !benign_tokens.is_empty() {
-                                let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
-                                nodes.push(PASTNode::BenignTokens(benign_tokens_node));
+                            // Now check if it is actually the identifier representing an argument
+                            // of this macro
+                            if not_macros.iter().any(|ident| ident.hash == ident_hash) {
+                                // Just add it to the benign tokens
+                                benign_tokens.push(next);
 
-                                benign_tokens = Vec::new();
+                                // Just in case this is the last one
+                                span.end = next.as_span().end;
+                            } else {
+                                // If it isn't, it is going to be parsed as a macro invokation
+                                let macro_invok =
+                                    self.parse_macro_invok(next.as_span(), ident_str)?;
+
+                                // If we have captured any tokens before this
+                                if !benign_tokens.is_empty() {
+                                    let benign_tokens_node = BenignTokens::from_vec(benign_tokens);
+                                    nodes.push(PASTNode::BenignTokens(benign_tokens_node));
+
+                                    benign_tokens = Vec::new();
+                                }
+
+                                // Update this just in case it is the last part of the contents
+                                span.end = macro_invok.span.end;
+
+                                nodes.push(PASTNode::MacroInvok(macro_invok));
                             }
-
-                            // Update this just in case it is the last part of the contents
-                            span.end = macro_invok.span.end;
-
-                            nodes.push(PASTNode::MacroInvok(macro_invok));
                         }
                     }
                     _ => {
@@ -1915,6 +2029,7 @@ pub fn parse_integer_literal(string: &str) -> Result<i32, ()> {
 
 /// Parses a hexadecimal literal from the given &str
 pub fn parse_hexadecimal_literal(string: &str) -> Result<i32, ()> {
+    let string = &string[2..];
     let mut no_separators = String::with_capacity(string.len());
 
     for c in string.chars() {
@@ -1925,11 +2040,12 @@ pub fn parse_hexadecimal_literal(string: &str) -> Result<i32, ()> {
         }
     }
 
-    Ok(no_separators.parse().unwrap())
+    Ok(i32::from_str_radix(&no_separators, 16).unwrap())
 }
 
 /// Parses a binary literal from the given &str
 pub fn parse_binary_literal(string: &str) -> Result<i32, ()> {
+    let string = &string[2..];
     let mut no_separators = String::with_capacity(string.len());
 
     for c in string.chars() {
@@ -1940,5 +2056,10 @@ pub fn parse_binary_literal(string: &str) -> Result<i32, ()> {
         }
     }
 
-    Ok(no_separators.parse().unwrap())
+    Ok(i32::from_str_radix(&no_separators, 2).unwrap())
+}
+
+/// Parses a float literal from the given &str
+pub fn parse_float_literal(string: &str) -> Result<f64, ()> {
+    Ok(string.parse().unwrap())
 }

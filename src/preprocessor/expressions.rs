@@ -1,137 +1,32 @@
+use std::{iter::Peekable, slice::Iter};
+
 use crate::{
-    errors::{AssemblyError, ErrorKind, ErrorManager, KASMResult, SourceFile},
-    lexer::{token::TokenKind, TokenIter},
+    errors::DiagnosticBuilder,
+    lexer::{Token, TokenKind},
+    session::Session,
 };
 
-#[derive(Debug, Clone, Copy)]
+use super::parser::{
+    parse_binary_literal, parse_float_literal, parse_hexadecimal_literal, parse_integer_literal,
+};
+
+pub type ExpResult<'a> = Result<Option<ExpNode>, DiagnosticBuilder<'a>>;
+pub type TokenIter<'a> = Peekable<Iter<'a, Token>>;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Value {
     Int(i32),
     Double(f64),
     Bool(bool),
 }
 
-impl From<Value> for bool {
-    fn from(value: Value) -> Self {
-        match value {
-            Value::Int(i) => i != 0,
-            Value::Double(d) => d != 0.0,
-            Value::Bool(b) => b,
-        }
-    }
-}
-
-impl From<Value> for f64 {
-    fn from(value: Value) -> Self {
-        match value {
-            Value::Int(i) => i as f64,
-            Value::Double(d) => d,
-            Value::Bool(b) => {
-                if b {
-                    1.0
-                } else {
-                    0.0
-                }
-            }
-        }
-    }
-}
-
-impl From<Value> for i32 {
-    fn from(value: Value) -> Self {
-        match value {
-            Value::Int(i) => i,
-            Value::Double(d) => d as i32,
-            Value::Bool(b) => {
-                if b {
-                    1
-                } else {
-                    0
-                }
-            }
-        }
-    }
-}
-
-impl PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        match *self {
-            // If this is an integer
-            Value::Int(left) => {
-                match *other {
-                    // If the other is an integer
-                    Value::Int(right) => {
-                        // Compare them directly
-                        left == right
-                    }
-                    // If the other is a double
-                    Value::Double(right) => {
-                        // Cast as an i32 then compare
-                        left == right as i32
-                    }
-                    // If the other is a boolean, always return false
-                    // The user must use a comparison operator to "turn" an integer into a boolean
-                    Value::Bool(_) => false,
-                }
-            }
-            Value::Double(left) => {
-                match *other {
-                    // If the other is an integer
-                    Value::Int(right) => {
-                        // Cast as an f64 then compare
-                        left == right as f64
-                    }
-                    // If the other is a double
-                    Value::Double(right) => {
-                        // Compare them directly
-                        left == right
-                    }
-                    // If the other is a boolean, always return false
-                    // The user must use a comparison operator to "turn" a double into a boolean
-                    Value::Bool(_) => false,
-                }
-            }
-            Value::Bool(left) => {
-                match *other {
-                    // If the other is an integer or a double, return false. See above on
-                    // Value::Bool
-                    Value::Int(_) | Value::Double(_) => false,
-                    Value::Bool(right) => {
-                        // Compare them directly
-                        left == right
-                    }
-                }
-            }
-        }
-    }
-}
-
-impl Eq for Value {}
-
-impl PartialOrd for Value {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match *self {
-            Value::Int(left) => match *other {
-                Value::Int(right) => left.partial_cmp(&right),
-                Value::Double(right) => left.partial_cmp(&(right as i32)),
-                Value::Bool(_) => None,
-            },
-            Value::Double(left) => match *other {
-                Value::Int(right) => left.partial_cmp(&(right as f64)),
-                Value::Double(right) => left.partial_cmp(&right),
-                Value::Bool(_) => None,
-            },
-            Value::Bool(left) => match *other {
-                Value::Int(_) | Value::Double(_) => None,
-                Value::Bool(right) => left.partial_cmp(&right),
-            },
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnOp {
+    /// Arithmetic negation. Turns positive numbers negative, and negative numbers positive
     Negate,
+    /// Flips all of the bits of the provided value
     Flip,
+    /// Logical negation. !true = false, and !false = true
     Not,
 }
 
@@ -152,367 +47,315 @@ pub enum BinOp {
     Lte,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ExpNode {
     BinOp(Box<ExpNode>, BinOp, Box<ExpNode>),
     UnOp(UnOp, Box<ExpNode>),
     Constant(Value),
 }
 
+// Generates binary operator parsing code, only suitable for extremely simple binary operators
+macro_rules! gen_binop {
+    ($tokens:ident, $session:ident, $func_name:ident, $token_kind:expr, $op_kind:expr) => {{
+        Self::skip_whitespace($tokens);
+        if let Some(mut lhs) = Self::$func_name($tokens, $session)? {
+            Self::skip_whitespace($tokens);
+            while let Some(&token) = $tokens.peek() {
+                // See if there is the correct operator
+                if token.kind == $token_kind {
+                    // If it is, consume it
+                    $tokens.next();
+
+                    if let Some(rhs) = Self::$func_name($tokens, $session)? {
+                        lhs = ExpNode::BinOp(Box::new(lhs), $op_kind, Box::new(rhs));
+                    } else {
+                        let db = $session
+                            .struct_span_error(token.as_span(), "trailing operator".to_string());
+                        return Err(db);
+                    }
+                }
+                // If there isn't, break the loop
+                else {
+                    break;
+                }
+            }
+
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
+        }
+    }};
+}
+
 pub struct ExpressionParser {}
 
 impl ExpressionParser {
-    /// Parses an expression in KASM source code
-    pub fn parse_expression(
-        token_iter: &mut TokenIter,
-        source_files: &Vec<SourceFile>,
-        errors: &mut ErrorManager,
-    ) -> KASMResult<ExpNode> {
-        ExpressionParser::parse_logical_or(token_iter, source_files, errors)
+    pub fn parse_expression<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        Self::parse_logical_or(tokens, session)
     }
 
-    fn parse_logical_or(
-        token_iter: &mut TokenIter,
-        source_files: &Vec<SourceFile>,
-        errors: &mut ErrorManager,
-    ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_logical_and(token_iter, source_files, errors)?;
-
-        while let Some(token) = token_iter.peek() {
-            // If it is an Or operator
-            if token.kind == TokenKind::OperatorOr {
-                // If it is, consume it
-                token_iter.next();
-
-                let rhs = ExpressionParser::parse_logical_and(token_iter, source_files, errors)?;
-
-                lhs = ExpNode::BinOp(lhs.into(), BinOp::Or, rhs.into());
-            }
-            // If it isn't, break this loop
-            else {
+    fn skip_whitespace(tokens: &mut TokenIter) {
+        while let Some(token) = tokens.peek() {
+            if token.kind != TokenKind::Whitespace {
                 break;
+            } else {
+                tokens.next();
             }
         }
-
-        Ok(lhs)
     }
 
-    fn parse_logical_and(
-        token_iter: &mut TokenIter,
-        source_files: &Vec<SourceFile>,
-        errors: &mut ErrorManager,
-    ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_equality_exp(token_iter, source_files, errors)?;
-
-        while let Some(token) = token_iter.peek() {
-            // If it is an And operator
-            if token.kind == TokenKind::OperatorAnd {
-                // If it is, consume it
-                token_iter.next();
-
-                let rhs = ExpressionParser::parse_equality_exp(token_iter, source_files, errors)?;
-
-                lhs = ExpNode::BinOp(lhs.into(), BinOp::And, rhs.into());
-            }
-            // If it isn't, break this loop
-            else {
-                break;
-            }
-        }
-
-        Ok(lhs)
+    // Parses a logical or expression, or if none exists, parses the next lowest precidence
+    fn parse_logical_or<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        gen_binop!(
+            tokens,
+            session,
+            parse_logical_and,
+            TokenKind::OperatorOr,
+            BinOp::Or
+        )
     }
 
-    fn parse_equality_exp(
-        token_iter: &mut TokenIter,
-        source_files: &Vec<SourceFile>,
-        errors: &mut ErrorManager,
-    ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_relational_exp(token_iter, source_files, errors)?;
-
-        while let Some(token) = token_iter.peek() {
-            // Check if it is an equality operator, == or !=
-            let operator = match token.kind {
-                TokenKind::OperatorEquals => BinOp::Eq,
-                TokenKind::OperatorNotEquals => BinOp::Ne,
-                _ => {
-                    break;
-                }
-            };
-
-            // Consume it
-            token_iter.next();
-
-            let rhs = ExpressionParser::parse_relational_exp(token_iter, source_files, errors)?;
-
-            lhs = ExpNode::BinOp(lhs.into(), operator, rhs.into());
-        }
-
-        Ok(lhs)
+    // Parses a logical and expression, or if none exists, parses the next lowest precidence
+    fn parse_logical_and<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        gen_binop!(
+            tokens,
+            session,
+            parse_equality_exp,
+            TokenKind::OperatorAnd,
+            BinOp::And
+        )
     }
 
-    fn parse_relational_exp(
-        token_iter: &mut TokenIter,
-        source_files: &Vec<SourceFile>,
-        errors: &mut ErrorManager,
-    ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_additive_exp(token_iter, source_files, errors)?;
-
-        while let Some(token) = token_iter.peek() {
-            // Check if it is a relational operator, >, <, >=, or <=
-            let operator = match token.kind {
-                TokenKind::OperatorGreaterThan => BinOp::Gt,
-                TokenKind::OperatorLessThan => BinOp::Lt,
-                TokenKind::OperatorGreaterEquals => BinOp::Gte,
-                TokenKind::OperatorLessEquals => BinOp::Lte,
-                // If it isn't one
-                _ => {
-                    break;
-                }
-            };
-
-            // Consume it
-            token_iter.next();
-
-            let rhs = ExpressionParser::parse_additive_exp(token_iter, source_files, errors)?;
-
-            lhs = ExpNode::BinOp(lhs.into(), operator, rhs.into());
-        }
-
-        Ok(lhs)
-    }
-
-    fn parse_additive_exp(
-        token_iter: &mut TokenIter,
-        source_files: &Vec<SourceFile>,
-        errors: &mut ErrorManager,
-    ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_term(token_iter, source_files, errors)?;
-
-        while let Some(token) = token_iter.peek() {
-            // Check if it is an additive operator: +/-
-            let operator = match token.kind {
-                TokenKind::OperatorPlus => BinOp::Add,
-                TokenKind::OperatorMinus => BinOp::Sub,
-                // If it isn't one
-                _ => {
-                    break;
-                }
-            };
-
-            // Consume it
-            token_iter.next();
-
-            let rhs = ExpressionParser::parse_term(token_iter, source_files, errors)?;
-
-            lhs = ExpNode::BinOp(lhs.into(), operator, rhs.into());
-        }
-
-        Ok(lhs)
-    }
-
-    fn parse_term(
-        token_iter: &mut TokenIter,
-        source_files: &Vec<SourceFile>,
-        errors: &mut ErrorManager,
-    ) -> KASMResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_factor(token_iter, source_files, errors)?;
-
-        while let Some(token) = token_iter.peek() {
-            // Check if it is either a * or / operator
-            let operator = match token.kind {
-                TokenKind::OperatorMultiply => BinOp::Mult,
-                TokenKind::OperatorDivide => BinOp::Div,
-                // If it isn't one
-                _ => {
-                    break;
-                }
-            };
-
-            let rhs = ExpressionParser::parse_factor(token_iter, source_files, errors)?;
-
-            lhs = ExpNode::BinOp(lhs.into(), operator, rhs.into());
-        }
-
-        Ok(lhs)
-    }
-
-    fn parse_factor(
-        token_iter: &mut TokenIter,
-        source_files: &Vec<SourceFile>,
-        errors: &mut ErrorManager,
-    ) -> KASMResult<ExpNode> {
-        let token = match token_iter.peek() {
-            Some(t) => t,
-            None => {
-                errors.add_assembly(AssemblyError::new(
-                    ErrorKind::UnexpectedEndOfExpression,
-                    *token_iter.previous().unwrap(),
-                ));
-
-                // We cannot continue
-                return Err(());
-            }
-        };
-
-        match token.kind {
-            // If the token is a (
-            TokenKind::SymbolLeftParen => {
-                // Consume it
-                token_iter.next();
-
-                let inner_expression = Self::parse_expression(token_iter, source_files, errors)?;
-
-                let token = match token_iter.peek() {
-                    Some(t) => t,
-                    None => {
-                        errors.add_assembly(AssemblyError::new(
-                            ErrorKind::MissingClosingExpressionParen,
-                            *token_iter.previous().unwrap(),
-                        ));
-
-                        return Err(());
+    // Parses an equality expression, or if none exists, parses the next lowest precidence
+    fn parse_equality_exp<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        Self::skip_whitespace(tokens);
+        if let Some(mut lhs) = Self::parse_relational_exp(tokens, session)? {
+            Self::skip_whitespace(tokens);
+            while let Some(&&token) = tokens.peek() {
+                // Check if it is an equality operator: ==, !=
+                let op = match token.kind {
+                    TokenKind::OperatorEquals => BinOp::Eq,
+                    TokenKind::OperatorNotEquals => BinOp::Ne,
+                    _ => {
+                        break;
                     }
                 };
 
-                // If it is a )
-                if token.kind == TokenKind::SymbolRightParen {
-                    // Consume it
-                    token_iter.next();
+                tokens.next();
 
-                    Ok(inner_expression)
+                if let Some(rhs) = Self::parse_relational_exp(tokens, session)? {
+                    lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
                 } else {
-                    errors.add_assembly(AssemblyError::new(
-                        ErrorKind::MissingClosingExpressionParen,
-                        *token,
-                    ));
-
-                    return Err(());
+                    let db =
+                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
+                    return Err(db);
                 }
             }
-            TokenKind::OperatorNegate
-            | TokenKind::OperatorCompliment
-            | TokenKind::OperatorMinus => {
-                // Get the token itself
-                let token = token_iter.next().unwrap();
 
-                // Convert the operator
-                let operator = match token.kind {
-                    TokenKind::OperatorNegate => UnOp::Not,
-                    TokenKind::OperatorCompliment => UnOp::Flip,
-                    TokenKind::OperatorMinus => UnOp::Negate,
-                    _ => unreachable!(),
-                };
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
+        }
+    }
 
-                let factor = Self::parse_factor(token_iter, source_files, errors)?;
-
-                Ok(ExpNode::UnOp(operator, factor.into()))
-            }
-            TokenKind::LiteralInteger => {
-                // Get the token itself
-                let token = token_iter.next().unwrap();
-
-                // Get the integer value out of it
-                let value_str = token.slice(source_files).unwrap();
-
-                let value = match value_str.parse::<i32>() {
-                    Ok(v) => v,
-                    Err(_) => {
-                        errors.add_assembly(AssemblyError::new(ErrorKind::IntegerParse, *token));
-
-                        return Err(());
+    // Parses a relational expression, or if none exists, parses the next lowest precidence
+    fn parse_relational_exp<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        Self::skip_whitespace(tokens);
+        if let Some(mut lhs) = Self::parse_additive_exp(tokens, session)? {
+            Self::skip_whitespace(tokens);
+            while let Some(&&token) = tokens.peek() {
+                // Check if it is a relational operator: >, <, >=, or <=
+                let op = match token.kind {
+                    TokenKind::OperatorGreaterThan => BinOp::Gt,
+                    TokenKind::OperatorLessThan => BinOp::Lt,
+                    TokenKind::OperatorGreaterEquals => BinOp::Gte,
+                    TokenKind::OperatorLessEquals => BinOp::Lte,
+                    _ => {
+                        break;
                     }
                 };
 
-                Ok(ExpNode::Constant(Value::Int(value)).into())
+                tokens.next();
+
+                if let Some(rhs) = Self::parse_additive_exp(tokens, session)? {
+                    lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
+                } else {
+                    let db =
+                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
+                    return Err(db);
+                }
             }
-            TokenKind::LiteralFloat => {
-                // Get the token itself
-                let token = token_iter.next().unwrap();
 
-                // Get the float value out of it
-                let value_str = token.slice(source_files).unwrap();
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
+        }
+    }
 
-                let value = match value_str.parse::<f64>() {
-                    Ok(v) => v,
-                    Err(_) => {
-                        errors.add_assembly(AssemblyError::new(ErrorKind::FloatParse, *token));
-
-                        return Err(());
+    // Parses an additive expression, or if none exists, parses the next lowest precidence
+    fn parse_additive_exp<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        Self::skip_whitespace(tokens);
+        if let Some(mut lhs) = Self::parse_term(tokens, session)? {
+            Self::skip_whitespace(tokens);
+            while let Some(&&token) = tokens.peek() {
+                // Check if it is an additive operator: +/-
+                let op = match token.kind {
+                    TokenKind::OperatorPlus => BinOp::Add,
+                    TokenKind::OperatorMinus => BinOp::Sub,
+                    _ => {
+                        break;
                     }
                 };
 
-                Ok(ExpNode::Constant(Value::Double(value)).into())
-            }
-            TokenKind::LiteralHex | TokenKind::LiteralString => {
-                unimplemented!("Binary and hexadecimal literals will be supported")
-            }
-            TokenKind::LiteralTrue => Ok(ExpNode::Constant(Value::Bool(true))),
-            TokenKind::LiteralFalse => Ok(ExpNode::Constant(Value::Bool(false))),
-            _ => {
-                errors.add_assembly(AssemblyError::new(
-                    ErrorKind::InvalidTokenExpression,
-                    *token,
-                ));
+                tokens.next();
 
-                Err(())
+                if let Some(rhs) = Self::parse_term(tokens, session)? {
+                    lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
+                } else {
+                    let db =
+                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
+                    return Err(db);
+                }
             }
+
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
         }
     }
-}
 
-#[test]
-fn parse_addition() {
-    use crate::lexer::token::Token;
+    // Parses an expression term, or if none exists, parses the next lowest precidence
+    fn parse_term<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        Self::skip_whitespace(tokens);
+        if let Some(mut lhs) = Self::parse_factor(tokens, session)? {
+            Self::skip_whitespace(tokens);
+            while let Some(&&token) = tokens.peek() {
+                // Check if it is a multiplicative operator: * or /
+                let op = match token.kind {
+                    TokenKind::OperatorMultiply => BinOp::Mult,
+                    TokenKind::OperatorDivide => BinOp::Div,
+                    _ => {
+                        break;
+                    }
+                };
 
-    let source = "2 + 2";
+                tokens.next();
 
-    let source_file = SourceFile::new("test".to_string(), source.to_string());
+                if let Some(rhs) = Self::parse_factor(tokens, session)? {
+                    lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
+                } else {
+                    let db =
+                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
+                    return Err(db);
+                }
+            }
 
-    let source_files = vec![source_file];
-
-    let tokens: Vec<Token> = crate::lexer::tokenize(source).collect();
-
-    for token in tokens.iter() {
-        println!("{:#?}", token);
-    }
-
-    let mut token_iter = TokenIter::new(tokens);
-
-    let mut error_manager = ErrorManager::new();
-
-    match ExpressionParser::parse_expression(&mut token_iter, &source_files, &mut error_manager) {
-        Ok(_) => {}
-        Err(e) => {
-            panic!("Parsing of 2 + 2 failed: {:#?}", e);
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
         }
     }
-}
 
-#[test]
-fn parse_parens() {
-    use crate::lexer::token::Token;
+    // This function handles parsing the smallest unit of an expression. Either another expression
+    // in parenthesis, or unary operations. It also parses constants.
+    fn parse_factor<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        Self::skip_whitespace(tokens);
+        if let Some(&token) = tokens.next() {
+            match token.kind {
+                // (
+                TokenKind::SymbolLeftParen => {
+                    let inner_expression = Self::parse_expression(tokens, session)?;
 
-    let source = "(2+2) - 3";
+                    Self::skip_whitespace(tokens);
+                    if let Some(next) = tokens.next() {
+                        if next.kind != TokenKind::SymbolRightParen {
+                            println!("Token was: {:?}", next);
+                            // Error
+                            let db = session.struct_span_error(
+                                next.as_span(),
+                                "expected closing )".to_string(),
+                            );
 
-    let source_file = SourceFile::new("test".to_string(), source.to_string());
+                            Err(db)
+                        } else {
+                            Ok(inner_expression)
+                        }
+                    } else {
+                        // Error
+                        let db = session
+                            .struct_span_error(token.as_span(), "missing closing )".to_string());
 
-    let source_files = vec![source_file];
+                        Err(db)
+                    }
+                }
+                // !, ~, -
+                TokenKind::OperatorNegate
+                | TokenKind::OperatorCompliment
+                | TokenKind::OperatorMinus => {
+                    let op = match token.kind {
+                        TokenKind::OperatorNegate => UnOp::Not,
+                        TokenKind::OperatorCompliment => UnOp::Flip,
+                        TokenKind::OperatorMinus => UnOp::Negate,
+                        _ => unreachable!(),
+                    };
 
-    let tokens: Vec<Token> = crate::lexer::tokenize(source).collect();
+                    if let Some(factor) = Self::parse_factor(tokens, session)? {
+                        Ok(Some(ExpNode::UnOp(op, Box::new(factor))))
+                    } else {
+                        let db = session.struct_span_error(
+                            token.as_span(),
+                            "operator with no expression".to_string(),
+                        );
 
-    for token in tokens.iter() {
-        println!("{:#?}", token);
-    }
+                        Err(db)
+                    }
+                }
+                TokenKind::LiteralInteger | TokenKind::LiteralHex | TokenKind::LiteralBinary => {
+                    let value_snippet = session.span_to_snippet(&token.as_span());
+                    let value_str = value_snippet.as_slice();
 
-    let mut token_iter = TokenIter::new(tokens);
+                    if let Ok(value) = match token.kind {
+                        TokenKind::LiteralInteger => parse_integer_literal(value_str),
+                        TokenKind::LiteralHex => parse_hexadecimal_literal(value_str),
+                        TokenKind::LiteralBinary => parse_binary_literal(value_str),
+                        _ => unreachable!(),
+                    } {
+                        Ok(Some(ExpNode::Constant(Value::Int(value))))
+                    } else {
+                        let db = session.struct_span_error(
+                            token.as_span(),
+                            "literal too large to be stored".to_string(),
+                        );
 
-    let mut error_manager = ErrorManager::new();
+                        Err(db)
+                    }
+                }
+                TokenKind::LiteralFloat => {
+                    let value_snippet = session.span_to_snippet(&token.as_span());
+                    let value_str = value_snippet.as_slice();
 
-    match ExpressionParser::parse_expression(&mut token_iter, &source_files, &mut error_manager) {
-        Ok(_) => {}
-        Err(e) => {
-            panic!("Parsing of (2 + 2) - 3 failed: {:#?}", e);
+                    if let Ok(value) = parse_float_literal(value_str) {
+                        Ok(Some(ExpNode::Constant(Value::Double(value))))
+                    } else {
+                        let db = session.struct_bug(format!("error parsing float {}", value_str));
+
+                        Err(db)
+                    }
+                }
+                TokenKind::LiteralTrue | TokenKind::LiteralFalse => Ok(Some(ExpNode::Constant(
+                    Value::Bool(token.kind == TokenKind::LiteralTrue),
+                ))),
+                _ => {
+                    let mut db = session
+                        .struct_error("expected parenthesis, constant, or operator".to_string());
+
+                    db.span_label(token.as_span(), "found invalid token".to_string());
+
+                    Err(db)
+                }
+            }
+        } else {
+            Ok(None)
         }
     }
 }
