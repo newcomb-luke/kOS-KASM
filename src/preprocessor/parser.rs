@@ -436,10 +436,8 @@ impl<'a> Parser<'a> {
     fn parse_if_else_condition(&mut self) -> PResult<()> {
         self.skip_whitespace();
 
-        while let Some(&next) = self.consume_next() {
-            if next.kind == TokenKind::Newline {
-                break;
-            } else {
+        if let Some(&next) = self.consume_next() {
+            if next.kind != TokenKind::Newline {
                 self.session
                     .struct_span_error(next.as_span(), "unexpected token".to_string())
                     .emit();
@@ -1547,11 +1545,7 @@ impl<'a> Parser<'a> {
 
                             // Now check if it is actually the identifier representing an argument
                             // of this macro
-                            if not_macros
-                                .iter()
-                                .find(|ident| ident.hash == ident_hash)
-                                .is_some()
-                            {
+                            if not_macros.iter().any(|ident| ident.hash == ident_hash) {
                                 // Just add it to the benign tokens
                                 benign_tokens.push(next);
 

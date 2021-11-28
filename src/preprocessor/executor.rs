@@ -154,72 +154,70 @@ impl<'a> Executor<'a> {
             let new_contents = self.expand_sl_macro(sl_macro, arg_replacements)?;
 
             if let Some(new_contents) = new_contents {
-                self.execute_nodes(new_contents).map(|tokens| Some(tokens))
+                self.execute_nodes(new_contents).map(Some)
             } else {
                 Ok(None)
             }
+        } else if let Some(ml_macro) = self.ml_macros.get(&macro_invok) {
+            todo!();
         } else {
-            if let Some(ml_macro) = self.ml_macros.get(&macro_invok) {
-                todo!();
-            } else {
-                let macro_name_snippet = self.session.span_to_snippet(&macro_invok.identifier.span);
+            let macro_name_snippet = self.session.span_to_snippet(&macro_invok.identifier.span);
 
-                let macro_name = macro_name_snippet.as_slice();
+            let macro_name = macro_name_snippet.as_slice();
 
-                // If there were arguments provided (we know this was an attempt at invoking a
-                // macro)
-                if num_args_provided != 0 {
-                    let mut db = self.session.struct_span_error(
-                        macro_invok.identifier.span,
-                        format!(
-                            "use of undeclared macro `{}` with {} argument{}",
-                            macro_name,
-                            num_args_provided,
-                            if num_args_provided == 1 { "" } else { "s" }
-                        ),
-                    );
+            // If there were arguments provided (we know this was an attempt at invoking a
+            // macro)
+            if num_args_provided != 0 {
+                let mut db = self.session.struct_span_error(
+                    macro_invok.identifier.span,
+                    format!(
+                        "use of undeclared macro `{}` with {} argument{}",
+                        macro_name,
+                        num_args_provided,
+                        if num_args_provided == 1 { "" } else { "s" }
+                    ),
+                );
 
-                    // Note for if it exists as a single-line macro
-                    if let Some(accepted_num_args) = self
-                        .sl_macros
-                        .get_accepted_num_args(macro_invok.identifier.hash)
-                    {
-                        db.note(format!(
-                            "macro `{}` takes {} argument(s)",
-                            macro_name, accepted_num_args
-                        ));
-                    }
-
-                    db.emit();
-
-                    Err(())
-                } else {
-                    // If it exists as a single-line macro
-                    if let Some(accepted_num_args) = self
-                        .sl_macros
-                        .get_accepted_num_args(macro_invok.identifier.hash)
-                    {
-                        self.session
-                            .struct_span_error(
-                                macro_invok.identifier.span,
-                                format!(
-                                    "macro `{}` exists, takes {} argument(s)",
-                                    macro_name, accepted_num_args
-                                ),
-                            )
-                            .emit();
-                    } else {
-                        // We will give a slightly more vague error message
-                        self.session
-                            .struct_span_error(
-                                macro_invok.identifier.span,
-                                "unknown macro or instruction".to_string(),
-                            )
-                            .emit();
-                    }
-
-                    Err(())
+                // Note for if it exists as a single-line macro
+                if let Some(accepted_num_args) = self
+                    .sl_macros
+                    .get_accepted_num_args(macro_invok.identifier.hash)
+                {
+                    db.note(format!(
+                        "macro `{}` takes {} argument(s)",
+                        macro_name, accepted_num_args
+                    ));
                 }
+
+                db.emit();
+
+                Err(())
+            } else {
+                // If it exists as a single-line macro
+                if let Some(accepted_num_args) = self
+                    .sl_macros
+                    .get_accepted_num_args(macro_invok.identifier.hash)
+                {
+                    self.session
+                        .struct_span_error(
+                            macro_invok.identifier.span,
+                            format!(
+                                "macro `{}` exists, takes {} argument(s)",
+                                macro_name, accepted_num_args
+                            ),
+                        )
+                        .emit();
+                } else {
+                    // We will give a slightly more vague error message
+                    self.session
+                        .struct_span_error(
+                            macro_invok.identifier.span,
+                            "unknown macro or instruction".to_string(),
+                        )
+                        .emit();
+                }
+
+                Err(())
             }
         }
     }
@@ -238,7 +236,7 @@ impl<'a> Executor<'a> {
 
     fn include_path(&mut self, span: &Span, path: &str) -> EResult<Vec<Token>> {
         // Check if we have been given a valid file
-        if !self.session.is_file(&path) {
+        if !self.session.is_file(path) {
             self.session
                 .struct_span_error(*span, format!("path provided `{}` is not a file", path))
                 .emit();
@@ -247,11 +245,11 @@ impl<'a> Executor<'a> {
         }
 
         // Read it
-        let file_id = match self.session.read_file(&path) {
+        let file_id = match self.session.read_file(path) {
             Ok(file_id) => file_id,
             Err(e) => {
                 self.session
-                    .struct_bug(format!("unable to read file `{}`: {}", &path, e))
+                    .struct_bug(format!("unable to read file `{}`: {}", path, e))
                     .emit();
 
                 return Err(());
@@ -261,15 +259,15 @@ impl<'a> Executor<'a> {
         let file = self.session.get_file(file_id as usize).unwrap();
 
         // Create the lexer
-        let lexer = Lexer::new(&file.source, file_id, &self.session);
+        let lexer = Lexer::new(&file.source, file_id, self.session);
 
         // Lex the tokens, if they are all valid
         let mut tokens = lexer.lex()?;
 
         // Replace comments and line continuations
-        phase0(&mut tokens, &self.session)?;
+        phase0(&mut tokens, self.session)?;
 
-        let preprocessor_parser = Parser::new(tokens, &self.session);
+        let preprocessor_parser = Parser::new(tokens, self.session);
 
         let nodes = preprocessor_parser.parse()?;
 
@@ -424,7 +422,7 @@ impl<'a> Executor<'a> {
         let expanded_tokens = self.execute_nodes(expression)?;
         let mut token_iter = expanded_tokens.iter().peekable();
 
-        let root_node = match ExpressionParser::parse_expression(&mut token_iter, &self.session) {
+        let root_node = match ExpressionParser::parse_expression(&mut token_iter, self.session) {
             Ok(maybe_node) => {
                 if let Some(root_node) = maybe_node {
                     root_node

@@ -20,8 +20,8 @@ impl ExpressionEvaluator {
     pub fn evaluate(expression: &ExpNode) -> EvalResult {
         match expression {
             ExpNode::Constant(constant) => Ok(*constant),
-            ExpNode::UnOp(op, node) => Self::evaluate_unop(*op, &node),
-            ExpNode::BinOp(lhs, op, rhs) => Self::evaluate_binop(&lhs, *op, &rhs),
+            ExpNode::UnOp(op, node) => Self::evaluate_unop(*op, node),
+            ExpNode::BinOp(lhs, op, rhs) => Self::evaluate_binop(lhs, *op, rhs),
         }
     }
 
@@ -347,17 +347,17 @@ impl Equal for Value {
             Value::Int(i) => match other {
                 Value::Int(i2) => i == i2,
                 Value::Bool(b) => i == if b { 1 } else { 0 },
-                Value::Double(d) => i as f64 == d,
+                Value::Double(d) => (i as f64 - d).abs() < f64::EPSILON,
             },
             Value::Bool(b) => match other {
                 Value::Int(i) => i == if b { 1 } else { 0 },
                 Value::Bool(b1) => b == b1,
-                Value::Double(d) => d == if b { 1.0 } else { 0.0 },
+                Value::Double(d) => (d - if b { 1.0 } else { 0.0 }).abs() < f64::EPSILON,
             },
             Value::Double(d) => match other {
-                Value::Int(i) => i as f64 == d,
-                Value::Bool(b) => d == if b { 1.0 } else { 0.0 },
-                Value::Double(d1) => d == d1,
+                Value::Int(i) => (i as f64 - d).abs() < f64::EPSILON,
+                Value::Bool(b) => (d - if b { 1.0 } else { 0.0 }).abs() < f64::EPSILON,
+                Value::Double(d1) => (d - d1).abs() < f64::EPSILON,
             },
         }))
     }
@@ -373,7 +373,7 @@ impl Greater for Value {
             },
             Value::Bool(b) => match other {
                 Value::Int(i) => i > if b { 1 } else { 0 },
-                Value::Bool(b1) => b > b1,
+                Value::Bool(b1) => b && !b1,
                 Value::Double(d) => d > if b { 1.0 } else { 0.0 },
             },
             Value::Double(d) => match other {
@@ -395,7 +395,7 @@ impl Less for Value {
             },
             Value::Bool(b) => match other {
                 Value::Int(i) => i < if b { 1 } else { 0 },
-                Value::Bool(b1) => b < b1,
+                Value::Bool(b1) => !b && b1,
                 Value::Double(d) => d < if b { 1.0 } else { 0.0 },
             },
             Value::Double(d) => match other {

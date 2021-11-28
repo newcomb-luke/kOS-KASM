@@ -6,6 +6,12 @@ pub struct SLMacroMap {
     map: HashMap<(u64, u8), SLMacroDef>,
 }
 
+impl Default for SLMacroMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SLMacroMap {
     pub fn new() -> Self {
         Self {
@@ -63,7 +69,7 @@ impl SLMacroMap {
         if arg_nums.is_empty() {
             None
         } else {
-            arg_nums.sort();
+            arg_nums.sort_unstable();
 
             Some(if arg_nums.len() == 1 {
                 format!("{}", arg_nums.first().unwrap())
@@ -104,12 +110,18 @@ impl SLMacroMap {
 
     /// Returns true if a single-line macro with the identifier hash is defined in the map
     pub fn contains_hash(&self, hash: u64) -> bool {
-        self.map.keys().find(|key| key.0 == hash).is_some()
+        self.map.keys().any(|key| key.0 == hash)
     }
 }
 
 pub struct MLMacroMap {
     macros: Vec<(u64, MLMacroDef)>,
+}
+
+impl Default for MLMacroMap {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MLMacroMap {
@@ -165,7 +177,7 @@ impl MLMacroMap {
 
     /// Returns true if a multi-line macro with the identifier hash is defined in the map
     pub fn contains_hash(&self, hash: u64) -> bool {
-        self.macros.iter().find(|entry| entry.0 == hash).is_some()
+        self.macros.iter().any(|entry| entry.0 == hash)
     }
 
     /// Gets a corresponding macro definition to a macro invokation, if it does match any in the
@@ -189,7 +201,7 @@ impl MLMacroMap {
             }
         }
 
-        return None;
+        None
     }
 
     // Returns a "range" with the None case being replaced with (0, 0), and the case where there is
@@ -206,7 +218,7 @@ impl MLMacroMap {
 
     // Returns the index of the macro with overlapping macro arguments, or None if none is found
     fn find(&self, hash: u64, ml_args: &Option<MLMacroArgs>) -> Option<usize> {
-        let range = Self::get_arg_range(&ml_args);
+        let range = Self::get_arg_range(ml_args);
         let mut replace_index = None;
 
         for (index, (other_hash, other_macro)) in self.macros.iter().enumerate() {
