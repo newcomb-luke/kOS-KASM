@@ -857,6 +857,22 @@ impl<'a> Parser<'a> {
             } else if token.kind == TokenKind::Newline {
                 end = true;
                 break;
+            } else if token.kind == TokenKind::Identifier {
+                let ident_snippet = self.session.span_to_snippet(&token.as_span());
+                let ident_str = ident_snippet.as_slice();
+
+                // If this isn't an instruction
+                if Opcode::from(ident_str) == Opcode::Bogus {
+                    self.session
+                        .struct_span_error(
+                            token.as_span(),
+                            "macro invokations are not allowed as defaults".to_string(),
+                        )
+                        .help("maybe you misspelled an instruction mnemonic?".to_string())
+                        .emit();
+
+                    return Err(());
+                }
             }
 
             tokens.push(token);

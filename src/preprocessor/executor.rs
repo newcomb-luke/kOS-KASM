@@ -49,8 +49,6 @@ impl<'a> Executor<'a> {
     fn execute_nodes(&mut self, nodes: Vec<PASTNode>) -> EResult<Vec<Token>> {
         let mut new_tokens = Vec::new();
 
-        // println!("{:#?}", nodes);
-
         for node in nodes {
             if let Some(mut tokens) = match node {
                 PASTNode::IfStatement(statement) => self.execute_if_statement(statement)?,
@@ -174,8 +172,6 @@ impl<'a> Executor<'a> {
             // Append the defaults to the replacements
             arg_replacements.append(&mut default_replacements);
 
-            println!("All args: {:#?}", arg_replacements);
-
             let mut cleaner_contents = Vec::new();
 
             for node in &ml_macro.contents {
@@ -185,13 +181,11 @@ impl<'a> Executor<'a> {
 
                     for token in &benign_tokens.tokens {
                         if token.kind == TokenKind::SymbolAnd {
-                            println!("yes");
                             was_arg_ref = true;
                         } else if was_arg_ref {
                             was_arg_ref = false;
 
                             if token.kind != TokenKind::LiteralInteger {
-                                println!("token kind: {:?}", token.kind);
                                 self.session.struct_bug("didn't properly check for multi-line macro argument references".to_string()).emit();
                                 return Err(());
                             }
