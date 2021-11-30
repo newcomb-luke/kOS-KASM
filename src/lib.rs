@@ -9,13 +9,15 @@ pub mod errors;
 pub mod session;
 
 pub mod lexer;
+pub mod parser;
 pub mod preprocessor;
 
 use session::Session;
 
 use crate::{
     lexer::{phase0, Lexer, TokenKind},
-    preprocessor::{executor::Executor, parser::Parser},
+    parser::parse,
+    preprocessor::executor::Executor,
 };
 
 pub static VERSION: &'_ str = env!("CARGO_PKG_VERSION");
@@ -102,7 +104,7 @@ fn assemble(mut session: Session) -> Result<AssemblyOutput, ()> {
 
     // If we should run the preprocessor
     if session.config().run_preprocessor {
-        let preprocessor_parser = Parser::new(tokens, &session);
+        let preprocessor_parser = preprocessor::parser::Parser::new(tokens, &session);
 
         let nodes = preprocessor_parser.parse()?;
 
@@ -197,6 +199,10 @@ fn assemble(mut session: Session) -> Result<AssemblyOutput, ()> {
 
         return Ok(AssemblyOutput::Source(output));
     }
+
+    let mut parser = parse::Parser::new(tokens, &session);
+
+    let parsed = parser.parse()?;
 
     todo!();
 }

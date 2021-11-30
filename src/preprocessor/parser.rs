@@ -46,20 +46,10 @@ impl<'a> Parser<'a> {
     pub fn parse(mut self) -> PResult<Vec<PASTNode>> {
         let mut nodes = Vec::new();
 
-        while let Some(&next) = self.peek_next() {
-            match next.kind {
-                TokenKind::Whitespace => {
-                    self.skip_whitespace();
-                }
-                TokenKind::Newline => {
-                    self.consume_next();
-                }
-                _ => {
-                    // Parse only one for now
-                    let node = self.parse_bit()?;
-                    nodes.push(node);
-                }
-            }
+        while self.peek_next().is_some() {
+            // Parse only one for now
+            let node = self.parse_bit()?;
+            nodes.push(node);
         }
 
         Ok(nodes)
@@ -1648,25 +1638,23 @@ impl<'a> Parser<'a> {
         let identifier = Ident::new(ident_span, hash);
 
         // After the identifier, there could be arguments, or not
-        let was_whitespace = self.skip_whitespace();
-
-        if was_whitespace
-            || (self.peek_next().is_some() && self.peek_next().unwrap().kind == TokenKind::Newline)
-        {
-            span.end = ident_span.end;
-
-            Ok(MacroInvok::new(span, identifier, None))
-        } else if let Some(&token) = self.peek_next() {
+        if let Some(&token) = self.peek_next() {
             if token.kind == TokenKind::SymbolLeftParen {
                 self.assert_next(TokenKind::SymbolLeftParen)?;
 
                 let args = self.parse_macro_invok_args(token.as_span())?;
 
+                span.end = args.span.end;
+
                 Ok(MacroInvok::new(span, identifier, Some(args)))
             } else {
+                span.end = identifier.span.end;
+
                 Ok(MacroInvok::new(span, identifier, None))
             }
         } else {
+            span.end = identifier.span.end;
+
             Ok(MacroInvok::new(span, identifier, None))
         }
     }
