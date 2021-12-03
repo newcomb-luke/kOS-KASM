@@ -550,23 +550,24 @@ impl<'a> Executor<'a> {
         let expanded_tokens = self.execute_nodes(expression)?;
         let mut token_iter = expanded_tokens.iter().peekable();
 
-        let root_node = match ExpressionParser::parse_expression(&mut token_iter, self.session) {
-            Ok(maybe_node) => {
-                if let Some(root_node) = maybe_node {
-                    root_node
-                } else {
-                    self.session
-                        .struct_span_error(*span, "expected expression".to_string())
-                        .emit();
+        let root_node =
+            match ExpressionParser::parse_expression(&mut token_iter, self.session, false) {
+                Ok(maybe_node) => {
+                    if let Some(root_node) = maybe_node {
+                        root_node
+                    } else {
+                        self.session
+                            .struct_span_error(*span, "expected expression".to_string())
+                            .emit();
 
-                    return Err(());
+                        return Err(());
+                    }
                 }
-            }
-            Err(mut db) => {
-                db.emit();
-                todo!()
-            }
-        };
+                Err(mut db) => {
+                    db.emit();
+                    todo!()
+                }
+            };
 
         let evaluation = match ExpressionEvaluator::evaluate(&root_node) {
             Ok(evaluation) => evaluation,

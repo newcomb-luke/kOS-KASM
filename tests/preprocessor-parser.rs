@@ -185,7 +185,7 @@ fn parse_expression() {
 
         let mut tokens = tokens.iter().peekable();
 
-        match ExpressionParser::parse_expression(&mut tokens, &session) {
+        match ExpressionParser::parse_expression(&mut tokens, &session, false) {
             Ok(expression) => match expression {
                 Some(expression) => {
                     let correct = ExpNode::UnOp(

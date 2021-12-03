@@ -7,10 +7,6 @@ use crate::{
     preprocessor::{
         evaluator::ExpressionEvaluator,
         expressions::{ExpressionParser, Value},
-        parser::{
-            parse_binary_literal, parse_float_literal, parse_hexadecimal_literal,
-            parse_integer_literal,
-        },
     },
     session::Session,
 };
@@ -271,15 +267,18 @@ impl<'a> Parser<'a> {
             | TokenKind::LiteralFalse
             | TokenKind::LiteralFloat => {
                 let mut exp_tokens = raw.iter().peekable();
-                let parsed_exp =
-                    match ExpressionParser::parse_expression(&mut exp_tokens, self.session) {
-                        Ok(exp) => exp,
-                        Err(mut db) => {
-                            db.emit();
+                let parsed_exp = match ExpressionParser::parse_expression(
+                    &mut exp_tokens,
+                    self.session,
+                    false,
+                ) {
+                    Ok(exp) => exp,
+                    Err(mut db) => {
+                        db.emit();
 
-                            return Err(());
-                        }
-                    };
+                        return Err(());
+                    }
+                };
 
                 if let Some(exp) = parsed_exp {
                     let evaluated = match ExpressionEvaluator::evaluate(&exp) {
@@ -899,15 +898,18 @@ impl<'a> Parser<'a> {
             | TokenKind::LiteralFalse
             | TokenKind::LiteralFloat => {
                 let mut exp_tokens = raw.iter().peekable();
-                let parsed_exp =
-                    match ExpressionParser::parse_expression(&mut exp_tokens, self.session) {
-                        Ok(exp) => exp,
-                        Err(mut db) => {
-                            db.emit();
+                let parsed_exp = match ExpressionParser::parse_expression(
+                    &mut exp_tokens,
+                    self.session,
+                    false,
+                ) {
+                    Ok(exp) => exp,
+                    Err(mut db) => {
+                        db.emit();
 
-                            return Err(());
-                        }
-                    };
+                        return Err(());
+                    }
+                };
 
                 if let Some(exp) = parsed_exp {
                     let evaluated = match ExpressionEvaluator::evaluate(&exp) {
