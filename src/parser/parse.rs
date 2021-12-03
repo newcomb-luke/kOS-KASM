@@ -55,6 +55,7 @@ pub enum InstructionOperand {
 
 pub type PResult = Result<(), ()>;
 
+/// The parser for KASM instructions, symbols, and labels
 pub struct Parser<'a> {
     tokens: Vec<Token>,
     token_cursor: usize,
@@ -88,6 +89,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parses the provided tokens as functions and instructions.
+    /// This also happens to execute all remaining assembler directives such as declaring symbols
+    /// and their bindings. It produces a list of functions, as well as the symbols and labels that
+    /// were encountered
     pub fn parse(&mut self) -> PResult {
         let mut functions = Vec::new();
 
@@ -172,12 +177,25 @@ impl<'a> Parser<'a> {
             self.skip_empty_lines();
         }
 
+        println!("-------------------------------------------------");
+
         for label in self.label_manager.labels() {
             println!("Label {} has value {}", label.0, label.1.value);
         }
 
-        for symbol in self.symbol_manager.symbols() {
-            println!("Symbol {} : {:?}", symbol.0, symbol.1);
+        for (ident, symbol) in self.symbol_manager.symbols() {
+            if symbol.sym_type == SymbolType::Default && symbol.binding == SymBind::Extern {
+                self.session
+                    .struct_span_error(
+                        symbol.declared_span,
+                        "external symbols must have the type specified".to_string(),
+                    )
+                    .emit();
+
+                return Err(());
+            }
+
+            println!("Symbol {} : {:?}", ident, symbol);
         }
 
         todo!();
