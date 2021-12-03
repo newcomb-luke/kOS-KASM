@@ -36,6 +36,9 @@ pub struct Config {
     /// If assembly should take place, or if the output file should be preprocessed source code.
     /// This can be useful for debugging or just generating code
     pub output_preprocessed: bool,
+    /// If specified, instead of the preprocessor looking at the current working directory for
+    /// files to include, it will search the provided path
+    pub include_path: Option<String>,
 }
 
 /// Represents the two possible types of output that KASM supports
