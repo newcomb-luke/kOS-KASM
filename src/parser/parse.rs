@@ -193,46 +193,25 @@ impl<'a> Parser<'a> {
 
         self.skip_whitespace();
 
-        let new_value = if let Some(&value_token) = self.consume_next() {
-            let value_snippet = self.session.span_to_snippet(&value_token.as_span());
+        let mut value_tokens = Vec::new();
 
-            let value_str = value_snippet.as_slice();
-
-            if value_token.kind == TokenKind::LiteralTrue {
-                SymbolValue::Bool(true)
-            } else if value_token.kind == TokenKind::LiteralFalse {
-                SymbolValue::Bool(false)
-            } else if value_token.kind == TokenKind::LiteralInteger {
-                let int_val = parse_integer_literal(value_str)?;
-                SymbolValue::Integer(int_val)
-            } else if value_token.kind == TokenKind::LiteralHex {
-                let int_val = parse_hexadecimal_literal(value_str)?;
-                SymbolValue::Integer(int_val)
-            } else if value_token.kind == TokenKind::LiteralBinary {
-                let int_val = parse_binary_literal(value_str)?;
-                SymbolValue::Integer(int_val)
-            } else if value_token.kind == TokenKind::LiteralFloat {
-                let float_val = parse_float_literal(value_str)?;
-                SymbolValue::Float(float_val)
-            } else if value_token.kind == TokenKind::LiteralString {
-                SymbolValue::String(value_str.to_string())
+        while let Some(&value_token) = self.consume_next() {
+            if value_token.kind == TokenKind::Newline {
+                break;
             } else {
-                self.session
-                    .struct_span_error(
-                        value_token.as_span(),
-                        format!("expected symbol value, found `{}`", value_str),
-                    )
-                    .emit();
-
-                return Err(());
+                value_tokens.push(value_token);
             }
-        } else {
+        }
+
+        if value_tokens.is_empty() {
             self.session
                 .struct_span_error(ident_span, "expected symbol value".to_string())
                 .emit();
 
             return Err(());
-        };
+        }
+
+        let new_value = self.convert_symbol_value(value_tokens, ident_span)?;
 
         if let Some(existing_symbol) = self.symbol_manager.get_mut(&ident_str) {
             if existing_symbol.value == SymbolValue::Undefined {
@@ -278,6 +257,113 @@ impl<'a> Parser<'a> {
         }
 
         Ok(())
+    }
+
+    fn convert_symbol_value(&self, raw: Vec<Token>, ident_span: Span) -> Result<SymbolValue, ()> {
+        let first_token = raw.first().unwrap();
+        let mut one_token = true;
+
+        let value = match first_token.kind {
+            TokenKind::LiteralInteger
+            | TokenKind::LiteralHex
+            | TokenKind::LiteralBinary
+            | TokenKind::LiteralTrue
+            | TokenKind::LiteralFalse
+            | TokenKind::LiteralFloat => {
+                let mut exp_tokens = raw.iter().peekable();
+                let parsed_exp =
+                    match ExpressionParser::parse_expression(&mut exp_tokens, self.session) {
+                        Ok(exp) => exp,
+                        Err(mut db) => {
+                            db.emit();
+
+                            return Err(());
+                        }
+                    };
+
+                if let Some(exp) = parsed_exp {
+                    let evaluated = match ExpressionEvaluator::evaluate(&exp) {
+                        Ok(exp) => exp,
+                        Err(e) => {
+                            let message = match e {
+                                crate::preprocessor::evaluator::EvalError::NegateBool => {
+                                    "tried to apply operator - to boolean value"
+                                }
+                                crate::preprocessor::evaluator::EvalError::FlipDouble => {
+                                    "tried to apply operator ~ to double value"
+                                }
+                                crate::preprocessor::evaluator::EvalError::ZeroDivide => {
+                                    "tried to divide by zero"
+                                }
+                            };
+
+                            self.session
+                                .struct_span_error(
+                                    ident_span,
+                                    format!("expression following this {}", message),
+                                )
+                                .emit();
+
+                            return Err(());
+                        }
+                    };
+
+                    let operand = match evaluated {
+                        Value::Int(i) => SymbolValue::Integer(i),
+                        Value::Bool(b) => SymbolValue::Bool(b),
+                        Value::Double(d) => SymbolValue::Float(d),
+                    };
+
+                    one_token = false;
+
+                    operand
+                } else {
+                    self.session
+                        .struct_bug(
+                            "parsed expression is None despite having a first value".to_string(),
+                        )
+                        .emit();
+
+                    return Err(());
+                }
+            }
+            TokenKind::SymbolAt => SymbolValue::ArgMarker,
+            TokenKind::SymbolHash => SymbolValue::Null,
+            TokenKind::LiteralString => {
+                let snippet = self.session.span_to_snippet(&first_token.as_span());
+                let inner = snippet.as_slice();
+                let inner = &inner[1..inner.len() - 1];
+
+                SymbolValue::String(inner.to_string())
+            }
+            _ => {
+                self.session
+                    .struct_span_error(
+                        first_token.as_span(),
+                        "invalid token in symbol value".to_string(),
+                    )
+                    .emit();
+
+                return Err(());
+            }
+        };
+
+        if one_token {
+            if raw.len() > 1 {
+                let unexpected = raw.get(1).unwrap();
+
+                self.session
+                    .struct_span_error(
+                        unexpected.as_span(),
+                        "expected newline after value, found token".to_string(),
+                    )
+                    .emit();
+
+                return Err(());
+            }
+        }
+
+        Ok(value)
     }
 
     fn parse_type(&mut self, type_span: Span) -> PResult {

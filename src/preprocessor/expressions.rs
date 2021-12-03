@@ -91,7 +91,18 @@ pub struct ExpressionParser {}
 
 impl ExpressionParser {
     pub fn parse_expression<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
-        Self::parse_logical_or(tokens, session)
+        let parsed = Self::parse_logical_or(tokens, session)?;
+
+        while let Some(token) = tokens.next() {
+            if token.kind != TokenKind::Whitespace {
+                let db = session
+                    .struct_span_error(token.as_span(), "trailing token in expression".to_string());
+
+                return Err(db);
+            }
+        }
+
+        Ok(parsed)
     }
 
     fn skip_whitespace(tokens: &mut TokenIter) {

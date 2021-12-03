@@ -18,6 +18,8 @@ pub enum SymbolValue {
     Float(f64),
     Function,
     Bool(bool),
+    ArgMarker,
+    Null,
     Undefined,
 }
 
