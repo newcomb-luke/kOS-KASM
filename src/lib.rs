@@ -9,6 +9,7 @@ pub mod errors;
 pub mod session;
 
 pub mod lexer;
+pub mod output;
 pub mod parser;
 pub mod preprocessor;
 
@@ -16,6 +17,7 @@ use session::Session;
 
 use crate::{
     lexer::{phase0, Lexer, TokenKind},
+    output::Verifier,
     parser::parse,
     preprocessor::executor::Executor,
 };
@@ -200,9 +202,13 @@ fn assemble(mut session: Session) -> Result<AssemblyOutput, ()> {
         return Ok(AssemblyOutput::Source(output));
     }
 
-    let mut parser = parse::Parser::new(tokens, &session);
+    let parser = parse::Parser::new(tokens, &session);
 
-    let parsed = parser.parse()?;
+    let (parsed_functions, label_manager, symbol_manager) = parser.parse()?;
+
+    let verifier = Verifier::new(parsed_functions, &session, &label_manager, &symbol_manager);
+
+    let verified_functions = verifier.verify()?;
 
     todo!();
 }

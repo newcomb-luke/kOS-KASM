@@ -29,16 +29,38 @@ impl ParsedFunction {
 pub enum ParsedInstruction {
     ZeroOp {
         opcode: Opcode,
+        span: Span,
     },
     OneOp {
         opcode: Opcode,
+        span: Span,
         operand: InstructionOperand,
     },
     TwoOp {
         opcode: Opcode,
+        span: Span,
         operand1: InstructionOperand,
         operand2: InstructionOperand,
     },
+}
+
+impl ParsedInstruction {
+    pub fn opcode(&self) -> Opcode {
+        *match self {
+            ParsedInstruction::ZeroOp { opcode, span: _ } => opcode,
+            ParsedInstruction::OneOp {
+                opcode,
+                span: _,
+                operand: _,
+            } => opcode,
+            ParsedInstruction::TwoOp {
+                opcode,
+                span: _,
+                operand1: _,
+                operand2: _,
+            } => opcode,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -51,6 +73,21 @@ pub enum InstructionOperand {
     Symbol(String),
     ArgMarker,
     Null,
+}
+
+impl InstructionOperand {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::Integer(_) => "integer",
+            Self::String(_) => "string",
+            Self::Float(_) => "float",
+            Self::Label(_) => "label",
+            Self::Bool(_) => "bool",
+            Self::Symbol(_) => "symbol",
+            Self::ArgMarker => "arg marker",
+            Self::Null => "null",
+        }
+    }
 }
 
 pub type PResult = Result<(), ()>;
@@ -93,7 +130,7 @@ impl<'a> Parser<'a> {
     /// This also happens to execute all remaining assembler directives such as declaring symbols
     /// and their bindings. It produces a list of functions, as well as the symbols and labels that
     /// were encountered
-    pub fn parse(&mut self) -> PResult {
+    pub fn parse(mut self) -> Result<(Vec<ParsedFunction>, LabelManager, SymbolManager), ()> {
         let mut functions = Vec::new();
 
         // Skip until we get to a non-whitespace token
@@ -195,10 +232,21 @@ impl<'a> Parser<'a> {
                 return Err(());
             }
 
+            if symbol.value == SymbolValue::Undefined && symbol.binding != SymBind::Extern {
+                self.session
+                    .struct_span_error(
+                        symbol.declared_span,
+                        "symbol declared but never given a value".to_string(),
+                    )
+                    .emit();
+
+                return Err(());
+            }
+
             println!("Symbol {} : {:?}", ident, symbol);
         }
 
-        todo!();
+        Ok((functions, self.label_manager, self.symbol_manager))
     }
 
     fn parse_data_entry(&mut self, ident_span: Span) -> PResult {
@@ -844,13 +892,18 @@ impl<'a> Parser<'a> {
         let mut operands = operands.drain(..);
 
         Ok(match provided_num {
-            0 => ParsedInstruction::ZeroOp { opcode },
+            0 => ParsedInstruction::ZeroOp {
+                opcode,
+                span: opcode_span,
+            },
             1 => ParsedInstruction::OneOp {
                 opcode,
+                span: opcode_span,
                 operand: operands.next().unwrap(),
             },
             _ => ParsedInstruction::TwoOp {
                 opcode,
+                span: opcode_span,
                 operand1: operands.next().unwrap(),
                 operand2: operands.next().unwrap(),
             },

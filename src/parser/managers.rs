@@ -53,7 +53,7 @@ impl SymbolManager {
         }
     }
 
-    pub fn contains(&mut self, identifier: &String) -> bool {
+    pub fn contains(&self, identifier: &String) -> bool {
         self.map.contains_key(identifier)
     }
 
@@ -102,7 +102,7 @@ impl LabelManager {
         }
     }
 
-    pub fn contains(&mut self, name: &String) -> bool {
+    pub fn contains(&self, name: &String) -> bool {
         self.map.contains_key(name)
     }
 
