@@ -332,17 +332,22 @@ impl<'a> Executor<'a> {
                             ),
                         )
                         .emit();
-                } else {
-                    // We will give a slightly more vague error message
-                    self.session
-                        .struct_span_error(
-                            macro_invok.identifier.span,
-                            "unknown macro or instruction".to_string(),
-                        )
-                        .emit();
-                }
 
-                Err(())
+                    Err(())
+                } else {
+                    let file_id = macro_invok.identifier.span.file as u8;
+                    let source_index = macro_invok.identifier.span.start as u32;
+                    let len = (macro_invok.identifier.span.end - source_index as usize) as u16;
+
+                    // Just assume that it is a name of a label or data
+                    // So we just turn it back into a token.
+                    Ok(Some(vec![Token {
+                        kind: TokenKind::Identifier,
+                        file_id,
+                        source_index,
+                        len,
+                    }]))
+                }
             }
         }
     }
@@ -558,23 +563,24 @@ impl<'a> Executor<'a> {
         let expanded_tokens = self.execute_nodes(expression)?;
         let mut token_iter = expanded_tokens.iter().peekable();
 
-        let root_node = match ExpressionParser::parse_expression(&mut token_iter, self.session) {
-            Ok(maybe_node) => {
-                if let Some(root_node) = maybe_node {
-                    root_node
-                } else {
-                    self.session
-                        .struct_span_error(*span, "expected expression".to_string())
-                        .emit();
+        let root_node =
+            match ExpressionParser::parse_expression(&mut token_iter, self.session, false) {
+                Ok(maybe_node) => {
+                    if let Some(root_node) = maybe_node {
+                        root_node
+                    } else {
+                        self.session
+                            .struct_span_error(*span, "expected expression".to_string())
+                            .emit();
 
-                    return Err(());
+                        return Err(());
+                    }
                 }
-            }
-            Err(mut db) => {
-                db.emit();
-                todo!()
-            }
-        };
+                Err(mut db) => {
+                    db.emit();
+                    todo!()
+                }
+            };
 
         let evaluation = match ExpressionEvaluator::evaluate(&root_node) {
             Ok(evaluation) => evaluation,

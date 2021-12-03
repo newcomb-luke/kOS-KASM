@@ -1,9 +1,4 @@
-pub mod symbols;
-
-/*
-pub mod preprocessed;
+mod verifier;
+pub use verifier::*;
 
 pub mod generator;
-
-pub mod errors;
-*/

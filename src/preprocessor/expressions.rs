@@ -90,8 +90,27 @@ macro_rules! gen_binop {
 pub struct ExpressionParser {}
 
 impl ExpressionParser {
-    pub fn parse_expression<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
-        Self::parse_logical_or(tokens, session)
+    pub fn parse_expression<'a>(
+        tokens: &mut TokenIter,
+        session: &'a Session,
+        nested: bool,
+    ) -> ExpResult<'a> {
+        let parsed = Self::parse_logical_or(tokens, session)?;
+
+        if !nested {
+            while let Some(token) = tokens.next() {
+                if token.kind != TokenKind::Whitespace {
+                    let db = session.struct_span_error(
+                        token.as_span(),
+                        "trailing token in expression".to_string(),
+                    );
+
+                    return Err(db);
+                }
+            }
+        }
+
+        Ok(parsed)
     }
 
     fn skip_whitespace(tokens: &mut TokenIter) {
@@ -264,7 +283,7 @@ impl ExpressionParser {
             match token.kind {
                 // (
                 TokenKind::SymbolLeftParen => {
-                    let inner_expression = Self::parse_expression(tokens, session)?;
+                    let inner_expression = Self::parse_expression(tokens, session, true)?;
 
                     Self::skip_whitespace(tokens);
                     if let Some(next) = tokens.next() {
