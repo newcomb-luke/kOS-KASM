@@ -1,70 +1,63 @@
-use std::collections::HashMap;
-
-use kerbalobjects::kofile::symbols::SymBind;
+use kerbalobjects::{kofile::symbols::SymBind, Opcode};
 
 use crate::{
     errors::Span,
     lexer::{Token, TokenKind},
-    preprocessor::parser::{
-        parse_binary_literal, parse_float_literal, parse_hexadecimal_literal, parse_integer_literal,
+    parser::{DeclaredSymbol, SymbolType},
+    preprocessor::{
+        evaluator::ExpressionEvaluator,
+        expressions::{ExpressionParser, Value},
+        parser::{
+            parse_binary_literal, parse_float_literal, parse_hexadecimal_literal,
+            parse_integer_literal,
+        },
     },
     session::Session,
 };
 
-pub struct DeclaredSymbol {
-    pub declared_span: Span,
-    pub binding: SymBind,
-    pub sym_type: SymbolType,
-    pub value: SymbolValue,
+use super::{Label, LabelManager, SymbolManager, SymbolValue};
+
+#[derive(Debug)]
+pub struct ParsedFunction {
+    pub name: String,
+    pub instructions: Vec<ParsedInstruction>,
 }
 
-impl DeclaredSymbol {
-    pub fn new(span: Span, binding: SymBind, sym_type: SymbolType, value: SymbolValue) -> Self {
-        Self {
-            declared_span: span,
-            binding,
-            sym_type,
-            value,
-        }
+impl ParsedFunction {
+    pub fn new(name: String, instructions: Vec<ParsedInstruction>) -> Self {
+        Self { name, instructions }
     }
 }
 
-const DEFAULT_TYPE: SymbolType = SymbolType::Func;
-const DEFAULT_BINDING: SymBind = SymBind::Local;
-
-pub struct SymbolManager {
-    map: HashMap<String, DeclaredSymbol>,
+#[derive(Debug, Clone)]
+pub enum ParsedInstruction {
+    ZeroOp {
+        opcode: Opcode,
+    },
+    OneOp {
+        opcode: Opcode,
+        operand: InstructionOperand,
+    },
+    TwoOp {
+        opcode: Opcode,
+        operand1: InstructionOperand,
+        operand2: InstructionOperand,
+    },
 }
 
-impl SymbolManager {
-    pub fn new() -> Self {
-        Self {
-            map: HashMap::new(),
-        }
-    }
-
-    pub fn contains(&mut self, identifier: &String) -> bool {
-        self.map.contains_key(identifier)
-    }
-
-    pub fn get(&self, identifier: &String) -> Option<&DeclaredSymbol> {
-        self.map.get(identifier)
-    }
-
-    pub fn get_mut(&mut self, identifier: &String) -> Option<&mut DeclaredSymbol> {
-        self.map.get_mut(identifier)
-    }
-
-    pub fn insert(&mut self, identifier: String, declared: DeclaredSymbol) {
-        self.map.insert(identifier, declared);
-    }
+#[derive(Debug, Clone)]
+pub enum InstructionOperand {
+    Integer(i32),
+    String(String),
+    Float(f64),
+    Label(String),
+    Bool(bool),
+    Symbol(String),
+    ArgMarker,
+    Null,
 }
 
-impl Default for SymbolManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+pub type PResult = Result<(), ()>;
 
 pub struct Parser<'a> {
     tokens: Vec<Token>,
@@ -72,6 +65,9 @@ pub struct Parser<'a> {
     session: &'a Session,
     last_token: Option<Token>,
     symbol_manager: SymbolManager,
+    label_manager: LabelManager,
+    latest_label: String,
+    instruction_count: usize,
     mode: Mode,
 }
 
@@ -79,22 +75,6 @@ pub struct Parser<'a> {
 enum Mode {
     Text,
     Data,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum SymbolType {
-    Func,
-    Value,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum SymbolValue {
-    Integer(i32),
-    String(String),
-    Float(f64),
-    Location(usize),
-    Bool(bool),
-    Undefined,
 }
 
 impl<'a> Parser<'a> {
@@ -105,11 +85,16 @@ impl<'a> Parser<'a> {
             session,
             last_token: None,
             symbol_manager: SymbolManager::new(),
+            label_manager: LabelManager::new(),
+            latest_label: String::new(),
+            instruction_count: 0,
             mode: Mode::Text,
         }
     }
 
-    pub fn parse(&mut self) -> Result<(), ()> {
+    pub fn parse(&mut self) -> PResult {
+        let mut functions = Vec::new();
+
         // Skip until we get to a non-whitespace token
         self.skip_empty_lines();
 
@@ -119,6 +104,8 @@ impl<'a> Parser<'a> {
             match next.kind {
                 TokenKind::KeywordSection => {
                     self.parse_section(next.as_span())?;
+
+                    self.assert_nothing_before_newline()?;
                 }
                 TokenKind::DirectiveExtern
                 | TokenKind::DirectiveGlobal
@@ -131,13 +118,30 @@ impl<'a> Parser<'a> {
                     };
 
                     self.parse_binding(next.as_span(), binding)?;
+
+                    self.assert_nothing_before_newline()?;
                 }
                 TokenKind::DirectiveType => {
                     self.parse_type(next.as_span())?;
+
+                    self.assert_nothing_before_newline()?;
                 }
                 TokenKind::DirectiveValue => {}
                 TokenKind::DirectiveFunc => {
-                    unimplemented!()
+                    if self.mode == Mode::Data {
+                        self.session
+                            .struct_span_error(
+                                next.as_span(),
+                                "functions must be in a .text section".to_string(),
+                            )
+                            .emit();
+
+                        return Err(());
+                    } else {
+                        let func = self.parse_function(next.as_span())?;
+
+                        functions.push(func);
+                    }
                 }
                 TokenKind::Identifier => {
                     if self.mode == Mode::Text {
@@ -151,88 +155,10 @@ impl<'a> Parser<'a> {
 
                         return Err(());
                     } else {
-                        let ident_snippet = self.session.span_to_snippet(&next.as_span());
-                        let ident_str = ident_snippet.as_slice().to_string();
-
-                        self.skip_whitespace();
-
-                        let new_value = if let Some(&value_token) = self.consume_next() {
-                            let value_snippet =
-                                self.session.span_to_snippet(&value_token.as_span());
-
-                            let value_str = value_snippet.as_slice();
-
-                            if value_token.kind == TokenKind::LiteralTrue {
-                                SymbolValue::Bool(true)
-                            } else if value_token.kind == TokenKind::LiteralFalse {
-                                SymbolValue::Bool(false)
-                            } else if value_token.kind == TokenKind::LiteralInteger {
-                                let int_val = parse_integer_literal(value_str)?;
-                                SymbolValue::Integer(int_val)
-                            } else if value_token.kind == TokenKind::LiteralHex {
-                                let int_val = parse_hexadecimal_literal(value_str)?;
-                                SymbolValue::Integer(int_val)
-                            } else if value_token.kind == TokenKind::LiteralBinary {
-                                let int_val = parse_binary_literal(value_str)?;
-                                SymbolValue::Integer(int_val)
-                            } else if value_token.kind == TokenKind::LiteralFloat {
-                                let float_val = parse_float_literal(value_str)?;
-                                SymbolValue::Float(float_val)
-                            } else if value_token.kind == TokenKind::LiteralString {
-                                SymbolValue::String(value_str.to_string())
-                            } else {
-                                self.session
-                                    .struct_span_error(
-                                        value_token.as_span(),
-                                        format!("expected symbol value, found `{}`", value_str),
-                                    )
-                                    .emit();
-
-                                return Err(());
-                            }
-                        } else {
-                            self.session
-                                .struct_span_error(
-                                    next.as_span(),
-                                    "expected symbol value".to_string(),
-                                )
-                                .emit();
-
-                            return Err(());
-                        };
-
-                        if let Some(existing_symbol) = self.symbol_manager.get_mut(&ident_str) {
-                            if existing_symbol.value == SymbolValue::Undefined {
-                                existing_symbol.value = new_value;
-
-                                println!("Updated symbol in data section: {}", ident_str);
-                            } else {
-                                self.session
-                                    .struct_span_error(
-                                        next.as_span(),
-                                        format!("symbol `{}` declared twice", ident_str),
-                                    )
-                                    .span_label(
-                                        existing_symbol.declared_span,
-                                        "initially declared here".to_string(),
-                                    )
-                                    .emit();
-
-                                return Err(());
-                            }
-                        } else {
-                            let new_symbol = DeclaredSymbol::new(
-                                next.as_span(),
-                                DEFAULT_BINDING,
-                                SymbolType::Value,
-                                new_value,
-                            );
-
-                            println!("Symbol in data section: {}", ident_str);
-
-                            self.symbol_manager.insert(ident_str, new_symbol);
-                        }
+                        self.parse_data_entry(next.as_span())?;
                     }
+
+                    self.assert_nothing_before_newline()?;
                 }
                 _ => {
                     self.session
@@ -246,16 +172,115 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            self.assert_nothing_before_newline()?;
-
             // Skip until we get to a non-whitespace token
             self.skip_empty_lines();
+        }
+
+        for label in self.label_manager.labels() {
+            println!("Label {} has value {}", label.0, label.1.value);
+        }
+
+        for symbol in self.symbol_manager.symbols() {
+            println!("Symbol {} : {:?}", symbol.0, symbol.1);
         }
 
         todo!();
     }
 
-    fn parse_type(&mut self, type_span: Span) -> Result<(), ()> {
+    fn parse_data_entry(&mut self, ident_span: Span) -> PResult {
+        let ident_snippet = self.session.span_to_snippet(&ident_span);
+        let ident_str = ident_snippet.as_slice().to_string();
+
+        self.skip_whitespace();
+
+        let new_value = if let Some(&value_token) = self.consume_next() {
+            let value_snippet = self.session.span_to_snippet(&value_token.as_span());
+
+            let value_str = value_snippet.as_slice();
+
+            if value_token.kind == TokenKind::LiteralTrue {
+                SymbolValue::Bool(true)
+            } else if value_token.kind == TokenKind::LiteralFalse {
+                SymbolValue::Bool(false)
+            } else if value_token.kind == TokenKind::LiteralInteger {
+                let int_val = parse_integer_literal(value_str)?;
+                SymbolValue::Integer(int_val)
+            } else if value_token.kind == TokenKind::LiteralHex {
+                let int_val = parse_hexadecimal_literal(value_str)?;
+                SymbolValue::Integer(int_val)
+            } else if value_token.kind == TokenKind::LiteralBinary {
+                let int_val = parse_binary_literal(value_str)?;
+                SymbolValue::Integer(int_val)
+            } else if value_token.kind == TokenKind::LiteralFloat {
+                let float_val = parse_float_literal(value_str)?;
+                SymbolValue::Float(float_val)
+            } else if value_token.kind == TokenKind::LiteralString {
+                SymbolValue::String(value_str.to_string())
+            } else {
+                self.session
+                    .struct_span_error(
+                        value_token.as_span(),
+                        format!("expected symbol value, found `{}`", value_str),
+                    )
+                    .emit();
+
+                return Err(());
+            }
+        } else {
+            self.session
+                .struct_span_error(ident_span, "expected symbol value".to_string())
+                .emit();
+
+            return Err(());
+        };
+
+        if let Some(existing_symbol) = self.symbol_manager.get_mut(&ident_str) {
+            if existing_symbol.value == SymbolValue::Undefined {
+                if existing_symbol.binding != SymBind::Extern {
+                    existing_symbol.value = new_value;
+
+                    println!(
+                        "Updated symbol in data section: {}. New value: {:?}",
+                        ident_str, existing_symbol.value
+                    );
+                } else {
+                    self.session
+                        .struct_span_error(
+                            ident_span,
+                            "symbol declared to be external but provided value".to_string(),
+                        )
+                        .span_label(
+                            existing_symbol.declared_span,
+                            "first declared as external".to_string(),
+                        )
+                        .emit();
+
+                    return Err(());
+                }
+            } else {
+                self.session
+                    .struct_span_error(ident_span, format!("symbol `{}` declared twice", ident_str))
+                    .span_label(
+                        existing_symbol.declared_span,
+                        "initially declared here".to_string(),
+                    )
+                    .emit();
+
+                return Err(());
+            }
+        } else {
+            let new_symbol =
+                DeclaredSymbol::new(ident_span, SymBind::Unknown, SymbolType::Value, new_value);
+
+            println!("Symbol in data section: {}", ident_str);
+
+            self.symbol_manager.insert(ident_str, new_symbol);
+        }
+
+        Ok(())
+    }
+
+    fn parse_type(&mut self, type_span: Span) -> PResult {
         self.skip_whitespace();
 
         let type_token = self.expect_consume_token(type_span, "expected symbol type")?;
@@ -287,13 +312,36 @@ impl<'a> Parser<'a> {
             let ident_str = ident_snippet.as_slice().to_string();
 
             if let Some(symbol) = self.symbol_manager.get_mut(&ident_str) {
-                symbol.sym_type = sym_type;
+                if symbol.sym_type == SymbolType::Default {
+                    symbol.sym_type = sym_type;
+                } else if symbol.sym_type == sym_type {
+                    self.session
+                        .struct_span_warn(
+                            ident_token.as_span(),
+                            "redundant .type declaration".to_string(),
+                        )
+                        .span_label(
+                            symbol.declared_span,
+                            "symbol inferred from this".to_string(),
+                        )
+                        .emit();
+                } else {
+                    self.session
+                        .struct_span_error(
+                            ident_token.as_span(),
+                            "conflicting symbol types".to_string(),
+                        )
+                        .span_label(symbol.declared_span, "first declared here".to_string())
+                        .emit();
+
+                    return Err(());
+                }
 
                 println!("Symbol {} type is {:?}", ident_str, sym_type);
             } else {
                 let declared_symbol = DeclaredSymbol::new(
                     ident_token.as_span(),
-                    DEFAULT_BINDING,
+                    SymBind::Unknown,
                     sym_type,
                     SymbolValue::Undefined,
                 );
@@ -319,7 +367,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn assert_nothing_before_newline(&mut self) -> Result<(), ()> {
+    fn assert_nothing_before_newline(&mut self) -> PResult {
         while let Some(&token) = self.consume_next() {
             if token.kind == TokenKind::Newline {
                 return Ok(());
@@ -348,7 +396,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_section(&mut self, section_span: Span) -> Result<(), ()> {
+    fn parse_section(&mut self, section_span: Span) -> PResult {
         self.skip_whitespace();
 
         let mode_token = self.expect_consume_token(section_span, "expected section type")?;
@@ -374,7 +422,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_binding(&mut self, span: Span, binding: SymBind) -> Result<(), ()> {
+    fn parse_binding(&mut self, span: Span, binding: SymBind) -> PResult {
         self.skip_whitespace();
 
         // The next token must be either a type, or an identifer
@@ -384,7 +432,6 @@ impl<'a> Parser<'a> {
 
         let mut gave_type = false;
 
-        // The default for values is being a Func
         let sym_type = if next.kind == TokenKind::DirectiveValue {
             gave_type = true;
             SymbolType::Value
@@ -392,7 +439,7 @@ impl<'a> Parser<'a> {
             gave_type = true;
             SymbolType::Func
         } else if next.kind == TokenKind::Identifier {
-            DEFAULT_TYPE
+            SymbolType::Default
         } else {
             self.session
                 .struct_span_error(
@@ -435,36 +482,508 @@ impl<'a> Parser<'a> {
 
         // Because this is a declaration of a symbol we should check if this symbol was
         // previously declared
-        if self.symbol_manager.contains(&ident_string) {
-            let declared_symbol = self.symbol_manager.get(&ident_string).unwrap();
+        if let Some(declared_symbol) = self.symbol_manager.get_mut(&ident_string) {
+            if declared_symbol.binding == binding {
+                self.session
+                    .struct_span_warn(
+                        next.as_span(),
+                        "redundant declaration of symbol binding".to_string(),
+                    )
+                    .emit();
+            } else if declared_symbol.binding == SymBind::Unknown {
+                if sym_type != SymbolType::Default {
+                    if declared_symbol.sym_type != SymbolType::Default {
+                        if declared_symbol.sym_type != sym_type {
+                            self.session
+                                .struct_span_error(
+                                    next.as_span(),
+                                    "conflicting symbol types".to_string(),
+                                )
+                                .span_label(
+                                    declared_symbol.declared_span,
+                                    "first declared here".to_string(),
+                                )
+                                .emit();
 
+                            return Err(());
+                        }
+                    } else {
+                        declared_symbol.sym_type = sym_type;
+                    }
+                }
+
+                if declared_symbol.value != SymbolValue::Undefined && binding == SymBind::Extern {
+                    self.session
+                        .struct_span_error(
+                            next.as_span(),
+                            "symbol declared to be external".to_string(),
+                        )
+                        .span_label(
+                            declared_symbol.declared_span,
+                            "found to be declared locally".to_string(),
+                        )
+                        .emit();
+
+                    return Err(());
+                }
+
+                declared_symbol.binding = binding;
+            } else {
+                self.session
+                    .struct_span_error(next.as_span(), "conflicting symbol bindings".to_string())
+                    .emit();
+
+                return Err(());
+            }
+        } else {
+            println!("Symbol declared: {}", ident_string);
+
+            let declared_symbol =
+                DeclaredSymbol::new(next.as_span(), binding, sym_type, SymbolValue::Undefined);
+
+            self.symbol_manager.insert(ident_string, declared_symbol);
+        }
+
+        Ok(())
+    }
+
+    fn parse_function(&mut self, span: Span) -> Result<ParsedFunction, ()> {
+        let mut instructions = Vec::new();
+
+        self.skip_whitespace();
+
+        self.struct_expected("newline", TokenKind::Newline, Some(span))?;
+
+        let label = self.struct_expected("function label", TokenKind::Label, Some(span))?;
+        let label_snippet = self.session.span_to_snippet(&label.as_span());
+        let label_str = label_snippet.as_slice();
+        let label_str = label_str[..label_str.len() - 1].to_string();
+
+        println!("Parsing function: {}", label_str);
+
+        self.declare_label(label.as_span(), false)?;
+
+        if let Some(existing_symbol) = self.symbol_manager.get_mut(&label_str) {
+            // If the symbol doesn't have a previously provided value
+            if existing_symbol.value == SymbolValue::Undefined {
+                // If the symbol type was previously .value (which has to be manually specified)
+                if existing_symbol.sym_type == SymbolType::Value {
+                    // Emit an error
+                    self.session
+                        .struct_span_error(label.as_span(), "conflicting symbol types".to_string())
+                        .span_label(
+                            existing_symbol.declared_span,
+                            "first declared here".to_string(),
+                        )
+                        .emit();
+
+                    return Err(());
+                }
+
+                // If this was declared to have a binding of "extern"
+                if existing_symbol.binding == SymBind::Extern {
+                    self.session
+                        .struct_span_error(
+                            label.as_span(),
+                            "declared to be external, but found defined here".to_string(),
+                        )
+                        .span_label(
+                            existing_symbol.declared_span,
+                            "first declared here".to_string(),
+                        )
+                        .emit();
+
+                    return Err(());
+                }
+
+                existing_symbol.sym_type = SymbolType::Func;
+                existing_symbol.value = SymbolValue::Function;
+            }
+            // If it does have a previously defined value
+            else {
+                self.session
+                    .struct_span_error(
+                        label.as_span(),
+                        "function declaraed with same name as existing symbol".to_string(),
+                    )
+                    .span_label(
+                        existing_symbol.declared_span,
+                        "first declared here".to_string(),
+                    )
+                    .emit();
+                return Err(());
+            }
+        }
+        // If this symbol doesn't already exist
+        else {
+            let declared_symbol = DeclaredSymbol::new(
+                label.as_span(),
+                SymBind::Unknown,
+                SymbolType::Func,
+                SymbolValue::Function,
+            );
+
+            self.symbol_manager
+                .insert(label_str.clone(), declared_symbol);
+        }
+
+        self.latest_label = label_str.clone();
+
+        let mut is_first = true;
+
+        self.skip_empty_lines();
+
+        while let Some(&next) = self.peek_next() {
+            if !matches!(
+                next.kind,
+                TokenKind::Identifier | TokenKind::Label | TokenKind::InnerLabel
+            ) {
+                break;
+            } else {
+                let instr = self.parse_instruction(is_first)?;
+                instructions.push(instr);
+                self.instruction_count += 1;
+                is_first = false;
+
+                self.skip_empty_lines();
+            }
+        }
+
+        println!("Function had {} instructions", instructions.len());
+
+        Ok(ParsedFunction::new(label_str, instructions))
+    }
+
+    fn declare_label(&mut self, span: Span, inner: bool) -> PResult {
+        let label = Label::new(self.instruction_count, span);
+        let snippet = self.session.span_to_snippet(&span);
+        let label_str = snippet.as_slice();
+
+        let label_str = if inner {
+            format!(
+                "{}.{}",
+                self.latest_label,
+                &label_str[1..label_str.len() - 1]
+            )
+        } else {
+            (&label_str[..label_str.len() - 1]).to_string()
+        };
+
+        if let Some(existing_label) = self.label_manager.get(&label_str) {
+            // A label already existed with that name
             self.session
-                .struct_span_error(next.as_span(), "duplicate symbol name".to_string())
-                .span_label(
-                    declared_symbol.declared_span,
-                    "previously defined here".to_string(),
+                .struct_span_error(span, "label with duplicate name found".to_string())
+                .span_label(existing_label.span, "first declared here".to_string())
+                .emit();
+
+            Err(())
+        } else {
+            println!("New label declared: {}", label_str);
+
+            self.label_manager.insert(label_str, label);
+
+            Ok(())
+        }
+    }
+
+    fn parse_instruction(&mut self, is_first: bool) -> Result<ParsedInstruction, ()> {
+        let (opcode, opcode_span) = if is_first {
+            self.parse_opcode(None, None)?
+        } else {
+            let next = *self.consume_next().unwrap();
+            let next_span = next.as_span();
+
+            if next.kind == TokenKind::Label {
+                self.declare_label(next_span, false)?;
+
+                self.skip_empty_lines();
+
+                self.parse_opcode(None, Some(next_span))?
+            } else if next.kind == TokenKind::InnerLabel {
+                self.declare_label(next_span, true)?;
+
+                self.skip_empty_lines();
+
+                self.parse_opcode(None, Some(next_span))?
+            } else {
+                self.parse_opcode(Some(next), None)?
+            }
+        };
+
+        self.skip_whitespace();
+
+        println!("    Instruction was: {:?}", opcode);
+
+        let mut operands = self.parse_operands()?;
+        let provided_num = operands.len();
+
+        let wanted_num = opcode.num_operands();
+
+        if provided_num != wanted_num {
+            self.session
+                .struct_span_error(
+                    opcode_span,
+                    format!(
+                        "{:?} requires {} argument{}, {} provided",
+                        opcode,
+                        wanted_num,
+                        if wanted_num == 1 { "" } else { "s" },
+                        provided_num
+                    ),
                 )
                 .emit();
 
             return Err(());
         }
 
-        println!("Symbol declared: {}", ident_string);
+        println!("        Operands: {:?}", operands);
 
-        let declared_symbol =
-            DeclaredSymbol::new(next.as_span(), binding, sym_type, SymbolValue::Undefined);
+        let mut operands = operands.drain(..);
 
-        self.symbol_manager.insert(ident_string, declared_symbol);
-
-        Ok(())
+        Ok(match provided_num {
+            0 => ParsedInstruction::ZeroOp { opcode },
+            1 => ParsedInstruction::OneOp {
+                opcode,
+                operand: operands.next().unwrap(),
+            },
+            _ => ParsedInstruction::TwoOp {
+                opcode,
+                operand1: operands.next().unwrap(),
+                operand2: operands.next().unwrap(),
+            },
+        })
     }
 
-    fn parse_function(&mut self) -> () {
-        todo!();
+    fn parse_operands(&mut self) -> Result<Vec<InstructionOperand>, ()> {
+        let mut raw_operands = Vec::new();
+        let mut operand = Vec::new();
+
+        while let Some(&next) = self.consume_next() {
+            if next.kind == TokenKind::Newline {
+                break;
+            } else if next.kind == TokenKind::SymbolComma {
+                if operand.is_empty() {
+                    self.session
+                        .struct_span_error(
+                            next.as_span(),
+                            "expected operand before `,`".to_string(),
+                        )
+                        .emit();
+
+                    return Err(());
+                } else {
+                    raw_operands.push(operand);
+                    operand = Vec::new();
+                }
+            } else {
+                operand.push(next);
+            }
+
+            self.skip_whitespace();
+        }
+
+        if !operand.is_empty() {
+            raw_operands.push(operand);
+        }
+
+        let mut converted_operands = Vec::new();
+
+        for raw in raw_operands {
+            converted_operands.push(self.convert_operand(raw)?);
+        }
+
+        Ok(converted_operands)
     }
 
-    fn parse_instruction(&mut self) -> () {
-        todo!();
+    fn convert_operand(&self, raw: Vec<Token>) -> Result<InstructionOperand, ()> {
+        let first_token = raw.first().unwrap();
+        let mut one_token = true;
+
+        let operand = match first_token.kind {
+            TokenKind::Identifier => {
+                let snippet = self.session.span_to_snippet(&first_token.as_span());
+                let identifier_str = snippet.as_slice().to_string();
+
+                InstructionOperand::Symbol(identifier_str)
+            }
+            TokenKind::LiteralInteger
+            | TokenKind::LiteralHex
+            | TokenKind::LiteralBinary
+            | TokenKind::LiteralTrue
+            | TokenKind::LiteralFalse
+            | TokenKind::LiteralFloat => {
+                let mut exp_tokens = raw.iter().peekable();
+                let parsed_exp =
+                    match ExpressionParser::parse_expression(&mut exp_tokens, self.session) {
+                        Ok(exp) => exp,
+                        Err(mut db) => {
+                            db.emit();
+
+                            return Err(());
+                        }
+                    };
+
+                if let Some(exp) = parsed_exp {
+                    let evaluated = match ExpressionEvaluator::evaluate(&exp) {
+                        Ok(exp) => exp,
+                        Err(e) => {
+                            let message = match e {
+                                crate::preprocessor::evaluator::EvalError::NegateBool => {
+                                    "tried to apply operator - to boolean value"
+                                }
+                                crate::preprocessor::evaluator::EvalError::FlipDouble => {
+                                    "tried to apply operator ~ to double value"
+                                }
+                                crate::preprocessor::evaluator::EvalError::ZeroDivide => {
+                                    "tried to divide by zero"
+                                }
+                            };
+
+                            self.session
+                                .struct_span_error(
+                                    first_token.as_span(),
+                                    format!("expression following this {}", message),
+                                )
+                                .emit();
+
+                            return Err(());
+                        }
+                    };
+
+                    let operand = match evaluated {
+                        Value::Int(i) => InstructionOperand::Integer(i),
+                        Value::Bool(b) => InstructionOperand::Bool(b),
+                        Value::Double(d) => InstructionOperand::Float(d),
+                    };
+
+                    one_token = false;
+
+                    operand
+                } else {
+                    self.session
+                        .struct_bug(
+                            "parsed expression is None despite having a first value".to_string(),
+                        )
+                        .emit();
+
+                    return Err(());
+                }
+            }
+            TokenKind::SymbolAt => InstructionOperand::ArgMarker,
+            TokenKind::SymbolHash => InstructionOperand::Null,
+            TokenKind::InnerLabelReference => {
+                let snippet = self.session.span_to_snippet(&first_token.as_span());
+                let label = &snippet.as_slice()[1..];
+                let combined_label = format!("{}.{}", self.latest_label, label);
+
+                InstructionOperand::Label(combined_label)
+            }
+            TokenKind::LiteralString => {
+                let snippet = self.session.span_to_snippet(&first_token.as_span());
+                let inner = snippet.as_slice();
+                let inner = &inner[1..inner.len() - 1];
+
+                InstructionOperand::String(inner.to_string())
+            }
+            _ => {
+                self.session
+                    .struct_span_error(
+                        first_token.as_span(),
+                        "invalid token in instruction operand".to_string(),
+                    )
+                    .emit();
+
+                return Err(());
+            }
+        };
+
+        if one_token {
+            if raw.len() > 1 {
+                let unexpected = raw.get(1).unwrap();
+
+                self.session
+                    .struct_span_error(
+                        unexpected.as_span(),
+                        "expected comma after operand, found token".to_string(),
+                    )
+                    .emit();
+
+                return Err(());
+            }
+        }
+
+        Ok(operand)
+    }
+
+    fn parse_opcode(
+        &mut self,
+        token: Option<Token>,
+        before: Option<Span>,
+    ) -> Result<(Opcode, Span), ()> {
+        let identifier_token = if let Some(token) = token {
+            token
+        } else {
+            self.struct_expected("identifier", TokenKind::Identifier, before)?
+        };
+
+        let snippet = self.session.span_to_snippet(&identifier_token.as_span());
+        let identifier_str = snippet.as_slice();
+
+        let opcode = Opcode::from(identifier_str);
+
+        if opcode == Opcode::Bogus {
+            self.session
+                .struct_span_error(
+                    identifier_token.as_span(),
+                    format!("expected instruction, found `{}`", identifier_str),
+                )
+                .emit();
+
+            return Err(());
+        }
+
+        Ok((opcode, identifier_token.as_span()))
+    }
+
+    fn struct_expected(
+        &mut self,
+        expected: &str,
+        kind: TokenKind,
+        before: Option<Span>,
+    ) -> Result<Token, ()> {
+        if let Some(&next) = self.consume_next() {
+            if next.kind == kind {
+                Ok(next)
+            } else {
+                let found = if next.kind == TokenKind::Newline {
+                    String::from("newline")
+                } else {
+                    let snippet = self.session.span_to_snippet(&next.as_span());
+                    snippet.as_slice().to_string()
+                };
+
+                self.session
+                    .struct_span_error(
+                        next.as_span(),
+                        format!("expected {}, found `{}`", expected, found),
+                    )
+                    .emit();
+
+                Err(())
+            }
+        } else if let Some(before) = before {
+            self.session
+                .struct_span_error(before, format!("expected {}, found end of file", expected))
+                .emit();
+
+            Err(())
+        } else {
+            self.session
+                .struct_bug("assumed EOF not possible while parsing".to_string())
+                .emit();
+
+            Err(())
+        }
     }
 
     // Peeks the next token from the Parser's tokens
