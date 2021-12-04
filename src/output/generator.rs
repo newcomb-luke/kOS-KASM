@@ -6,7 +6,7 @@ use kerbalobjects::{
         symbols::{KOSymbol, ReldEntry, SymBind, SymType},
         Instr, KOFile,
     },
-    KOSValue,
+    KOSValue, Opcode,
 };
 
 use crate::{
@@ -19,6 +19,7 @@ use super::{VerifiedFunction, VerifiedInstruction, VerifiedOperand};
 pub struct Generator<'a, 'c> {
     session: &'a Session,
     symbol_manager: &'c SymbolManager,
+    global_instruction_index: usize,
 }
 
 impl<'a, 'c> Generator<'a, 'c> {
@@ -26,10 +27,12 @@ impl<'a, 'c> Generator<'a, 'c> {
         Self {
             session,
             symbol_manager,
+            global_instruction_index: 0,
         }
     }
 
-    pub fn generate(self, functions: Vec<VerifiedFunction>) -> Result<KOFile, ()> {
+    /// Generates the final object file
+    pub fn generate(mut self, functions: Vec<VerifiedFunction>) -> Result<KOFile, ()> {
         let mut function_map: HashMap<String, u16> = HashMap::new();
         let mut functions_and_sections = Vec::with_capacity(functions.len());
 
@@ -37,9 +40,13 @@ impl<'a, 'c> Generator<'a, 'c> {
 
         let mut data_section = ko.new_datasection(".data");
         let mut sym_tab = ko.new_symtab(".symtab");
+        let mut comment_tab = ko.new_strtab(".comment");
         let mut sym_str_tab = ko.new_strtab(".symstrtab");
         let mut reld_section = ko.new_reldsection(".reld");
         let mut function_sections = Vec::new();
+
+        // Add the file's comment
+        comment_tab.add(&self.session.config().comment);
 
         // Create all of the function sections for each function we have
         for function in functions {
@@ -131,15 +138,12 @@ impl<'a, 'c> Generator<'a, 'c> {
             }
         }
 
-        let mut global_instruction_index = 0;
-
         // Now that we are done adding all of the functions and symbols, we can actually start
         // generating code
         for (func_section, function) in functions_and_sections {
             let finished = self.generate_function(
                 func_section,
                 function,
-                &mut global_instruction_index,
                 &mut data_section,
                 &mut reld_section,
                 &sym_tab,
@@ -154,6 +158,7 @@ impl<'a, 'c> Generator<'a, 'c> {
 
         ko.add_data_section(data_section);
         ko.add_sym_tab(sym_tab);
+        ko.add_str_tab(comment_tab);
         ko.add_str_tab(sym_str_tab);
         ko.add_reld_section(reld_section);
 
@@ -174,10 +179,9 @@ impl<'a, 'c> Generator<'a, 'c> {
     }
 
     fn generate_function(
-        &self,
+        &mut self,
         mut function_section: FuncSection,
         function: VerifiedFunction,
-        global_instruction_index: &mut usize,
         data_section: &mut DataSection,
         reld_section: &mut ReldSection,
         sym_tab: &SymbolTable,
@@ -186,10 +190,17 @@ impl<'a, 'c> Generator<'a, 'c> {
         let function_section_index = function_section.section_index();
         let mut local_instruction_index = 0;
 
-        for instruction in function.instructions {
+        /*
+        // The linker expects the assembler to perform a label reset as the first instruction in
+        // _start
+        if function.name == "_start" {
+            let label_reset = VerifiedInstruction::OneOp {
+                opcode: Opcode::Lbrt,
+                operand: VerifiedOperand::Value(KOSValue::String(String::from("@0001"))),
+            };
+
             let generated_instr = self.generate_instruction(
-                instruction,
-                *global_instruction_index,
+                label_reset,
                 function_section_index,
                 local_instruction_index,
                 data_section,
@@ -200,7 +211,29 @@ impl<'a, 'c> Generator<'a, 'c> {
 
             function_section.add(generated_instr);
 
-            *global_instruction_index += 1;
+            local_instruction_index += 1;
+        }
+        */
+
+        for instruction in function.instructions {
+            let opcode = instruction.opcode();
+
+            let generated_instr = self.generate_instruction(
+                instruction,
+                function_section_index,
+                local_instruction_index,
+                data_section,
+                reld_section,
+                sym_tab,
+                sym_str_tab,
+            )?;
+
+            function_section.add(generated_instr);
+
+            if opcode != Opcode::Lbrt {
+                self.global_instruction_index += 1;
+            }
+
             local_instruction_index += 1;
         }
 
@@ -208,9 +241,8 @@ impl<'a, 'c> Generator<'a, 'c> {
     }
 
     fn generate_instruction(
-        &self,
+        &mut self,
         instruction: VerifiedInstruction,
-        global_instruction_index: usize,
         function_section_index: usize,
         local_instruction_index: usize,
         data_section: &mut DataSection,
@@ -224,7 +256,6 @@ impl<'a, 'c> Generator<'a, 'c> {
                 let op = self.handle_operand(
                     operand,
                     0,
-                    global_instruction_index,
                     function_section_index,
                     local_instruction_index,
                     data_section,
@@ -242,7 +273,6 @@ impl<'a, 'c> Generator<'a, 'c> {
                 let op1 = self.handle_operand(
                     operand1,
                     0,
-                    global_instruction_index,
                     function_section_index,
                     local_instruction_index,
                     data_section,
@@ -253,7 +283,6 @@ impl<'a, 'c> Generator<'a, 'c> {
                 let op2 = self.handle_operand(
                     operand2,
                     1,
-                    global_instruction_index,
                     function_section_index,
                     local_instruction_index,
                     data_section,
@@ -268,10 +297,9 @@ impl<'a, 'c> Generator<'a, 'c> {
     }
 
     fn handle_operand(
-        &self,
+        &mut self,
         operand: VerifiedOperand,
         operand_index: usize,
-        global_instruction_index: usize,
         function_section_index: usize,
         local_instruction_index: usize,
         data_section: &mut DataSection,
@@ -284,13 +312,14 @@ impl<'a, 'c> Generator<'a, 'c> {
             VerifiedOperand::Label(location) => {
                 // Because this is an absolute location and not a relative one, we have to convert
                 // it to a relative one
-                let relative = location as i32 - global_instruction_index as i32;
+                let relative = location as i32 - self.global_instruction_index as i32;
                 let value = KOSValue::Int32(relative);
 
                 data_section.add_checked(value)
             }
             VerifiedOperand::Symbol(s) => {
                 let name_index = sym_str_tab.find(&s).unwrap();
+
                 let symbol_index = sym_tab.position_by_name(name_index).unwrap();
 
                 let reld_entry = ReldEntry::new(

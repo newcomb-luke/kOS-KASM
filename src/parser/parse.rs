@@ -214,13 +214,7 @@ impl<'a> Parser<'a> {
             self.skip_empty_lines();
         }
 
-        println!("-------------------------------------------------");
-
-        for label in self.label_manager.labels() {
-            println!("Label {} has value {}", label.0, label.1.value);
-        }
-
-        for (ident, symbol) in self.symbol_manager.symbols() {
+        for (_, symbol) in self.symbol_manager.symbols() {
             if symbol.sym_type == SymbolType::Default && symbol.binding == SymBind::Extern {
                 self.session
                     .struct_span_error(
@@ -242,8 +236,6 @@ impl<'a> Parser<'a> {
 
                 return Err(());
             }
-
-            println!("Symbol {} : {:?}", ident, symbol);
         }
 
         Ok((functions, self.label_manager, self.symbol_manager))
@@ -425,11 +417,6 @@ impl<'a> Parser<'a> {
             if existing_symbol.value == SymbolValue::Undefined {
                 if existing_symbol.binding != SymBind::Extern {
                     existing_symbol.value = SymbolValue::Value(value);
-
-                    println!(
-                        "Updated symbol in data section: {}. New value: {:?}",
-                        ident_str, existing_symbol.value
-                    );
                 } else {
                     self.session
                         .struct_span_error(
@@ -462,8 +449,6 @@ impl<'a> Parser<'a> {
                 SymbolType::Value,
                 SymbolValue::Value(value),
             );
-
-            println!("Symbol in data section: {}", ident_str);
 
             self.symbol_manager.insert(ident_str, new_symbol);
         }
@@ -596,8 +581,6 @@ impl<'a> Parser<'a> {
 
                     return Err(());
                 }
-
-                println!("Symbol {} type is {:?}", ident_str, sym_type);
             } else {
                 let declared_symbol = DeclaredSymbol::new(
                     ident_token.as_span(),
@@ -605,8 +588,6 @@ impl<'a> Parser<'a> {
                     sym_type,
                     SymbolValue::Undefined,
                 );
-
-                println!("Symbol {} type is {:?}", ident_str, sym_type);
 
                 self.symbol_manager.insert(ident_str, declared_symbol);
             }
@@ -796,8 +777,6 @@ impl<'a> Parser<'a> {
                 return Err(());
             }
         } else {
-            println!("Symbol declared: {}", ident_string);
-
             let declared_symbol =
                 DeclaredSymbol::new(next.as_span(), binding, sym_type, SymbolValue::Undefined);
 
@@ -818,8 +797,6 @@ impl<'a> Parser<'a> {
         let label_snippet = self.session.span_to_snippet(&label.as_span());
         let label_str = label_snippet.as_slice();
         let label_str = label_str[..label_str.len() - 1].to_string();
-
-        println!("Parsing function: {}", label_str);
 
         self.declare_label(label.as_span(), false)?;
 
@@ -909,8 +886,6 @@ impl<'a> Parser<'a> {
             }
         }
 
-        println!("Function had {} instructions", instructions.len());
-
         Ok(ParsedFunction::new(label_str, instructions))
     }
 
@@ -938,8 +913,6 @@ impl<'a> Parser<'a> {
 
             Err(())
         } else {
-            println!("New label declared: {}", label_str);
-
             self.label_manager.insert(label_str, label);
 
             Ok(())
@@ -972,8 +945,6 @@ impl<'a> Parser<'a> {
 
         self.skip_whitespace();
 
-        println!("    Instruction was: {:?}", opcode);
-
         let mut operands = self.parse_operands()?;
         let provided_num = operands.len();
 
@@ -995,8 +966,6 @@ impl<'a> Parser<'a> {
 
             return Err(());
         }
-
-        println!("        Operands: {:?}", operands);
 
         let mut operands = operands.drain(..);
 

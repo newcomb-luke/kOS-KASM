@@ -1,5 +1,5 @@
 use clap::{App, Arg};
-use kasm::{AssemblyOutput, Config};
+use kasm::{AssemblyOutput, Config, VERSION};
 use kerbalobjects::ToBytes;
 use std::{io::Write, path::PathBuf, process};
 
@@ -95,6 +95,11 @@ fn main() {
 
     let file_sym_name = matches.value_of("file").map(|s| s.to_string());
 
+    let comment = matches
+        .value_of("comment")
+        .map(|s| s.to_string())
+        .unwrap_or(format!("Compiled by KASM {}", VERSION));
+
     let config = Config {
         is_cli: true, // Always true, this is main.rs!
         emit_warnings,
@@ -103,6 +108,7 @@ fn main() {
         output_preprocessed,
         include_path,
         file_sym_name,
+        comment,
     };
 
     if let Ok(output) = assemble_path(path, config) {

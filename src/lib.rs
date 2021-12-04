@@ -48,6 +48,10 @@ pub struct Config {
     /// file, it will be set to this provided value. This can be useful when creating a compiler
     /// with KASM as it allows you to use the source file's name and not the assembled file's name.
     pub file_sym_name: Option<String>,
+    /// If specified, instead of the default "Compiled with KASM {}", another comment will be
+    /// placed inside of the produced object file. This is useful for setting messages for
+    /// compilers that generate KASM
+    pub comment: String,
 }
 
 /// Represents the two possible types of output that KASM supports

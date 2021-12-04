@@ -59,10 +59,6 @@ impl OperandType {
     }
 }
 
-// Symbols
-// Labels
-// Operands
-
 #[derive(Debug, Clone)]
 pub enum VerifiedOperand {
     Value(KOSValue),
@@ -84,6 +80,20 @@ pub enum VerifiedInstruction {
         operand1: VerifiedOperand,
         operand2: VerifiedOperand,
     },
+}
+
+impl VerifiedInstruction {
+    pub fn opcode(&self) -> Opcode {
+        *match self {
+            Self::ZeroOp { opcode } => opcode,
+            Self::OneOp { opcode, operand: _ } => opcode,
+            Self::TwoOp {
+                opcode,
+                operand1: _,
+                operand2: _,
+            } => opcode,
+        }
+    }
 }
 
 pub struct VerifiedFunction {
@@ -525,7 +535,11 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
             Opcode::And => &[&[]],
             Opcode::Or => &[&[]],
             Opcode::Call => &[
-                &[OperandType::String, OperandType::Null],
+                &[
+                    OperandType::String,
+                    OperandType::Null,
+                    OperandType::Function,
+                ],
                 &[
                     OperandType::String,
                     OperandType::Int16,
