@@ -545,7 +545,6 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
                     OperandType::Int16,
                     OperandType::Int32,
                     OperandType::Null,
-                    OperandType::Function,
                 ],
             ],
             Opcode::Ret => &[&[OperandType::Int16]],
