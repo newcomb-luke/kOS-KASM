@@ -59,10 +59,6 @@ impl OperandType {
     }
 }
 
-// Symbols
-// Labels
-// Operands
-
 #[derive(Debug, Clone)]
 pub enum VerifiedOperand {
     Value(KOSValue),
@@ -84,6 +80,20 @@ pub enum VerifiedInstruction {
         operand1: VerifiedOperand,
         operand2: VerifiedOperand,
     },
+}
+
+impl VerifiedInstruction {
+    pub fn opcode(&self) -> Opcode {
+        *match self {
+            Self::ZeroOp { opcode } => opcode,
+            Self::OneOp { opcode, operand: _ } => opcode,
+            Self::TwoOp {
+                opcode,
+                operand1: _,
+                operand2: _,
+            } => opcode,
+        }
+    }
 }
 
 pub struct VerifiedFunction {
@@ -122,7 +132,7 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
             functions.push(verified);
         }
 
-        todo!();
+        Ok(functions)
     }
 
     // Verifies a single function
@@ -279,53 +289,25 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
 
                         if symbol.binding != SymBind::Extern {
                             let is_ok = match &symbol.value {
-                                SymbolValue::String(_) => {
-                                    accepted.contains(&OperandType::String)
-                                        | accepted.contains(&OperandType::StringValue)
-                                }
-                                SymbolValue::Bool(_) => {
-                                    accepted.contains(&OperandType::Bool)
-                                        | accepted.contains(&OperandType::BooleanValue)
-                                }
-                                SymbolValue::Float(_) => {
-                                    accepted.contains(&OperandType::Double)
-                                        | accepted.contains(&OperandType::ScalarDouble)
-                                }
-                                SymbolValue::Integer(i) => {
-                                    if accepted.contains(&OperandType::Byte)
-                                        || accepted.contains(&OperandType::Int16)
-                                        || accepted.contains(&OperandType::Int32)
-                                        || accepted.contains(&OperandType::ScalarInt)
-                                    {
-                                        match self.maybe_squish_integer(*i, accepted) {
-                                            Ok(_) => true,
-                                            Err(_) => {
-                                                let largest =
-                                                    self.largest_accepted_integer(accepted)?;
+                                SymbolValue::Value(value) => {
+                                    let operand_type = match value {
+                                        KOSValue::Byte(_) => OperandType::Byte,
+                                        KOSValue::Int16(_) => OperandType::Int16,
+                                        KOSValue::Int32(_) => OperandType::Int32,
+                                        KOSValue::ScalarInt(_) => OperandType::ScalarInt,
+                                        KOSValue::Double(_) => OperandType::Double,
+                                        KOSValue::ScalarDouble(_) => OperandType::ScalarDouble,
+                                        KOSValue::Bool(_) => OperandType::Bool,
+                                        KOSValue::BoolValue(_) => OperandType::BooleanValue,
+                                        KOSValue::String(_) => OperandType::String,
+                                        KOSValue::StringValue(_) => OperandType::StringValue,
+                                        KOSValue::Null => OperandType::Null,
+                                        KOSValue::ArgMarker => OperandType::ArgMarker,
+                                        KOSValue::Float(_) => unreachable!(),
+                                    };
 
-                                                self.session
-                                                    .struct_error(format!(
-                                                        "instruction requires integer that can fit in a {}",
-                                                        largest
-                                                    ))
-                                                    .span_label(
-                                                        span,
-                                                        "symbol's value is too large to fit"
-                                                            .to_string(),
-                                                    )
-                                                    .emit();
-
-                                                return Err(());
-                                            }
-                                        }
-                                    } else {
-                                        false
-                                    }
+                                    accepted.contains(&operand_type)
                                 }
-                                SymbolValue::ArgMarker => {
-                                    accepted.contains(&OperandType::ArgMarker)
-                                }
-                                SymbolValue::Null => accepted.contains(&OperandType::Null),
                                 SymbolValue::Function => accepted.contains(&OperandType::Function),
                                 SymbolValue::Undefined => {
                                     self.session
@@ -553,7 +535,11 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
             Opcode::And => &[&[]],
             Opcode::Or => &[&[]],
             Opcode::Call => &[
-                &[OperandType::String, OperandType::Null],
+                &[
+                    OperandType::String,
+                    OperandType::Null,
+                    OperandType::Function,
+                ],
                 &[
                     OperandType::String,
                     OperandType::Int16,

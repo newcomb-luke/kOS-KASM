@@ -81,13 +81,22 @@ impl Session {
             .unwrap())
     }
 
-    /// This function should ONLY be used for debugging/tests
     pub fn add_file(&mut self, source_file: SourceFile) {
         self.source_manager
             .write()
             .unwrap()
             .add(source_file)
             .unwrap();
+    }
+
+    pub fn get_input_file_name(&self) -> String {
+        self.source_manager
+            .read()
+            .unwrap()
+            .get_by_id(0)
+            .unwrap()
+            .name
+            .to_string()
     }
 
     pub fn struct_span_warn(&self, span: Span, message: String) -> DiagnosticBuilder<'_> {

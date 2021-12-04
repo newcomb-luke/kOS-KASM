@@ -27,6 +27,18 @@ pub enum TokenKind {
     KeywordText,
     KeywordData,
 
+    /// Types
+    TypeI8,
+    TypeI16,
+    TypeI32,
+    TypeI32V,
+    TypeF64,
+    TypeF64V,
+    TypeS,
+    TypeSV,
+    TypeB,
+    TypeBV,
+
     /// Directives
     DirectiveDefine,
     DirectiveMacro,
@@ -105,6 +117,36 @@ pub enum RawToken {
 
     #[token(".data")]
     KeywordData,
+
+    #[token(".i8")]
+    TypeI8,
+
+    #[token(".i16")]
+    TypeI16,
+
+    #[token(".i32")]
+    TypeI32,
+
+    #[token(".i32v")]
+    TypeI32V,
+
+    #[token(".f64")]
+    TypeF64,
+
+    #[token(".f64v")]
+    TypeF64V,
+
+    #[token(".s")]
+    TypeS,
+
+    #[token(".sv")]
+    TypeSV,
+
+    #[token(".b")]
+    TypeB,
+
+    #[token(".bv")]
+    TypeBV,
 
     #[token(".define")]
     DirectiveDefine,

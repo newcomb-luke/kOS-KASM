@@ -13,11 +13,12 @@ pub mod output;
 pub mod parser;
 pub mod preprocessor;
 
+use lexer::Token;
 use session::Session;
 
 use crate::{
     lexer::{phase0, Lexer, TokenKind},
-    output::Verifier,
+    output::{generator::Generator, Verifier},
     parser::parse,
     preprocessor::executor::Executor,
 };
@@ -43,6 +44,14 @@ pub struct Config {
     /// If specified, instead of the preprocessor looking at the current working directory for
     /// files to include, it will search the provided path
     pub include_path: Option<String>,
+    /// If specified, instead of the object file's "file" symbol being set to the name of the input
+    /// file, it will be set to this provided value. This can be useful when creating a compiler
+    /// with KASM as it allows you to use the source file's name and not the assembled file's name.
+    pub file_sym_name: Option<String>,
+    /// If specified, instead of the default "Compiled with KASM {}", another comment will be
+    /// placed inside of the produced object file. This is useful for setting messages for
+    /// compilers that generate KASM
+    pub comment: String,
 }
 
 /// Represents the two possible types of output that KASM supports
@@ -120,87 +129,7 @@ fn assemble(mut session: Session) -> Result<AssemblyOutput, ()> {
 
     // If we should output the preprocessed tokens instead of assembling
     if session.config().output_preprocessed {
-        let mut output = String::new();
-
-        for token in tokens {
-            let str_rep = match token.kind {
-                TokenKind::Newline => "\n",
-                TokenKind::OperatorMinus => "-",
-                TokenKind::OperatorPlus => "+",
-                TokenKind::OperatorCompliment => "~",
-                TokenKind::OperatorMultiply => "*",
-                TokenKind::OperatorDivide => "/",
-                TokenKind::OperatorMod => "%",
-                TokenKind::OperatorAnd => "&&",
-                TokenKind::OperatorOr => "||",
-                TokenKind::OperatorEquals => "==",
-                TokenKind::OperatorNotEquals => "!=",
-                TokenKind::OperatorNegate => "!",
-                TokenKind::OperatorGreaterThan => ">",
-                TokenKind::OperatorLessThan => "<",
-                TokenKind::OperatorGreaterEquals => ">=",
-                TokenKind::OperatorLessEquals => "<=",
-                TokenKind::SymbolLeftParen => "(",
-                TokenKind::SymbolRightParen => ")",
-                TokenKind::SymbolComma => ",",
-                TokenKind::SymbolHash => "#",
-                TokenKind::SymbolAt => "@",
-                TokenKind::SymbolAnd => "&",
-                TokenKind::LiteralTrue => "true",
-                TokenKind::LiteralFalse => "false",
-                TokenKind::Backslash => "\\",
-                TokenKind::KeywordSection => ".section",
-                TokenKind::KeywordText => ".text",
-                TokenKind::KeywordData => ".data",
-                TokenKind::DirectiveDefine => ".define",
-                TokenKind::DirectiveMacro => ".macro",
-                TokenKind::DirectiveEndmacro => ".endmacro",
-                TokenKind::DirectiveRepeat => ".rep",
-                TokenKind::DirectiveEndRepeat => ".endrep",
-                TokenKind::DirectiveInclude => ".include",
-                TokenKind::DirectiveExtern => ".extern",
-                TokenKind::DirectiveGlobal => ".global",
-                TokenKind::DirectiveLocal => ".local",
-                TokenKind::DirectiveLine => ".line",
-                TokenKind::DirectiveType => ".type",
-                TokenKind::DirectiveValue => ".value",
-                TokenKind::DirectiveUndef => ".undef",
-                TokenKind::DirectiveUnmacro => ".unmacro",
-                TokenKind::DirectiveFunc => ".func",
-                TokenKind::DirectiveIf => ".if",
-                TokenKind::DirectiveIfNot => ".ifn",
-                TokenKind::DirectiveIfDef => ".ifdef",
-                TokenKind::DirectiveIfNotDef => ".ifndef",
-                TokenKind::DirectiveElseIf => ".elif",
-                TokenKind::DirectiveElseIfNot => ".elifn",
-                TokenKind::DirectiveElseIfDef => ".elifdef",
-                TokenKind::DirectiveElseIfNotDef => ".elifndef",
-                TokenKind::DirectiveElse => ".else",
-                TokenKind::DirectiveEndIf => ".endif",
-                TokenKind::InnerLabelReference
-                | TokenKind::InnerLabel
-                | TokenKind::Identifier
-                | TokenKind::Label
-                | TokenKind::Whitespace
-                | TokenKind::LiteralInteger
-                | TokenKind::LiteralFloat
-                | TokenKind::LiteralHex
-                | TokenKind::LiteralBinary
-                | TokenKind::LiteralString
-                | TokenKind::Comment
-                | TokenKind::Error
-                | TokenKind::JunkFloatError => "",
-            };
-
-            if !str_rep.is_empty() {
-                output.push_str(str_rep);
-            } else {
-                let snippet = session.span_to_snippet(&token.as_span());
-                let token_str = snippet.as_slice();
-
-                output.push_str(token_str);
-            }
-        }
+        let output = generate_preprocessed(tokens, &session);
 
         return Ok(AssemblyOutput::Source(output));
     }
@@ -213,5 +142,106 @@ fn assemble(mut session: Session) -> Result<AssemblyOutput, ()> {
 
     let verified_functions = verifier.verify()?;
 
-    todo!();
+    let generator = Generator::new(&session, &symbol_manager);
+
+    let kofile = generator.generate(verified_functions)?;
+
+    Ok(AssemblyOutput::Object(kofile))
+}
+
+// Generates preprocessed source output
+fn generate_preprocessed(tokens: Vec<Token>, session: &Session) -> String {
+    let mut output = String::new();
+
+    for token in tokens {
+        let str_rep = match token.kind {
+            TokenKind::Newline => "\n",
+            TokenKind::OperatorMinus => "-",
+            TokenKind::OperatorPlus => "+",
+            TokenKind::OperatorCompliment => "~",
+            TokenKind::OperatorMultiply => "*",
+            TokenKind::OperatorDivide => "/",
+            TokenKind::OperatorMod => "%",
+            TokenKind::OperatorAnd => "&&",
+            TokenKind::OperatorOr => "||",
+            TokenKind::OperatorEquals => "==",
+            TokenKind::OperatorNotEquals => "!=",
+            TokenKind::OperatorNegate => "!",
+            TokenKind::OperatorGreaterThan => ">",
+            TokenKind::OperatorLessThan => "<",
+            TokenKind::OperatorGreaterEquals => ">=",
+            TokenKind::OperatorLessEquals => "<=",
+            TokenKind::SymbolLeftParen => "(",
+            TokenKind::SymbolRightParen => ")",
+            TokenKind::SymbolComma => ",",
+            TokenKind::SymbolHash => "#",
+            TokenKind::SymbolAt => "@",
+            TokenKind::SymbolAnd => "&",
+            TokenKind::LiteralTrue => "true",
+            TokenKind::LiteralFalse => "false",
+            TokenKind::Backslash => "\\",
+            TokenKind::KeywordSection => ".section",
+            TokenKind::KeywordText => ".text",
+            TokenKind::KeywordData => ".data",
+            TokenKind::TypeI8 => ".i8",
+            TokenKind::TypeI16 => ".i16",
+            TokenKind::TypeI32 => ".i32",
+            TokenKind::TypeI32V => ".i32v",
+            TokenKind::TypeF64 => ".f64",
+            TokenKind::TypeF64V => ".f64v",
+            TokenKind::TypeS => ".s",
+            TokenKind::TypeSV => ".sv",
+            TokenKind::TypeB => ".b",
+            TokenKind::TypeBV => ".bv",
+            TokenKind::DirectiveDefine => ".define",
+            TokenKind::DirectiveMacro => ".macro",
+            TokenKind::DirectiveEndmacro => ".endmacro",
+            TokenKind::DirectiveRepeat => ".rep",
+            TokenKind::DirectiveEndRepeat => ".endrep",
+            TokenKind::DirectiveInclude => ".include",
+            TokenKind::DirectiveExtern => ".extern",
+            TokenKind::DirectiveGlobal => ".global",
+            TokenKind::DirectiveLocal => ".local",
+            TokenKind::DirectiveLine => ".line",
+            TokenKind::DirectiveType => ".type",
+            TokenKind::DirectiveValue => ".value",
+            TokenKind::DirectiveUndef => ".undef",
+            TokenKind::DirectiveUnmacro => ".unmacro",
+            TokenKind::DirectiveFunc => ".func",
+            TokenKind::DirectiveIf => ".if",
+            TokenKind::DirectiveIfNot => ".ifn",
+            TokenKind::DirectiveIfDef => ".ifdef",
+            TokenKind::DirectiveIfNotDef => ".ifndef",
+            TokenKind::DirectiveElseIf => ".elif",
+            TokenKind::DirectiveElseIfNot => ".elifn",
+            TokenKind::DirectiveElseIfDef => ".elifdef",
+            TokenKind::DirectiveElseIfNotDef => ".elifndef",
+            TokenKind::DirectiveElse => ".else",
+            TokenKind::DirectiveEndIf => ".endif",
+            TokenKind::InnerLabelReference
+            | TokenKind::InnerLabel
+            | TokenKind::Identifier
+            | TokenKind::Label
+            | TokenKind::Whitespace
+            | TokenKind::LiteralInteger
+            | TokenKind::LiteralFloat
+            | TokenKind::LiteralHex
+            | TokenKind::LiteralBinary
+            | TokenKind::LiteralString
+            | TokenKind::Comment
+            | TokenKind::Error
+            | TokenKind::JunkFloatError => "",
+        };
+
+        if !str_rep.is_empty() {
+            output.push_str(str_rep);
+        } else {
+            let snippet = session.span_to_snippet(&token.as_span());
+            let token_str = snippet.as_slice();
+
+            output.push_str(token_str);
+        }
+    }
+
+    output
 }

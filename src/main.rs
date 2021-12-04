@@ -1,5 +1,6 @@
 use clap::{App, Arg};
-use kasm::{AssemblyOutput, Config};
+use kasm::{AssemblyOutput, Config, VERSION};
+use kerbalobjects::ToBytes;
 use std::{io::Write, path::PathBuf, process};
 
 use kasm::assemble_path;
@@ -92,6 +93,13 @@ fn main() {
     let root_dir =
         std::env::current_dir().expect("KASM run in directory that doesn't exist anymore");
 
+    let file_sym_name = matches.value_of("file").map(|s| s.to_string());
+
+    let comment = matches
+        .value_of("comment")
+        .map(|s| s.to_string())
+        .unwrap_or(format!("Compiled by KASM {}", VERSION));
+
     let config = Config {
         is_cli: true, // Always true, this is main.rs!
         emit_warnings,
@@ -99,11 +107,25 @@ fn main() {
         run_preprocessor,
         output_preprocessed,
         include_path,
+        file_sym_name,
+        comment,
     };
 
     if let Ok(output) = assemble_path(path, config) {
         match output {
-            AssemblyOutput::Object(_object) => todo!(),
+            AssemblyOutput::Object(object) => {
+                // 2048 is just a best guess as to the size of the file
+                let mut file_buffer = Vec::with_capacity(2048);
+
+                // Actually write to the buffer
+                object.to_bytes(&mut file_buffer);
+
+                if let Err(e) = output_file.write_all(&file_buffer) {
+                    eprintln!("Error writing to `{}`: {}", output_path, e);
+
+                    process::exit(4);
+                }
+            }
             AssemblyOutput::Source(source) => {
                 if let Err(e) = output_file.write_all(source.as_bytes()) {
                     eprintln!("Error writing to `{}`: {}", output_path, e);
