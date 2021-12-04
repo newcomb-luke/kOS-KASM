@@ -45,6 +45,12 @@ impl<'a, 'c> Generator<'a, 'c> {
         let mut reld_section = ko.new_reldsection(".reld");
         let mut function_sections = Vec::new();
 
+        // Immediately add an initial value to the data section. This is to get around a slight
+        // oversight in kerbalobject.rs where if you never reference any data, there is nothing at
+        // index 0 and therefore even if the data section is never referenced, there will be a
+        // linking error.
+        data_section.add(KOSValue::Null);
+
         // Add the file's comment
         comment_tab.add(&self.session.config().comment);
 
