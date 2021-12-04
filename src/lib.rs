@@ -43,6 +43,10 @@ pub struct Config {
     /// If specified, instead of the preprocessor looking at the current working directory for
     /// files to include, it will search the provided path
     pub include_path: Option<String>,
+    /// If specified, instead of the object file's "file" symbol being set to the name of the input
+    /// file, it will be set to this provided value. This can be useful when creating a compiler
+    /// with KASM as it allows you to use the source file's name and not the assembled file's name.
+    pub file_sym_name: Option<String>,
 }
 
 /// Represents the two possible types of output that KASM supports

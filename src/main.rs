@@ -92,6 +92,8 @@ fn main() {
     let root_dir =
         std::env::current_dir().expect("KASM run in directory that doesn't exist anymore");
 
+    let file_sym_name = matches.value_of("file").map(|s| s.to_string());
+
     let config = Config {
         is_cli: true, // Always true, this is main.rs!
         emit_warnings,
@@ -99,6 +101,7 @@ fn main() {
         run_preprocessor,
         output_preprocessed,
         include_path,
+        file_sym_name,
     };
 
     if let Ok(output) = assemble_path(path, config) {
