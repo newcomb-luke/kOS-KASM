@@ -75,19 +75,20 @@ impl<'a, 'b, 'c> Generator<'a, 'b, 'c> {
                 // Doesnt have a value for us to insert
                 todo!();
             } else {
+                // Default symbols to be local
+                let bind = if symbol.binding != SymBind::Unknown {
+                    symbol.binding
+                } else {
+                    SymBind::Local
+                };
+
                 // Does have a value to be inserted
                 if symbol.sym_type == SymbolType::Func {
                     // If it is a function
                     let function_index = *function_map.get(name).unwrap();
                     // Here we set the size to be 0, but it will be updated later
-                    let function_symbol = KOSymbol::new(
-                        name_index,
-                        0,
-                        0,
-                        symbol.binding,
-                        SymType::Func,
-                        function_index,
-                    );
+                    let function_symbol =
+                        KOSymbol::new(name_index, 0, 0, bind, SymType::Func, function_index);
                     sym_tab.add(function_symbol);
                 } else if symbol.sym_type == SymbolType::Value {
                     // If it is just a value

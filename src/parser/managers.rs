@@ -1,6 +1,6 @@
 use std::collections::{hash_map::Iter, HashMap};
 
-use kerbalobjects::kofile::symbols::SymBind;
+use kerbalobjects::{kofile::symbols::SymBind, KOSValue};
 
 use crate::errors::Span;
 
@@ -13,13 +13,8 @@ pub enum SymbolType {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SymbolValue {
-    Integer(i32),
-    String(String),
-    Float(f64),
+    Value(KOSValue),
     Function,
-    Bool(bool),
-    ArgMarker,
-    Null,
     Undefined,
 }
 

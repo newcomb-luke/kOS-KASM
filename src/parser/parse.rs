@@ -1,4 +1,6 @@
-use kerbalobjects::{kofile::symbols::SymBind, Opcode};
+use std::convert::TryFrom;
+
+use kerbalobjects::{kofile::symbols::SymBind, KOSValue, Opcode};
 
 use crate::{
     errors::Span,
@@ -195,8 +197,6 @@ impl<'a> Parser<'a> {
                     } else {
                         self.parse_data_entry(next.as_span())?;
                     }
-
-                    self.assert_nothing_before_newline()?;
                 }
                 _ => {
                     self.session
@@ -255,30 +255,176 @@ impl<'a> Parser<'a> {
 
         self.skip_whitespace();
 
-        let mut value_tokens = Vec::new();
+        // Now we try to parse the data type and value
+        let value = if let Some(&type_token) = self.consume_next() {
+            let type_span = type_token.as_span();
+            let type_snippet = self.session.span_to_snippet(&type_span);
+            let type_str = type_snippet.as_slice();
 
-        while let Some(&value_token) = self.consume_next() {
-            if value_token.kind == TokenKind::Newline {
-                break;
-            } else {
-                value_tokens.push(value_token);
+            match type_token.kind {
+                TokenKind::SymbolHash => {
+                    self.assert_nothing_before_newline()?;
+
+                    // Just the null symbol, no type needed
+                    KOSValue::Null
+                }
+                TokenKind::SymbolAt => {
+                    self.assert_nothing_before_newline()?;
+
+                    // Just the argument marker symbol, no type needed
+                    KOSValue::ArgMarker
+                }
+                other => {
+                    self.skip_whitespace();
+
+                    // In all other cases, we require this to be a data type
+                    if matches!(
+                        other,
+                        TokenKind::TypeI8
+                            | TokenKind::TypeI16
+                            | TokenKind::TypeI32
+                            | TokenKind::TypeI32V
+                            | TokenKind::TypeF64
+                            | TokenKind::TypeF64V
+                            | TokenKind::TypeB
+                            | TokenKind::TypeBV
+                    ) {
+                        // Parse a value as an expression
+                        let value = self.parse_symbol_expression(type_span)?;
+
+                        // If it is supposed to be a boolean
+                        if matches!(other, TokenKind::TypeB | TokenKind::TypeBV) {
+                            if let Value::Bool(b) = value {
+                                if other == TokenKind::TypeB {
+                                    KOSValue::Bool(b)
+                                } else {
+                                    KOSValue::BoolValue(b)
+                                }
+                            } else {
+                                self.session
+                                    .struct_span_error(
+                                        type_span,
+                                        format!("expected boolean value after type `{}`", type_str),
+                                    )
+                                    .emit();
+
+                                return Err(());
+                            }
+                        } else if matches!(other, TokenKind::TypeF64 | TokenKind::TypeF64V) {
+                            // If it is a floating point number
+                            if let Value::Double(d) = value {
+                                if other == TokenKind::TypeF64 {
+                                    KOSValue::Double(d)
+                                } else {
+                                    KOSValue::ScalarDouble(d)
+                                }
+                            } else {
+                                self.session
+                                    .struct_span_error(
+                                        type_span,
+                                        format!("expected float value after type `{}`", type_str),
+                                    )
+                                    .emit();
+
+                                return Err(());
+                            }
+                        } else {
+                            // If it is a supposed to be an integer of some kind
+                            if let Value::Int(i) = value {
+                                if other == TokenKind::TypeI8 {
+                                    if let Ok(i) = i8::try_from(i) {
+                                        KOSValue::Byte(i)
+                                    } else {
+                                        self.session.struct_span_error(type_span, format!("value provided {} is too large to fit into a byte", i)).emit();
+                                        return Err(());
+                                    }
+                                } else if other == TokenKind::TypeI16 {
+                                    if let Ok(i) = i16::try_from(i) {
+                                        KOSValue::Int16(i)
+                                    } else {
+                                        self.session.struct_span_error(type_span, format!("value provided {} is too large to fit into a 16-bit integer", i)).emit();
+                                        return Err(());
+                                    }
+                                }
+                                // These values have already been checked to fit because they
+                                // needed to be parsed
+                                else if other == TokenKind::TypeI32 {
+                                    KOSValue::Int32(i)
+                                } else {
+                                    KOSValue::ScalarInt(i)
+                                }
+                            } else {
+                                self.session
+                                    .struct_span_error(
+                                        type_span,
+                                        format!("expected integer value after type `{}`", type_str),
+                                    )
+                                    .emit();
+
+                                return Err(());
+                            }
+                        }
+                    } else if matches!(other, TokenKind::TypeS | TokenKind::TypeSV) {
+                        // If it is supposed to be a string
+                        let value = if let Some(&s) = self.consume_next() {
+                            if s.kind == TokenKind::LiteralString {
+                                let value_snippet = self.session.span_to_snippet(&s.as_span());
+                                let value_str = value_snippet.as_slice();
+                                let value_str = (&value_str[1..value_str.len() - 1]).to_string();
+
+                                if other == TokenKind::TypeS {
+                                    KOSValue::String(value_str)
+                                } else {
+                                    KOSValue::StringValue(value_str)
+                                }
+                            } else {
+                                self.session
+                                    .struct_span_error(
+                                        type_span,
+                                        format!(
+                                            "expected string literal after type `{}`",
+                                            type_str
+                                        ),
+                                    )
+                                    .emit();
+
+                                return Err(());
+                            }
+                        } else {
+                            self.session
+                                .struct_span_error(
+                                    type_span,
+                                    format!("expected string literal after `{}`", type_str),
+                                )
+                                .emit();
+
+                            return Err(());
+                        };
+
+                        self.assert_nothing_before_newline()?;
+
+                        value
+                    } else {
+                        self.session
+                            .struct_span_error(type_span, "expected symbol data type".to_string())
+                            .emit();
+
+                        return Err(());
+                    }
+                }
             }
-        }
-
-        if value_tokens.is_empty() {
+        } else {
             self.session
-                .struct_span_error(ident_span, "expected symbol value".to_string())
+                .struct_span_error(ident_span, "expected data type or value".to_string())
                 .emit();
 
             return Err(());
-        }
-
-        let new_value = self.convert_symbol_value(value_tokens, ident_span)?;
+        };
 
         if let Some(existing_symbol) = self.symbol_manager.get_mut(&ident_str) {
             if existing_symbol.value == SymbolValue::Undefined {
                 if existing_symbol.binding != SymBind::Extern {
-                    existing_symbol.value = new_value;
+                    existing_symbol.value = SymbolValue::Value(value);
 
                     println!(
                         "Updated symbol in data section: {}. New value: {:?}",
@@ -310,8 +456,12 @@ impl<'a> Parser<'a> {
                 return Err(());
             }
         } else {
-            let new_symbol =
-                DeclaredSymbol::new(ident_span, SymBind::Unknown, SymbolType::Value, new_value);
+            let new_symbol = DeclaredSymbol::new(
+                ident_span,
+                SymBind::Unknown,
+                SymbolType::Value,
+                SymbolValue::Value(value),
+            );
 
             println!("Symbol in data section: {}", ident_str);
 
@@ -321,23 +471,27 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn convert_symbol_value(&self, raw: Vec<Token>, ident_span: Span) -> Result<SymbolValue, ()> {
-        let first_token = raw.first().unwrap();
-        let mut one_token = true;
+    fn parse_symbol_expression(&mut self, type_span: Span) -> Result<Value, ()> {
+        let mut expression_tokens = Vec::new();
 
-        let value = match first_token.kind {
-            TokenKind::LiteralInteger
-            | TokenKind::LiteralHex
-            | TokenKind::LiteralBinary
-            | TokenKind::LiteralTrue
-            | TokenKind::LiteralFalse
-            | TokenKind::LiteralFloat => {
-                let mut exp_tokens = raw.iter().peekable();
-                let parsed_exp = match ExpressionParser::parse_expression(
-                    &mut exp_tokens,
-                    self.session,
-                    false,
-                ) {
+        while let Some(&expression_token) = self.consume_next() {
+            if expression_token.kind == TokenKind::Newline {
+                break;
+            } else {
+                expression_tokens.push(expression_token);
+            }
+        }
+
+        if expression_tokens.is_empty() {
+            self.session
+                .struct_span_error(type_span, "expected symbol value".to_string())
+                .emit();
+
+            Err(())
+        } else {
+            let mut exp_tokens = expression_tokens.iter().peekable();
+            let parsed_exp =
+                match ExpressionParser::parse_expression(&mut exp_tokens, self.session, false) {
                     Ok(exp) => exp,
                     Err(mut db) => {
                         db.emit();
@@ -346,89 +500,44 @@ impl<'a> Parser<'a> {
                     }
                 };
 
-                if let Some(exp) = parsed_exp {
-                    let evaluated = match ExpressionEvaluator::evaluate(&exp) {
-                        Ok(exp) => exp,
-                        Err(e) => {
-                            let message = match e {
-                                crate::preprocessor::evaluator::EvalError::NegateBool => {
-                                    "tried to apply operator - to boolean value"
-                                }
-                                crate::preprocessor::evaluator::EvalError::FlipDouble => {
-                                    "tried to apply operator ~ to double value"
-                                }
-                                crate::preprocessor::evaluator::EvalError::ZeroDivide => {
-                                    "tried to divide by zero"
-                                }
-                            };
+            if let Some(exp) = parsed_exp {
+                let evaluated = match ExpressionEvaluator::evaluate(&exp) {
+                    Ok(exp) => exp,
+                    Err(e) => {
+                        let message = match e {
+                            crate::preprocessor::evaluator::EvalError::NegateBool => {
+                                "tried to apply operator - to boolean value"
+                            }
+                            crate::preprocessor::evaluator::EvalError::FlipDouble => {
+                                "tried to apply operator ~ to double value"
+                            }
+                            crate::preprocessor::evaluator::EvalError::ZeroDivide => {
+                                "tried to divide by zero"
+                            }
+                        };
 
-                            self.session
-                                .struct_span_error(
-                                    ident_span,
-                                    format!("expression following this {}", message),
-                                )
-                                .emit();
+                        self.session
+                            .struct_span_error(
+                                type_span,
+                                format!("expression following this {}", message),
+                            )
+                            .emit();
 
-                            return Err(());
-                        }
-                    };
+                        return Err(());
+                    }
+                };
 
-                    let operand = match evaluated {
-                        Value::Int(i) => SymbolValue::Integer(i),
-                        Value::Bool(b) => SymbolValue::Bool(b),
-                        Value::Double(d) => SymbolValue::Float(d),
-                    };
-
-                    one_token = false;
-
-                    operand
-                } else {
-                    self.session
-                        .struct_bug(
-                            "parsed expression is None despite having a first value".to_string(),
-                        )
-                        .emit();
-
-                    return Err(());
-                }
-            }
-            TokenKind::SymbolAt => SymbolValue::ArgMarker,
-            TokenKind::SymbolHash => SymbolValue::Null,
-            TokenKind::LiteralString => {
-                let snippet = self.session.span_to_snippet(&first_token.as_span());
-                let inner = snippet.as_slice();
-                let inner = &inner[1..inner.len() - 1];
-
-                SymbolValue::String(inner.to_string())
-            }
-            _ => {
+                Ok(evaluated)
+            } else {
                 self.session
-                    .struct_span_error(
-                        first_token.as_span(),
-                        "invalid token in symbol value".to_string(),
+                    .struct_bug(
+                        "parsed expression is None despite having a first value".to_string(),
                     )
                     .emit();
 
-                return Err(());
-            }
-        };
-
-        if one_token {
-            if raw.len() > 1 {
-                let unexpected = raw.get(1).unwrap();
-
-                self.session
-                    .struct_span_error(
-                        unexpected.as_span(),
-                        "expected newline after value, found token".to_string(),
-                    )
-                    .emit();
-
-                return Err(());
+                Err(())
             }
         }
-
-        Ok(value)
     }
 
     fn parse_type(&mut self, type_span: Span) -> PResult {

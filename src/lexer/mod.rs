@@ -105,6 +105,17 @@ impl<'a, 'b> Lexer<'a, 'b> {
             RawToken::KeywordText => TokenKind::KeywordText,
             RawToken::KeywordData => TokenKind::KeywordData,
 
+            RawToken::TypeI8 => TokenKind::TypeI8,
+            RawToken::TypeI16 => TokenKind::TypeI16,
+            RawToken::TypeI32 => TokenKind::TypeI32,
+            RawToken::TypeI32V => TokenKind::TypeI32V,
+            RawToken::TypeF64 => TokenKind::TypeF64,
+            RawToken::TypeF64V => TokenKind::TypeF64V,
+            RawToken::TypeS => TokenKind::TypeS,
+            RawToken::TypeSV => TokenKind::TypeSV,
+            RawToken::TypeB => TokenKind::TypeB,
+            RawToken::TypeBV => TokenKind::TypeBV,
+
             RawToken::DirectiveDefine => TokenKind::DirectiveDefine,
             RawToken::DirectiveMacro => TokenKind::DirectiveMacro,
             RawToken::DirectiveEndmacro => TokenKind::DirectiveEndmacro,
