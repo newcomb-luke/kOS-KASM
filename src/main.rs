@@ -1,5 +1,6 @@
 use clap::{App, Arg};
 use kasm::{AssemblyOutput, Config};
+use kerbalobjects::ToBytes;
 use std::{io::Write, path::PathBuf, process};
 
 use kasm::assemble_path;
@@ -106,7 +107,19 @@ fn main() {
 
     if let Ok(output) = assemble_path(path, config) {
         match output {
-            AssemblyOutput::Object(_object) => todo!(),
+            AssemblyOutput::Object(object) => {
+                // 2048 is just a best guess as to the size of the file
+                let mut file_buffer = Vec::with_capacity(2048);
+
+                // Actually write to the buffer
+                object.to_bytes(&mut file_buffer);
+
+                if let Err(e) = output_file.write_all(&file_buffer) {
+                    eprintln!("Error writing to `{}`: {}", output_path, e);
+
+                    process::exit(4);
+                }
+            }
             AssemblyOutput::Source(source) => {
                 if let Err(e) = output_file.write_all(source.as_bytes()) {
                     eprintln!("Error writing to `{}`: {}", output_path, e);

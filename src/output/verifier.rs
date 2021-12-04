@@ -122,7 +122,7 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
             functions.push(verified);
         }
 
-        todo!();
+        Ok(functions)
     }
 
     // Verifies a single function
