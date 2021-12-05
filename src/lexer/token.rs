@@ -238,7 +238,7 @@ pub enum RawToken {
     #[regex(r"[ \t\f]+")]
     Whitespace,
 
-    #[token("\n")]
+    #[token(r"(\n)(\r\n)")]
     Newline,
 
     #[token("\\")]
