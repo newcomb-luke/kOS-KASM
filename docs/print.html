@@ -1,0 +1,1149 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>KASM Guide</title>
+        <meta name="robots" content="noindex" />
+
+
+        <!-- Custom HTML head -->
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction/introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><a href="installation/installation.html">Installation</a></li><li class="chapter-item expanded "><a href="chapter_1/running_kasm.html"><strong aria-hidden="true">1.</strong> Running KASM</a></li><li class="chapter-item expanded "><a href="chapter_2/kasm_language.html"><strong aria-hidden="true">2.</strong> KASM Language</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_2/for_beginners.html"><strong aria-hidden="true">2.1.</strong> For Beginners</a></li><li class="chapter-item expanded "><a href="chapter_2/basic_syntax.html"><strong aria-hidden="true">2.2.</strong> Basic Syntax</a></li><li class="chapter-item expanded "><a href="chapter_2/data_types.html"><strong aria-hidden="true">2.3.</strong> Data Types</a></li><li class="chapter-item expanded "><a href="chapter_2/expressions.html"><strong aria-hidden="true">2.4.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="chapter_2/instructions_list.html"><strong aria-hidden="true">2.5.</strong> Full Instruction List</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_3/kasm_preprocessor.html"><strong aria-hidden="true">3.</strong> KASM Preprocessor</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_3/single_line_macros.html"><strong aria-hidden="true">3.1.</strong> Single-Line Macros</a></li><li class="chapter-item expanded "><a href="chapter_3/multi_line_macros.html"><strong aria-hidden="true">3.2.</strong> Multi-Line Macros</a></li><li class="chapter-item expanded "><a href="chapter_3/repeats.html"><strong aria-hidden="true">3.3.</strong> Repeats</a></li><li class="chapter-item expanded "><a href="chapter_3/include.html"><strong aria-hidden="true">3.4.</strong> Include</a></li><li class="chapter-item expanded "><a href="chapter_3/if_directives.html"><strong aria-hidden="true">3.5.</strong> If* Directives</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_4/assembly_directives.html"><strong aria-hidden="true">4.</strong> Assembly Directives</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_4/sections.html"><strong aria-hidden="true">4.1.</strong> Sections</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_5/tutorial.html"><strong aria-hidden="true">5.</strong> Tutorial</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_5/hello_world.html"><strong aria-hidden="true">5.1.</strong> Hello World</a></li><li class="chapter-item expanded "><a href="chapter_5/launch.html"><strong aria-hidden="true">5.2.</strong> Launch</a></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Advanced Tutorial</div></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">KASM Guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<h2 id="what-is-kasm"><a class="header" href="#what-is-kasm">What is KASM?</a></h2>
+<p>The Kerbal Assembler, KASM, is an assembler created for the popular Kerbal Space Program mod kOS.
+The syntax is designed to be easy to understand and allow the user to write any code they could possibly write
+in kOS's native language KerbalScript, but with more flexibility. It currently supports all kOS instructions and
+the toolchain to create executable Kerbal Machine Code files or KSM files. It also has strong preprocessor support.</p>
+<h2 id="license"><a class="header" href="#license">License</a></h2>
+<p>KASM is under the GPL 3.0 License</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+<p>The Kerbal Assembler can either be installed via cargo through crates.io, as a standalone binary, or as a Windows installed executable.</p>
+<h2 id="using-cargo"><a class="header" href="#using-cargo">Using Cargo</a></h2>
+<p>To install using cargo from crates.io, run the following command:</p>
+<pre><code>cargo install kasm
+</code></pre>
+<p><strong>kasm</strong> should now be added to your shell's PATH and can be run from any terminal.</p>
+<h2 id="as-a-standalone-binary"><a class="header" href="#as-a-standalone-binary">As a Standalone Binary</a></h2>
+<p>In order the install the binary file, you must download it from the GitHub releases.</p>
+<ol>
+<li>Download and extract the latest release's zip file from the <a href="https://github.com/newcomb-luke/kOS-KASM/releases">Releases page</a></li>
+<li>Place the executable in the desired location</li>
+<li><strong>kasm</strong> is now executable from the terminal. Powershell on Windows or your terminal on MacOS or Linux.</li>
+</ol>
+<h2 id="windows-installer"><a class="header" href="#windows-installer">Windows Installer</a></h2>
+<p>A Windows installer program is included under the releases page for every major release of KASM</p>
+<ol>
+<li>Download and extract the latest installer from the <a href="https://github.com/newcomb-luke/kOS-KASM/releases">Releases page</a></li>
+<li>Run the installer, and follow the prompts</li>
+<li><strong>kasm</strong> should now be added to your PATH and available from the CMD and Powershell windows</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="chapter-1-running-kasm"><a class="header" href="#chapter-1-running-kasm">Chapter 1: Running KASM</a></h1>
+<p>The Kerbal Assembler can be invoked after installation simply as <code>kasm</code></p>
+<p>Help can be accessed from the program itself by running:</p>
+<pre><code>kasm --help
+</code></pre>
+<p>The basic format for invoking <code>kasm</code> is:</p>
+<pre><code>kasm [FLAGS] [OPTIONS] &lt;INPUT&gt; --output &lt;OUTPUT&gt;
+</code></pre>
+<h2 id="main-operation"><a class="header" href="#main-operation">Main Operation</a></h2>
+<p>To assemble a file of source code issue a command of the form:</p>
+<pre><code>kasm &lt;filename&gt; &lt;options&gt;
+</code></pre>
+<p>For example, if your code was in a file called <code>myfile.kasm</code>:</p>
+<pre><code>kasm myfile.kasm -o myfile.ko
+</code></pre>
+<p>This will assemble <code>myfile.kasm</code> into a KerbalObject file called <code>myfile.ko</code></p>
+<h2 id="creating-an-executable"><a class="header" href="#creating-an-executable">Creating an Executable</a></h2>
+<p>Because KASM is just an assembler, and it produces a non-executable file, readers
+of this may be wondering how to create a file they can run in kOS.</p>
+<p>In order to that, another tool called <a href="https://github.com/newcomb-luke/kOS-KLinker">KLinker</a> is required. When installing KASM on Windows
+a separate &quot;full&quot; installer contains KLinker as well as a useful tool called <a href="https://github.com/newcomb-luke/KDump">KDump</a>.</p>
+<p>If you have KLinker installed then in order to create a file that can be run in kOS you can run the following two commands:</p>
+<pre><code>kasm myfile.kasm -o myfile.ko
+kld myfile.ko -o program.ksm
+</code></pre>
+<p>The produced <code>program.ksm</code> file can be run in kOS just like any other file.</p>
+<h2 id="options"><a class="header" href="#options">Options</a></h2>
+<h4 id="the--o-option-specifying-the-output-file-name"><a class="header" href="#the--o-option-specifying-the-output-file-name">The <code>-o</code> option: Specifying the output file name</a></h4>
+<p>KASM requires you to specify the output file path</p>
+<p>If the output file already exists, KASM will overwrite it. KASM will by default look in the current working directory where <strong>kasm</strong> is run.
+Although a different directory can be specified as either an absolute or relative path:</p>
+<pre><code>kasm main_program.kasm -o ~/&lt;KSP Directory&gt;/game.ko
+</code></pre>
+<p>This will produce an output file named <code>game.ko</code> in your KSP directory that you fill in.</p>
+<h4 id="the--i-option-specifying-the-include-directory-path"><a class="header" href="#the--i-option-specifying-the-include-directory-path">The <code>-i</code> option: Specifying the include directory path</a></h4>
+<p>By default when the KASM preprocessor is executing <a href="chapter_1/">include directives</a> it looks in the same directory in which the source file is.</p>
+<p>If you are including many different files, it may be in your interests to organize those files into a directory called <code>include</code> in your project folder.</p>
+<p>KASM allows you to still run the <strong>kasm</strong> command where you did before, but specify the include directory as <code>include</code>.</p>
+<p>This can be done using the <strong>-i</strong> option:</p>
+<p>MacOS/Linux: </p>
+<pre><code>kasm fancycode.kasm -i ./include/ ...
+</code></pre>
+<p>Windows:</p>
+<pre><code>kasm fancycode.kasm -i .\macros\ ...
+</code></pre>
+<h4 id="the--f-option-setting-the-file-symbol-name"><a class="header" href="#the--f-option-setting-the-file-symbol-name">The <code>-f</code> option: Setting the file symbol name</a></h4>
+<p>Normally KASM outputs to the KerbalObject file format, which stores the source file's name to be referenced later
+in the case of any errors. This defaults to the current input file name, but in the case of implementing an intermediary between
+the user and KASM such as a compiler, a different source file name should be displayed.</p>
+<p>In a hypothetical scenario let's say we have a compiler for a language called Yes Language where the files have <code>.yl</code> extensions: <code>program.yl</code></p>
+<p>This compiler produces KASM source code which is assembled using <strong>kasm</strong>.</p>
+<p>This can be specified so that later error messages use the <code>.yl</code> extension using the <strong>-f</strong> option:</p>
+<pre><code>kasm program.kasm -f program.yl ...
+</code></pre>
+<p>Now errors in the linker will be reported as coming from <code>program.yl</code> so that it is less confusing for the end user.</p>
+<h4 id="the--c-option-the-executable-comment"><a class="header" href="#the--c-option-the-executable-comment">The <code>-c</code> option: The executable comment</a></h4>
+<p>When the output KerbalObject file is linked and an executable file is created, a comment is left in the generated KSM
+file that explains how the file was created. This can be read using a utility such as KDump and then the recipient of
+the file can see what program compiled the code.</p>
+<p>An example comment would currently be: <code>Compiled by KASM 0.11.0</code></p>
+<p>Any message can be displayed though with the <code>-c</code> option:</p>
+<pre><code>kasm program.kasm -c &quot;KASM is pretty neat, yo&quot; ...
+</code></pre>
+<ul>
+<li><strong>Note</strong>: The comment will only show up in the final .ksm file created by KLinker if the file has the program entry point (either <code>_start:</code> or <code>_init:</code>)</li>
+</ul>
+<h2 id="flags"><a class="header" href="#flags">Flags</a></h2>
+<p>KASM can also be passed flags that have no value following them that tell KASM what to do.</p>
+<h4 id="-w-flag"><a class="header" href="#-w-flag"><code>-w</code> flag</a></h4>
+<p>In some cases KASM will notice something about your code that does not make it incorrect, but may not be what you want to do. These are
+printed out as warnings, and in some cases you may not want to see them.</p>
+<p>Then the <strong>-w</strong> flag can be used to supress warnings and only display errors:</p>
+<pre><code>kasm -w program.kasm ...
+</code></pre>
+<h4 id="-a-flag"><a class="header" href="#-a-flag"><code>-a</code> flag</a></h4>
+<p>KASM has a fairly capable set of preprocessor directives, but running the preprocessor may make <strong>kasm</strong> run slower if you
+are giving it a large amount of code. If you are <em>not</em> using preprocessor directives, then you may choose to tell KASM to
+not run the preprocessor at all.</p>
+<p>This can be done by passing <strong>kasm</strong> the <strong>-a</strong> flag:</p>
+<pre><code>kasm -a program.kasm ...
+</code></pre>
+<h4 id="-p-flag"><a class="header" href="#-p-flag"><code>-p</code> flag</a></h4>
+<p>In contrast to the <strong>-a</strong> flag, the <strong>-p</strong> flag can be used to tell KASM that you want it to <em>only</em> run the preprocessor.
+This can be useful in some cases for debugging or simply wanting all of the code to be the final code that would be in the KSM file.</p>
+<pre><code>kasm -p program.kasm -o output.kasm ...
+</code></pre>
+<h2 id="output-format"><a class="header" href="#output-format">Output Format</a></h2>
+<p>KASM outputs in a file format called KO, or Kerbal Object file format.</p>
+<p>This format is used by the linker to link multiple parts of a program together that were in seperate source files.</p>
+<p>These files can be viewed using a program called <a href="https://github.com/newcomb-luke/KDump">KDump</a>, as well as finished KSM files.</p>
+<p>KO files must be passed to the <a href="https://github.com/newcomb-luke/kOS-KLinker">linker</a> in order to become executable by kOS.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="chapter-2-kasm-language"><a class="header" href="#chapter-2-kasm-language">Chapter 2: KASM Language</a></h1>
+<p>This chapter will go over the specifics of KASM assembly language without diving into preprocessor directives.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="for-beginners"><a class="header" href="#for-beginners">For Beginners</a></h1>
+<p>Hopefully by the time someone is reading this, there will be better options for non-KerbalScript code that
+runs inside of kOS. If you are trying to write such a program, or just want to try to learn or practice with
+assembly using Kerbal Space Program and kOS, then hopefully this page can give you a brief introduction to assembly language.</p>
+<p>If you have previous experience with assembly language, you can probably skip this section and go straight to the <a href="chapter_2/../chapter_5/tutorial.html">tutorial</a>.</p>
+<p>For the purposes of this explanation, KerbalScript code will be used to try to illustrate some ideas.</p>
+<h3 id="code"><a class="header" href="#code">Code</a></h3>
+<p>In most programming languages, when source code is written, it has to undergo a process called compilation. This turns the
+code that was written by the user into instructions that the computer can understand. For a lot of programming languages,
+there is an intermediary step between the source code, the code written by the user, and the machine code, the binary that
+computers can read. This intermediary step is called assembly code.</p>
+<p>Take this KerbalScript code for example, that just adds two numbers and stores the result:</p>
+<pre><code>SET X TO 2 + 4.
+</code></pre>
+<p>kOS, or most computers for that matter, have no idea what to do with this, because it is just text. Internally, kOS performs
+compilation to turn this code into a form that it can understand.</p>
+<p>In this case, the machine code is something like this: (special quirks of compiled kOS machine code may be discussed later)</p>
+<pre><code>0x4e (2)
+0x4e (4)
+0x3c
+0x34 (X)
+</code></pre>
+<p>This may be difficult to understand at first, but we will break it down:</p>
+<p>Each line represents what is called an &quot;instruction&quot;</p>
+<p>Computers, like kOS, can only do one thing at a time, so it cannot add 2 and 4 together and store them in a variable called X at the same time.</p>
+<p>The first instruction has the <em>opcode</em> of 0x4e. 0x4e is a <em>hexadecimal</em> number. Each instruction is given a unique number that the computer knows,
+so it knows what operation to perform. Hexadecimal is just a way of writing this number, but in our normal base-10 number system this number is <code>78</code>.
+The number itself though, is not important.</p>
+<p>The instruction <code>0x4e</code> is called the &quot;push&quot; instruction. Inside of kOS there is a bunch of data stacked on top of each other, aptly named the &quot;stack&quot;.
+The stack is used to store data that is used for something later, but not for storing things long-term like inside of variables.</p>
+<p>On the first line, <code>0x4e (2)</code> means that we are &quot;pushing&quot; the value of 2 onto the stack. So the number 2 is stored somewhere. This corresponds
+to the 2 in our KerbalScript code.</p>
+<p>On the second line <code>0x4e (4)</code>, we do the same thing, but we push the value of 4. Now the stack contains the numbers 2 and 4.</p>
+<p>The third line, opcode <code>0x3c</code>, means &quot;add&quot; and it tells the computer to add the last two values on the stack. In this case, that is 2 and 4.
+The result is then stored back on the stack, and we know that the answer is 6.</p>
+<p>The final line, <code>0x34 (X)</code> is opcode <code>0x34</code> which tells kOS to store the value on the top of the stack into the variable that is given with the
+instruction, in this case that is 'X'.</p>
+<p>At the end of this code, the numbers 2 and 4 were added, and the result was stored inside of a variable named X.</p>
+<p>This is actually what is happening when the KerbalScript code above is run, and compiled.</p>
+<h3 id="rationale"><a class="header" href="#rationale">Rationale</a></h3>
+<p>KASM is a program which allows the user to directly write these instructions instead of having to write KerbalScript. This can give the user more
+control over what their program does, allow them to experiment with learning new things, or to make a compiler which generates KASM assembly code
+which can be run inside of kOS, allowing them to create a new programming language for kOS!</p>
+<p>A snippet of code in KASM that would perform the same function as the KerbalScript shown above is:</p>
+<pre><code>push 2
+push 4
+add
+sto &quot;$x&quot;
+</code></pre>
+<p>As you can see it can be written as a text file, and yet performs the same function!</p>
+<p>How to actually write this code, or the syntax of KASM, is explained in the <a href="chapter_2/../chapter_5/tutorial.html">tutorial</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="basic-syntax"><a class="header" href="#basic-syntax">Basic Syntax</a></h1>
+<p>Like most assemblers, each KASM source line contains some combination of four fields:</p>
+<p><code>label: instruction operands ; comment</code></p>
+<p>Most of these fields are optional, with restriction of the operands field based on which instruction it is.</p>
+<p>KASM uses backslash (\) as a continuation character; if a line ends with a backslash, the next line is considered to be a part of the backslashed line.</p>
+<p>There are no restrictions places on whitespace, such as spaces or tabs, however except for when using the \ character, new lines are to be minded.</p>
+<h2 id="basic-instructions"><a class="header" href="#basic-instructions">Basic Instructions</a></h2>
+<p>A valid source line may simply be:</p>
+<pre><code>add
+</code></pre>
+<p>It contains only the instruction, no label, operands, or comment</p>
+<p>A comment is dictated by the character <code>;</code> and can be added at the end of any source line and will effectively be ignored.</p>
+<pre><code>add ; This adds the previous two numbers
+</code></pre>
+<p>Instructions that require operands, must be provided operands otherwise it is an error. An example for this could be the <code>push</code> instruction:</p>
+<pre><code>push 2
+</code></pre>
+<p>This instruction would push a byte with a value of 2 onto the stack.</p>
+<p>Multiple operands are seperated using a comma:</p>
+<pre><code>bscp 1, 0
+</code></pre>
+<h2 id="labels"><a class="header" href="#labels">Labels</a></h2>
+<p>Sometimes in a program, one might want to stop instructions from being executed in order and re-run code, or make a decision based on input,
+and run certain code on certain conditions.</p>
+<p>Examples of this might be an if-statement or a while loop.</p>
+<p>This example demonstrates simply wanting to skip over some code:</p>
+<pre><code>nop ; Does nothing, just a placeholder
+push 2
+jmp 3 ; This instruction jumps down 3 instructions, and skips all of them
+push 2
+add
+nop ; This is where we would jump to
+</code></pre>
+<p>This would skip the two <code>push 2</code> and <code>add</code> instructions. This can quickly get messy though, as a typo in the number of instructions to jump
+over can cause the entire program to run incorrectly. Thus, labels were created.</p>
+<p>Labels are defined before an instruction, and they can either be in the line before it, or in front of it:</p>
+<pre><code>label:
+    nop
+also_label: nop
+</code></pre>
+<p>Labels can be used in the place of specific places to jump to in the code, that previous program rewritten but using labels is as follows:</p>
+<pre><code>    nop
+    push 2
+    jmp the_end
+    push 2
+    add
+the_end:
+    nop
+</code></pre>
+<p>Now KASM will keep track of the exact value to jump for you, and sections of code can be named, this is illustrated best by a loop:</p>
+<pre><code>push 5          ; This will loop 5 times
+loop:
+    dup         ; Duplicates 5 so we can use it for an operation
+    push 0      ; We want to compare it against 0
+    cgt         ; This will compare the number and 0 and see if it is greater than 0
+    bfa end     ; If the number is equal to 0, the loop is over, so we jump to the end
+    push 1      ; If not, then we push a 1
+    sub         ; And subtract it from the current number
+    jmp loop    ; Then start the loop again
+end:
+    jmp 0       ; Infinite loop
+</code></pre>
+<p>Label names can consist of any string of letters and numbers, including underscores. Although they cannot start with a number.</p>
+<h2 id="inner-labels"><a class="header" href="#inner-labels">Inner Labels</a></h2>
+<p>All of this example code has existed in isolation, however in larger projects, one would not want to use the label &quot;loop&quot; because
+duplicate labels are not allowed. The user could name every single loop something different, but this can get in the way. Inner labels
+were created to solve this problem.</p>
+<p>Inner labels are tied to a parent label, so they can be reused later in the program if the parent label is different.</p>
+<p>Inner labels are differentiated from normal labels because they begin with a <code>.</code></p>
+<p>An example of this would be:</p>
+<pre><code>; This code adds 2 to the variable 'x' five times
+
+adder:              ; This is the parent label
+    push 5
+
+    .loop:          ; Inner labels start with a '.'
+        dup         ; Looping logic
+        push 0
+        cgt
+        bfa .end
+        push 1
+        sub
+
+        push &quot;$x&quot;   ; Gets the current value inside of x
+        push 1      
+        add         ; Adds 1
+        sto &quot;$x&quot;    ; Stores the result back into x
+
+        jmp .loop
+    .end:
+        nop
+
+; Somewhere else in the code
+subtracter:
+    .loop:          ; This is not a duplicate!
+        ...
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="data-types"><a class="header" href="#data-types">Data Types</a></h1>
+<p>In kOS, unlike in many other computing platforms, each value has an associated type.</p>
+<p>These types are as follows:</p>
+<table><thead><tr><th>Argument Type Value</th><th align="center">Type</th></tr></thead><tbody>
+<tr><td>0</td><td align="center">NULL</td></tr>
+<tr><td>1</td><td align="center">Bool</td></tr>
+<tr><td>2</td><td align="center">Byte</td></tr>
+<tr><td>3</td><td align="center">Int16</td></tr>
+<tr><td>4</td><td align="center">Int32</td></tr>
+<tr><td>5</td><td align="center">Float</td></tr>
+<tr><td>6</td><td align="center">Double</td></tr>
+<tr><td>7</td><td align="center">String</td></tr>
+<tr><td>8</td><td align="center">ARG MARKER</td></tr>
+<tr><td>9</td><td align="center">ScalarInt</td></tr>
+<tr><td>10</td><td align="center">ScalarDouble</td></tr>
+<tr><td>11</td><td align="center">BoolValue</td></tr>
+<tr><td>12</td><td align="center">StringValue</td></tr>
+</tbody></table>
+<ul>
+<li><strong>NULL</strong> is a value that is equivalent to &quot;nothing&quot;</li>
+<li><strong>Bool</strong> is a true or false value</li>
+<li><strong>Byte</strong> is an integer that can store numbers from -128 to 127</li>
+<li><strong>Int16</strong> is an integer that can store numbers from -32,768 to 32,767</li>
+<li><strong>Int32</strong> is an integer that can store numbers from -2,147,483,648 to 2,147,483,647</li>
+<li><strong>Float</strong> is a number that can have a fractional component such as 2.33</li>
+<li><strong>Double</strong> is a float, but with double the precision of the fractional component, see <a href="https://en.wikipedia.org/wiki/Double-precision_floating-point_format">this</a></li>
+<li><strong>String</strong> is a &quot;string&quot; of characters, such as &quot;Hello, kOS!&quot;</li>
+<li><strong>ARG MARKER</strong> is a special value used inside of kOS that marks the end of function &quot;arguments&quot;</li>
+<li><strong>ScalarInt</strong> is an integer that can store the same numbers as the Int32, but has associated functions inside of kOS</li>
+<li><strong>ScalarDouble</strong> is a double, but with associated functions inside of kOS</li>
+<li><strong>BoolValue</strong> is a boolean value, true or false, but with associated functions</li>
+<li><strong>StringValue</strong> same as a string, but with associated functions</li>
+</ul>
+<h2 id="inside-of-kasm"><a class="header" href="#inside-of-kasm">Inside of KASM</a></h2>
+<p>Data types are for the most part handled automatically by KASM</p>
+<p>KASM chooses the smallest size data type in order to make the assembled executable file as small as possible.</p>
+<p>For example, in the code:</p>
+<pre><code>push 2
+</code></pre>
+<p>That 2 would be stored using the Byte type, meanwhile in:</p>
+<pre><code>push 200
+</code></pre>
+<p>00 would be stored as an <code>Int16</code> because it is the smallest type that can hold the value of <code>200</code>.</p>
+<p>When trying to pass any floating-point number such as <code>2.33</code>, KASM will automatically store it as a <code>Double</code>.</p>
+<p>If you wanted to push a <code>StringValue</code> instead of a <code>String</code> in KASM, you simply use the pushv pseudoinstruction:</p>
+<pre><code>push  &quot;Hello&quot;        ; This is a regular String
+pushv &quot;kOS!&quot;         ; This will push a StringValue
+</code></pre>
+<p>If <code>pushv</code> is given an integer, it will be pushed as a <code>ScalarInt</code>.</p>
+<h2 id="pushing-other-types"><a class="header" href="#pushing-other-types">Pushing Other Types</a></h2>
+<p>Simply writing an integer or another value to be the operand to an instruction is simple enough, however there are still two types that are not accounted for:</p>
+<pre><code>NULL
+ARG MARKER
+</code></pre>
+<p>These are shown in KASM code as follows:</p>
+<pre><code>push # ; This is a NULL
+push @ ; This is an ARG MARKER
+</code></pre>
+<h2 id="declaring-symbols"><a class="header" href="#declaring-symbols">Declaring Symbols</a></h2>
+<p>In KASM there are pieces of data that can be referenced outside of the current file called symbols. They are explained more in the advanced tutorial.</p>
+<p>However it is important to note that when declaring symbols in KASM, the type of the symbol must be provided.</p>
+<p>An example of how to declare each type of symbol is shown below:</p>
+<pre><code>.section .data
+a  #              ; Null
+b  .b    true     ; Bool
+c  .i8   120      ; Byte
+d  .i16  300      ; Int16
+e  .i32  900      ; Int32
+f  .f64  2.33     ; Double
+g  .s    &quot;Hello&quot;  ; String
+h  @              ; Arg Marker
+i  .i32v 900      ; ScalarInt
+j  .f64v 2.33     ; ScalarDouble
+k  .bf   false    ; BoolValue
+l  .sv   &quot;kOS&quot;    ; StringValue
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="expressions"><a class="header" href="#expressions">Expressions</a></h1>
+<p>Expressions can be used in KASM in place of constants, when it is more convenient to do so.</p>
+<p>In KASM, expressions either produce an integer, a double, or a boolean value.
+An integer is not allowed to be used in place of a boolean, nor a double. Nor a boolean in place of either.</p>
+<h2 id="supported-operations"><a class="header" href="#supported-operations">Supported Operations</a></h2>
+<h4 id="unary"><a class="header" href="#unary">Unary</a></h4>
+<ul>
+<li><strong>-</strong> Negate, flips the sign of a number</li>
+<li><strong>~</strong> Flips all of the bits in a given number/value</li>
+<li><strong>!</strong> Not, flips a boolean value. If it was true, now it is false, and vice-versa</li>
+</ul>
+<h4 id="mathematical"><a class="header" href="#mathematical">Mathematical</a></h4>
+<ul>
+<li><strong>+</strong> Addition</li>
+<li><strong>-</strong> Subtraction</li>
+<li><strong>*</strong> Multiplication</li>
+<li><strong>/</strong> Division</li>
+<li><strong>%</strong> Modulus (remainder operator)</li>
+</ul>
+<h4 id="comparison"><a class="header" href="#comparison">Comparison</a></h4>
+<ul>
+<li><strong>==</strong> Equals</li>
+<li><strong>!=</strong> Does not equal</li>
+<li><strong>&lt;</strong> Less than</li>
+<li><strong>&lt;=</strong> Less than or equal</li>
+<li><strong>&gt;</strong> Greater than</li>
+<li><strong>&gt;=</strong> Greater than or equal</li>
+</ul>
+<h4 id="logical"><a class="header" href="#logical">Logical</a></h4>
+<ul>
+<li><strong>&amp;&amp;</strong> - Logical And</li>
+<li><strong>||</strong> - Logical Or</li>
+</ul>
+<h2 id="values"><a class="header" href="#values">Values</a></h2>
+<p>In KASM, values can be provided in a few forms.</p>
+<p>For integers, hex, decimal, and binary literals are all supported:</p>
+<pre><code>push 24
+push 0x18
+push 0b0001_1000 ; Could also be written as 0b00011000
+</code></pre>
+<h2 id="in-practice"><a class="header" href="#in-practice">In Practice</a></h2>
+<p>Expressions can be used for any instruction operand that supports the type that is produced when the expression is evaluated</p>
+<pre><code>push 2 + 2
+
+pushv (5.0 / 2.0) &gt; 2.0
+</code></pre>
+<p>Becomes:</p>
+<pre><code>push 4
+
+pushv true
+</code></pre>
+<p>Expressions become more useful when introducing macros in future sections.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="full-instruction-list"><a class="header" href="#full-instruction-list">Full Instruction List</a></h1>
+<p>This is simply a list of all instructions that are in KASM, grouped by common purpose.</p>
+<h2 id="stack-operations"><a class="header" href="#stack-operations">Stack Operations</a></h2>
+<p><strong>push</strong> (any) - Pushes a value to the stack</p>
+<p><strong>pushv</strong> (any) - Pushes a value to the stack, but as kOS &quot;scalar&quot; or &quot;value&quot; versions<br />
+(this instruction does not exist in kOS, it is just for the purposes of user control)</p>
+<p><strong>pop</strong> - Removes the value from the top of the stack and discards it</p>
+<p><strong>dup</strong> - Copies the value from the top of the stack and pushes that copy, so there are two of the original</p>
+<p><strong>swap</strong> - Swaps the value on the top of the stack and the one below it</p>
+<p><strong>eval</strong> - Returns the value referenced by the topmost variable on the stack</p>
+<p><strong>targ</strong> - Asserts that the topmost thing on the stack is an argument marker (throws a kOS error if it isn't!)</p>
+<h2 id="mathematical-operations"><a class="header" href="#mathematical-operations">Mathematical Operations</a></h2>
+<p>These all push the result back to the stack</p>
+<p>All of these behave in this way:</p>
+<p>(this side is the value just below the top of the stack) - (this is the top of the stack)</p>
+<p><strong>add</strong> - Adds the two arguments on top of the stack</p>
+<p><strong>sub</strong> - Subtracts the two arguments on top of the stack</p>
+<p><strong>mul</strong> - Multiplies the two arguments on top of the stack</p>
+<p><strong>div</strong> - Divides the two arguments on top of the stack</p>
+<p><strong>pow</strong> - Raises the value just under the top, to the power of the top</p>
+<p><strong>neg</strong> - Pushes back the negative of the number on the top of the stack</p>
+<h2 id="logical-operations"><a class="header" href="#logical-operations">Logical Operations</a></h2>
+<p>All of these behave in this way:</p>
+<p>(this side is the value just below the top of the stack) &gt; (this is the top of the stack)</p>
+<p><strong>cgt</strong> - Checks if one number is greater than the other</p>
+<p><strong>clt</strong> - Less than</p>
+<p><strong>cge</strong> - Greater than or equal</p>
+<p><strong>cle</strong> - Less than or equal</p>
+<p><strong>ceq</strong> - Equal to</p>
+<p><strong>cne</strong> - Not equal to</p>
+<p><strong>not</strong> - Pushes back the opposite of the boolean value on top of the stack (true -&gt; false, false -&gt; true)</p>
+<p><strong>and</strong> - Pushes true, if both values on top of the stack are true</p>
+<p><strong>or</strong> - Pushes true, if at least one value on top of the stack is true</p>
+<h2 id="flow-control"><a class="header" href="#flow-control">Flow Control</a></h2>
+<p><strong>eof</strong> - Tells kOS that this is the end of the file, so it should stop reading the program</p>
+<p><strong>eop</strong> - Tells kOS that this is the end of the program</p>
+<p><strong>nop</strong> - No-Op, does nothing</p>
+<p><strong>jmp</strong> (string | int | label) - Unconditionally jumps to the location specified in the operand, it can be a string or an integer (for relative jumps)</p>
+<p><strong>call</strong> (string | label), (string) - Calls a subroutine, leaving the result on the stack, both operands are strings</p>
+<p><strong>ret</strong> (int) - Returns from a subroutine and pops off the number of scopes as provided in the operand</p>
+<p><strong>btr</strong> (string | int | label) - If the value on the top of the stack is true, then it branches to the given location</p>
+<p><strong>bfa</strong> (string | int | label) - Same as btr but if the value is false</p>
+<p><strong>wait</strong> - Pops a duration in seconds from the stack and waits for that amount of game time</p>
+<h2 id="variable-manipulation"><a class="header" href="#variable-manipulation">Variable Manipulation</a></h2>
+<p><strong>sto</strong> (string) - Stores the value on the top of the stack in the variable specified by the operand</p>
+<p><strong>uns</strong> - Removes the variable named by the value on the top of the stack</p>
+<p><strong>stol</strong> (string) - Stores the value on the top of the stack in the variable specified by the operand, but if the variable does not exist in the current scope it won't attempt to look for it in a higher scope.</p>
+<p><strong>stog</strong> (string) - Stores the value on the top of the stack in the variable specified by the operand, but always stores it in a global variable.</p>
+<p><strong>stoe</strong> (string) - Stores the value on the top of the stack in the variable specified by the operand, but if the variable does not exist yet, it will throw an error instead of creating a new one.</p>
+<p><strong>exst</strong> - Tests if the identifier on the top of the stack is a variable, and is in scope. It will push true if it is, and false if it is not.</p>
+<h2 id="member-values"><a class="header" href="#member-values">Member Values</a></h2>
+<p><strong>gmb</strong> (string) - Consumes the topmost value of the stack, getting the suffix of it specified by operand and putting that value back on the stack. Ex: <code>SHIP:ALTITUDE</code></p>
+<p><strong>smb</strong> (string) - Consumes a value and a destination object from the stack, setting the objects suffix specified by the operand to the value.</p>
+<p><strong>gidx</strong> - Consumes an index and an target object from the stack, getting the indexed value from the object and pushing the result back on the stack.</p>
+<p><strong>sidx</strong> - Consumes a value, an index, and an object from the stack, setting the specified index on the object to the given value.</p>
+<p><strong>gmet</strong> - Similar to <code>gmb</code> except instead of getting the member as a value, it is called as if it was a function.</p>
+<p>Ex: <code>SHIP:NAME()</code></p>
+<h2 id="triggers"><a class="header" href="#triggers">Triggers</a></h2>
+<p><strong>addt</strong> (bool), (int) - Pops a function pointer from the stack and adds a trigger that will be called each cycle. The second operand
+contains the Interrupt Priority level of the trigger. For one trigger to interrupt another, it needs a higher priority, else it waits
+until the first trigger is completed before it will fire.</p>
+<p><strong>rmvt</strong> - Pops a function pointer from the stack and removes any triggers that call that function pointer.</p>
+<h2 id="scopes"><a class="header" href="#scopes">Scopes</a></h2>
+<p><strong>bscp</strong> (int), (int) - Pushes a new variable namespace scope (for example, when a &quot;{&quot; is encountered in a block-scoping language),
+the first operand being the new scope id, and the second one being the parent scope id.</p>
+<p><strong>escp</strong> (int) - Pops a variable namespace scope (for example, when a &quot;}&quot; is encountered in a block-scoping language), the operand
+being the number of scope depths to pop.</p>
+<h2 id="delegates"><a class="header" href="#delegates">Delegates</a></h2>
+<p><strong>phdl</strong> (int), (bool) - Pushes a delegate object onto the stack, optionally capturing a closure.</p>
+<p><strong>prl</strong> (string) - See KOS Code docs for more information.</p>
+<p><strong>pdrl</strong> (string), (bool) - This serves the same purpose as prl, except it's for use with UserDelegates instead of raw integer IP calls.</p>
+<h2 id="misc"><a class="header" href="#misc">Misc.</a></h2>
+<p><strong>lbrt</strong> (string) - It exists purely to store, as an operand, the label of the next opcode to follow it. Mostly used for internal kOS things.<br />
+This shouldn't really be used when writing KASM unless you know exactly what you are doing, as it can have unintended and hard to debug consequences.</p>
+<p><strong>tcan</strong> - Tests whether or not the current subroutine context on the stack that is being executed right now is one that has been flagged
+as cancelled by someone having called SubroutineContext.Cancel(). This pushes a True or a False on the stack to provide the answer. This should be
+the first thing done by triggers that wish to be cancel-able by other triggers.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="chapter-3-kasm-preprocessor"><a class="header" href="#chapter-3-kasm-preprocessor">Chapter 3: KASM Preprocessor</a></h1>
+<p>KASM contains a powerful macro processor, which supports conditional assembly, multi-level file inclusion, and two forms of macro (single-line and multi-line).</p>
+<p>Preprocessor directives all start with a dot (.)</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="single-line-macros"><a class="header" href="#single-line-macros">Single-Line Macros</a></h1>
+<h2 id="declaration"><a class="header" href="#declaration">Declaration</a></h2>
+<p>Single-line macros are defined using the <code>.define</code> directive:</p>
+<pre><code>.define NUM         25
+</code></pre>
+<p>This creates a macro called <code>NUM</code> that has the value of 25.</p>
+<p>Single-line macros are more powerful than this though, and support expressions:</p>
+<pre><code>.define OTHERNUM    NUM + 5
+</code></pre>
+<p>Now <code>OTHERNUM</code> would be defined as <code>NUM</code> plus 5.</p>
+<p>So if NUM were redefined later to be 10:</p>
+<pre><code>.define NUM         10
+</code></pre>
+<p>It would change the value of <code>OTHERNUM</code> because these values are found at invocation time, or when the macro is actually run.</p>
+<p>A long example is:</p>
+<pre><code>.define NUM         25
+.define OTHERNUM    NUM + 5
+
+push OTHERNUM
+
+.define NUM         10
+
+push OTHERNUM
+</code></pre>
+<p>becomes:</p>
+<pre><code>push 30
+
+push 15
+</code></pre>
+<p>Not only is this useful for helpful constants, but they can be used with more than just constants:</p>
+<pre><code>.define PUSH2      push 2
+
+PUSH2
+</code></pre>
+<p>becomes:</p>
+<pre><code>push 2
+</code></pre>
+<h2 id="arguments"><a class="header" href="#arguments">Arguments</a></h2>
+<p>Single-line macros can take arguments as well:</p>
+<pre><code>.define a(x) 1 + b(x)
+.define b(x) 2 * x
+
+push a(2)
+</code></pre>
+<p>becomes:</p>
+<pre><code>push 5
+</code></pre>
+<p>Definitions can have multiple arguments like so:</p>
+<pre><code>.define f(x, y) x + y * y
+</code></pre>
+<h2 id="undefinition-and-overloading"><a class="header" href="#undefinition-and-overloading">Undefinition and Overloading</a></h2>
+<p>It is also possible to undefine a defintion using the <code>.undef</code> directive:</p>
+<pre><code>.undef f 2
+</code></pre>
+<p>Note that the number of arguuments that the macro takes needs to follow it. Not specifying a value defaults the number of arguments to 0.</p>
+<p>Single-line macros can be overloaded, meaning that two macros can have the same name as long as they have different numbers of arguments:</p>
+<pre><code>.define f(x) x + 2
+.define f(x, y) x + y
+</code></pre>
+<p>This is valid and will not cause a conflict. Which macro gets expanded depends on the number of arguments. Hence why the <code>.undef</code> directive
+requires the number of arguments to be specified: so that it knows which one to undefine.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="multi-line-macros"><a class="header" href="#multi-line-macros">Multi-Line Macros</a></h1>
+<h2 id="declaration-1"><a class="header" href="#declaration-1">Declaration</a></h2>
+<p>Multi-line macros are defined using the <code>.macro</code> and <code>.endmacro</code> directives:</p>
+<pre><code>.macro MULTI
+    push 2
+    push 2
+    add
+.endmacro
+</code></pre>
+<p>The above macro can be invoked as such:</p>
+<pre><code>MULTI
+</code></pre>
+<h2 id="arguments-1"><a class="header" href="#arguments-1">Arguments</a></h2>
+<p>Multi-line macros can also have arguments just like definitions. The number of arguments must be specified after the macro name.</p>
+<p>These arguments are referenced using their positions, and using the <code>&amp;</code> symbol:</p>
+<pre><code>.macro ADD 2
+    push &amp;1
+    push &amp;2
+    add
+.endmacro
+</code></pre>
+<p>Invoked as:</p>
+<pre><code>ADD(2, 4)
+</code></pre>
+<p>expands to:</p>
+<pre><code>push 2
+push 4
+add
+</code></pre>
+<h2 id="default-arguments"><a class="header" href="#default-arguments">Default Arguments</a></h2>
+<p>Multi-Line macros can have default arguments as well, and this is specified by using a range.</p>
+<p>The first number is the minimum number of required arguments, and the second number is the maximum number of required arguments.</p>
+<p>A valid range would be <code>0-1</code></p>
+<p>This is placed after the macro's identifier. But if default arguments are used, the default values must be given, separated by commas,
+after the range. The number of default values given must match the maximum number of require arguments, minus those that are required.</p>
+<pre><code>.macro RET 0-1 1
+    RET &amp;1
+.endmacro
+</code></pre>
+<p>This can be invoked as:</p>
+<pre><code>RET
+
+; Expands to:
+
+ret 1
+</code></pre>
+<p>or as:</p>
+<pre><code>RET(2)
+
+; Expands to:
+
+ret 2
+</code></pre>
+<p>Or with a macro such as defined below:</p>
+<pre><code>.macro DO_SOMETHING 0-2 24, 30
+    push &amp;1
+    push &amp;2
+    sub
+.endmacro
+</code></pre>
+<p>If this is invoked with only one argument, it defaults to being the first argument:</p>
+<pre><code>DO_SOMETHING(2)
+
+; Expands to:
+
+push 2
+push 30
+sub
+</code></pre>
+<h2 id="undefinition"><a class="header" href="#undefinition">Undefinition</a></h2>
+<p>Just like single-line macros, multi-macros can be undefined using <code>.unmacro</code>. Likewise the number of parameters must be given:</p>
+<pre><code>.macro NOTHING
+    nop
+.endmacro
+
+.unmacro NOTHING ; This works
+
+.unmacro DO_SOMETHING 2 ; This works because DO_SOMETHING can take 2 arguments
+</code></pre>
+<p>As seen in the above example, argument ranges count as that macro taking any number of arguments in the range when being undefined as well.</p>
+<h2 id="overloading"><a class="header" href="#overloading">Overloading</a></h2>
+<p>Although having a number of different arguments per macro is useful, multi-line macros can also be overloaded:</p>
+<pre><code>.macro PUSH 1
+	push &amp;1
+.endmacro
+
+.macro PUSH 2
+	push &amp;1
+	push &amp;2
+.endmacro
+</code></pre>
+<p>These macros do not conflict because they both have different numbers of arguments. However if the first definition had an argument range of <code>1-2</code> they would conflict.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="repeats"><a class="header" href="#repeats">Repeats</a></h1>
+<p>A repeat is similar to a macro, but it cannot take arguments. Instead after a <code>.rep</code> directive, the preprocessor expects
+a number of times for the tokens inside to be repeated. A repeat block is ended with a <code>.endrep</code> directive.</p>
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<pre><code>.rep 5
+    push 0
+.endrep
+</code></pre>
+<p>This would expand to the following:</p>
+<pre><code>push 0
+push 0
+push 0
+push 0
+push 0
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="include"><a class="header" href="#include">Include</a></h1>
+<p>The <code>.include</code> directive is a powerful preprocessor directive that allows the programmer to include source code from another file into the current file.</p>
+<h2 id="example-1"><a class="header" href="#example-1">Example</a></h2>
+<pre><code>.include &quot;macros.kasm&quot;
+
+PRINT &quot;Hello, world!&quot;
+</code></pre>
+<p>This assumes that the source file called <code>macros.kasm</code> is in the same directory as the main file, or in the include directory specified by <strong>-i</strong>
+and it contains (at least):</p>
+<pre><code>; macros.kasm
+
+.macro PRINT 1
+    push @
+    push &amp;1
+    call &quot;&quot;, &quot;print()&quot;
+    pop
+.endmacro
+</code></pre>
+<p>This causes the source code after the <code>.include</code> directive is expanded to effectively be:</p>
+<pre><code>.macro PRINT 1
+    push @
+    push &amp;1
+    call &quot;&quot;, &quot;print()&quot;
+    pop
+.endmacro
+
+PRINT &quot;Hello, world!&quot;
+</code></pre>
+<p>This allows the programmer to organize macro definitions and other code much more effectively.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="if-directives"><a class="header" href="#if-directives">If* Directives</a></h1>
+<p>As stated previously, KASM supports conditional assembly, which means that some code could, or could
+not be included in the final binary if logic that KASM follows is met, or not.</p>
+<p>These are extremely similar to C-style #if directives.</p>
+<p>An example showing a few possible <strong>if</strong>* directives:</p>
+<pre><code>.define DEBUG
+.define VERBOSE 2
+.define PRINT_MESSAGES
+
+.ifdef DEBUG                            ; If something is defined
+    .if VERBOSE == 1                    ; Nested!
+        PRINT &quot;Debug mode on!&quot;
+    .elif VERBOSE == 2                  ; Else if
+        PRINT &quot;Extra debug mode on!&quot;
+    .elifdef PRINT_MESSAGES
+        PRINT_MESSAGE(&quot;Oh no&quot;)
+    .endif                              ; Must show end of if
+.else
+    ; Do something else
+.endif
+</code></pre>
+<p>In this case the code would end up being this:</p>
+<pre><code>PRINT &quot;Extra debug mode on!&quot;
+</code></pre>
+<h2 id="variants"><a class="header" href="#variants">Variants</a></h2>
+<p>Other variants such as .ifn (if not), .elifn (else if not), and .ifndef/.elifndef also are supported:</p>
+<ul>
+<li>if &lt;condition&gt;</li>
+<li>ifn &lt;condition&gt;</li>
+<li>ifdef &lt;identifier&gt;</li>
+<li>ifndef &lt;identifier&gt;</li>
+<li>elif &lt;condition&gt;</li>
+<li>elifn &lt;condition&gt;</li>
+<li>elifdef &lt;identifier&gt;</li>
+<li>elifndef &lt;identifier&gt;</li>
+<li>endif</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="chapter-4-assembly-directives"><a class="header" href="#chapter-4-assembly-directives">Chapter 4: Assembly Directives</a></h1>
+<p>Besides the preprocessor directives, KASM also has a few assembly directives that are not for preprocessing purposes.</p>
+<h2 id="extern---external"><a class="header" href="#extern---external"><code>.extern</code> - External</a></h2>
+<p>This directive defines a symbol as external to the linker.</p>
+<p>This means that whatever symbol this specifies is not in this file, but is in another file that will be linked with the output of this one.</p>
+<p>In more general terms, it is a promise that a symbol exists somewhere else.</p>
+<h4 id="example-2"><a class="header" href="#example-2">Example</a></h4>
+<pre><code>.extern .func add_func
+
+call add_func, #
+</code></pre>
+<p>This declares an extenal function (<code>.func</code>) called <code>add_func</code>, and then calls that function later.</p>
+<h2 id="global---global"><a class="header" href="#global---global"><code>.global</code> - Global</a></h2>
+<p>This directive is similar to <code>.extern</code> but it declares that a symbol <em>will</em> be in this file, but it will also let it be visible to other files.
+Each <code>.extern</code> needs to be paired with a <code>.global</code> in another file.</p>
+<pre><code>.global _start
+
+.func
+_start:
+    ...
+</code></pre>
+<h2 id="local---local"><a class="header" href="#local---local"><code>.local</code> - Local</a></h2>
+<p>This declares a symbol as local, which is the default. This is only provided to be thorough.</p>
+<pre><code>.local func_name ; This is redundant
+
+.func
+func_name:
+    ...
+</code></pre>
+<h2 id="type---symbol-type"><a class="header" href="#type---symbol-type"><code>.type</code> - Symbol Type</a></h2>
+<p>This declares a symbol's type. As you may have noticed in the <code>.extern</code> example there was the type of the symbol specified (<code>.func</code>).</p>
+<p>This can be done when the symbol's binding (local, global, or extern) is specified, but it can also be done later.</p>
+<p>An equivalent set of code to the <code>.extern</code> example, but using <code>.type</code> would be:</p>
+<pre><code>.extern add_func
+.type .func add_func
+</code></pre>
+<p>To define an external symbol that is a value and not a function, just use the <code>.value</code> type:</p>
+<pre><code>.extern number
+.type .value number
+</code></pre>
+<h2 id="func---function"><a class="header" href="#func---function"><code>.func</code> - Function</a></h2>
+<p>This directive is used to mark a certain label as a function, which is treated differently in KASM.</p>
+<p>Otherwise KASM would have no idea if you want a label to be inside the last function, or a new one.</p>
+<p>The usage of the <code>.func</code> directive is as such:</p>
+<pre><code>...
+
+.func
+add_func:
+    ....
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="sections"><a class="header" href="#sections">Sections</a></h1>
+<p>In KASM there are two types of sections in a .kasm file:</p>
+<ul>
+<li>Text</li>
+<li>Data</li>
+</ul>
+<h2 id="section"><a class="header" href="#section"><code>.section</code></a></h2>
+<p>You may change the current section type by writing the <code>.section</code> directive:</p>
+<pre><code>.section .text  ; Changes to a text section
+.section .data  ; Changes to a data section
+</code></pre>
+<h2 id="text-sections"><a class="header" href="#text-sections">Text Sections</a></h2>
+<p>By default, KASM is already in a <code>.text</code> section, so you are already familiar with what that means: you can write code in it</p>
+<h4 id="example-3"><a class="header" href="#example-3">Example</a></h4>
+<pre><code>.section .text
+
+.func
+_start:
+    ...
+</code></pre>
+<h2 id="data-sections"><a class="header" href="#data-sections">Data Sections</a></h2>
+<p>In KASM if one wanted to declare a global symbol that was not a function, but a value that other KASM files can use without needing
+preprocessor includes or copy-and-pasting, we use a <code>.data</code> section.</p>
+<p><code>.data</code> sections are used to declare symbols and their values</p>
+<pre><code>.section .data
+
+PI .f64v  3.1415 ; Declares a symbol named PI
+                 ; that is a ScalarDouble with a value of 3.1415
+</code></pre>
+<p>See <a href="chapter_4/../chapter_2/data_types.html">Data Types</a> for information on how to declare symbols of all types</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="tutorial"><a class="header" href="#tutorial">Tutorial</a></h1>
+<p>This tutorial assumes that you have both <strong>kasm</strong> and <a href="https://github.com/newcomb-luke/kOS-KLinker"><strong>kld</strong></a> installed.</p>
+<p>This also assumes that you have a moderate understanding of programming, and hopefully at least a small understanding of assembly language.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="hello-world"><a class="header" href="#hello-world">Hello World</a></h1>
+<p>Following in the footsteps of the official kOS KerboScript tutorials, the first thing that you will learn is how to print &quot;Hello world&quot;</p>
+<p>There is some boilerplate (template) code that one must always write to create an executable program in KASM:</p>
+<p>Start off by creating a new file called <code>hello.kasm</code> wherever you would like.</p>
+<p>Then write the following lines:</p>
+<pre><code>.global _start
+
+.func
+_start:
+    eop
+</code></pre>
+<p>This is actually the smallest valid KASM program that one can write.</p>
+<h4 id="code-breakdown"><a class="header" href="#code-breakdown">Code Breakdown</a></h4>
+<pre><code>.global _start
+</code></pre>
+<p>This declares a global symbol called <code>_start</code>. <code>_start</code> is a special symbol name that is reserved for a function.
+This function is where the program starts, hence the name. This must be global or else the linker will not be able to find it
+and will give you an error.</p>
+<pre><code>.func
+_start:
+    eop
+</code></pre>
+<p>This declares a function, named <code>_start</code> which only contains one instruction: <code>eop</code></p>
+<p><code>eop</code> tells kOS that the code is over, and this instruction should <em><strong>always</strong></em> go at the end of your <code>_start</code> or <code>_init</code> functions.
+Otherwise, strange things happen.</p>
+<p>Now we can resume writing our hello world program!</p>
+<p>All we do is add the following four lines inside of our <code>_start</code>:</p>
+<pre><code>push @
+push &quot;Hello world!&quot;
+call #, &quot;print()&quot;
+pop
+</code></pre>
+<p>When calling a function in KASM, there are two ways to do it:</p>
+<p>For functions that you have created:</p>
+<pre><code>call func_name, #
+</code></pre>
+<p>And:</p>
+<pre><code>call #, &quot;func_name()&quot;
+</code></pre>
+<p>The above syntax is used when calling built-in kOS functions. There will be a list of those at the end of the tutorials list.</p>
+<p>When calling built-in functions, if they are not meant to return any value to you, such as <code>print()</code>, then they return a NULL value.</p>
+<p>In order for the stack to not be filled up with them we add a <code>pop</code> instruction after <code>call</code> to just throw it away.</p>
+<p>Both ways of calling a function require you to <code>push</code> your arguments onto the stack before you call it.</p>
+<p>First we <code>push @</code> to push a function <em>argument marker</em> which just is there to mark the end of the arguments to a function. Remember
+<code>push</code> adds things to the top of the stack.</p>
+<p>So when we next say <code>push &quot;Hello world!&quot;</code> with actually pushes the string we want to print onto the stack.</p>
+<p>The stack now has our string, and our argument marker. Then <code>call</code> is called.</p>
+<h4 id="final-code"><a class="header" href="#final-code">Final code</a></h4>
+<p>The final code to print out hello world onto the screen in kOS is:</p>
+<pre><code>.global _start
+
+.func
+_start:
+    push @
+    push &quot;Hello world!&quot;
+    call #, &quot;print()&quot;
+    pop
+    eop
+</code></pre>
+<p>Feel free to replace the string <code>&quot;Hello world!&quot;</code> with whatever you want.</p>
+<p>You can even replace the string entirely, <code>print()</code> prints numbers and booleans as well.</p>
+<h4 id="using-the-code"><a class="header" href="#using-the-code">Using the code</a></h4>
+<p>In order to get this code into a format kOS can use, we have to run these two commands:</p>
+<pre><code>kasm -o hello_world.ko hello_world.kasm
+kld -o hello_world.ksm hello_world.ko
+</code></pre>
+<p>Now you have a file named <code>hello_world.ksm</code> that you can put into your <code>Ships/Script</code> folder
+that you can run in kOS by typing:</p>
+<pre><code>SWITCH TO 0.
+RUN hello_world.ksm.
+</code></pre>
+<p>See <a href="chapter_5/../chapter_1/running_kasm.html">how to run KASM</a> and the <a href="https://github.com/newcomb-luke/kOS-KLinker">KLinker Docs</a> if you are confused.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="simple-launch-code"><a class="header" href="#simple-launch-code">Simple Launch Code</a></h1>
+<h2 id="incomplete"><a class="header" href="#incomplete">INCOMPLETE</a></h2>
+<p>This tutorial assumes that you have a built rocket in KSP that you are trying to launch.</p>
+<p>In this example we will make a program that will launch a vessel from the launch pad.</p>
+<p>This example mainly follows along with the kOS KerboScript documentation.</p>
+<p>First, in the last tutorial the kOS terminal prompt and previously run code was still showing up in the terminal.
+In order to make it look nicer this time, we will clear the screen.</p>
+<p>In KS you would write the code:</p>
+<pre><code>CLEARSCREEN.
+</code></pre>
+<p>This would clear the screen.</p>
+<p>It turns out that this is just a built-in function that you call inside of kOS.</p>
+<p>We can create a macro that will call it for us, so that all we have to do is invoke that macro:</p>
+<pre><code>.macro CLEARSCREEN
+    push @
+    call #, &quot;clearscreen()&quot;
+    pop
+.endmacro
+</code></pre>
+<p>If all we wanted our code to do was clear the screen, then this is all that we would need:</p>
+<pre><code>.macro CLEARSCREEN
+    push @
+    call #, &quot;clearscreen()&quot;
+    pop
+.endmacro
+
+.global _start
+
+.func
+_start:
+    CLEARSCREEN
+    eop
+</code></pre>
+<p>The objective here is to write a function that performs a countdown that is printed to the terminal.</p>
+<p>In order to help us, we will also declare a helpful macro that will allow us to easily print whatever is on the stack.</p>
+<pre><code>.macro PRINT
+    push @
+    swap
+    call #, &quot;print()&quot;
+    pop
+.endmacro
+</code></pre>
+<p>This pushes an argument marker, then swaps it with whatever is just below it on the stack (the thing we want to print) and then prints.</p>
+<p>Now we can write the code that will allow us to do a countdown:</p>
+<h4 id="working-code"><a class="header" href="#working-code">Working Code</a></h4>
+<pre><code>.macro CLEARSCREEN
+    push @
+    call #, &quot;clearscreen()&quot;
+    pop
+.endmacro
+
+.macro PRINT
+    push @
+    swap
+    call #, &quot;print()&quot;
+    pop
+.endmacro
+
+.global _start
+
+.func
+_start:
+    CLEARSCREEN
+
+    push &quot;Counting down:&quot;
+    PRINT
+
+    push 10 ; We will count down from 10 (counter)
+
+    .countdown_loop:
+	dup                  ; Duplicate our counter so that we can compare with it
+	push 0               ; We will count down until we reach 0
+	swap                 ; Swap the counter value and 0 so that we can compare them
+	clt                  ; This pushes true if (counter) &lt;= 0
+	btr .countdown_end   ; We jump to the end of the loop if that was true
+	dup                  ; Duplicate our counter value on the stack so
+                             ;   that we print one, and use the other for counting
+	push &quot;...&quot;           ; Push some dots that we will print out before each number
+	add                  ; Concatenate &quot;...&quot; + counter
+	PRINT                ; Print them
+
+	pushv 1              ; Push a value of 1
+	wait                 ; Wait, therefore waits for 1 second
+
+	push 1
+	sub                  ; We will subtract 1 from the counter
+	jmp .countdown_loop  ; We go through the loop again
+
+    .countdown_end:
+	nop
+    
+    eop
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script type="text/javascript">
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+    </body>
+</html>
