@@ -156,8 +156,15 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
         &self,
         instruction: &ParsedInstruction,
     ) -> Result<VerifiedInstruction, ()> {
-        let opcode = instruction.opcode();
+        let mut opcode = instruction.opcode();
         let accepted_operands = self.lookup_accepted_operands(opcode)?;
+
+        // This is a special case for if the user used a pushv instruction
+        // pushv is just for the purposes of assembling, and therefore must be replaced by the
+        // regular push instruction. This is done here.
+        if opcode == Opcode::Pushv {
+            opcode = Opcode::Push;
+        }
 
         Ok(match instruction {
             ParsedInstruction::ZeroOp { opcode: _, span: _ } => {
