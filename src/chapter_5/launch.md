@@ -1,7 +1,5 @@
 # Simple Launch Code
 
-## INCOMPLETE
-
 This tutorial assumes that you have a built rocket in KSP that you are trying to launch.
 
 In this example we will make a program that will launch a vessel from the launch pad.
@@ -95,12 +93,12 @@ _start:
     .countdown_loop:
 	dup                  ; Duplicate our counter so that we can compare with it
 	push 0               ; We will count down until we reach 0
-	swap                 ; Swap the counter value and 0 so that we can compare them
 	clt                  ; This pushes true if (counter) <= 0
 	btr .countdown_end   ; We jump to the end of the loop if that was true
 	dup                  ; Duplicate our counter value on the stack so
                              ;   that we print one, and use the other for counting
 	push "..."           ; Push some dots that we will print out before each number
+	swap                 ; Swap them because concatenation happens "backwards"
 	add                  ; Concatenate "..." + counter
 	PRINT                ; Print them
 
@@ -112,8 +110,8 @@ _start:
 	jmp .countdown_loop  ; We go through the loop again
 
     .countdown_end:
-	nop
     
     eop
 ```
 
+In the next tutorial we will modify this example, so stay tuned!

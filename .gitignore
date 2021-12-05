@@ -1,1 +1,3 @@
 *.vim
+Cargo.lock
+target/
