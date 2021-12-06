@@ -1,0 +1,60 @@
+name: Rust CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        rust: [stable, nightly]
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@master
+    - name: Build
+      run: |
+        rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+        cargo build
+
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    needs: [build]
+
+    strategy:
+      matrix:
+        rust: [stable, nightly]
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@master
+    - name: Test
+      run: |
+        rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+        cargo test
+
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@master
+    - name: Rustfmt Check
+      run: |
+        rustup update stable && rustup default stable && rustup component add rustfmt
+        cargo fmt -- --check
+
+  clippy-check:
+    name: Clippy Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@master
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        components: clippy
+        override: true

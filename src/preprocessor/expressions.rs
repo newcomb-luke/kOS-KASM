@@ -1,10 +1,19 @@
 use std::{iter::Peekable, slice::Iter};
 
-use crate::{Token, TokenData, TokenType};
+use crate::{
+    errors::DiagnosticBuilder,
+    lexer::{Token, TokenKind},
+    session::Session,
+};
 
-use super::errors::{ExpressionError, ExpressionResult};
+use super::parser::{
+    parse_binary_literal, parse_float_literal, parse_hexadecimal_literal, parse_integer_literal,
+};
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+pub type ExpResult<'a> = Result<Option<ExpNode>, DiagnosticBuilder<'a>>;
+pub type TokenIter<'a> = Peekable<Iter<'a, Token>>;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Value {
     Int(i32),
     Double(f64),
@@ -12,430 +21,360 @@ pub enum Value {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum ValueType {
-    INT,
-    DOUBLE,
-    BOOL,
-}
-
-impl Value {
-    pub fn to_bool(&self) -> bool {
-        match self {
-            Value::Int(i) => *i > 0,
-            Value::Double(_) => true,
-            Value::Bool(b) => *b,
-        }
-    }
-
-    pub fn to_double(&self) -> f64 {
-        match self {
-            Value::Int(i) => *i as f64,
-            Value::Double(d) => *d,
-            Value::Bool(b) => {
-                if *b {
-                    1.0
-                } else {
-                    0.0
-                }
-            }
-        }
-    }
-
-    pub fn to_int(&self) -> i32 {
-        match self {
-            Value::Int(i) => *i,
-            Value::Double(d) => *d as i32,
-            Value::Bool(b) => {
-                if *b {
-                    1
-                } else {
-                    0
-                }
-            }
-        }
-    }
-
-    pub fn valtype(&self) -> ValueType {
-        match self {
-            Value::Int(_) => ValueType::INT,
-            Value::Double(_) => ValueType::DOUBLE,
-            Value::Bool(_) => ValueType::BOOL,
-        }
-    }
-
-    pub fn equals(&self, other: &Value) -> bool {
-        let ltype = self.valtype();
-
-        let rtype = other.valtype();
-
-        if ltype != rtype {
-            false
-        } else {
-            if ltype == ValueType::INT {
-                let v1 = match self {
-                    Value::Int(i) => *i,
-                    _ => unreachable!(),
-                };
-                let v2 = match other {
-                    Value::Int(i) => *i,
-                    _ => unreachable!(),
-                };
-                v1 == v2
-            } else if ltype == ValueType::DOUBLE {
-                let v1 = match self {
-                    Value::Double(d) => *d,
-                    _ => unreachable!(),
-                };
-                let v2 = match other {
-                    Value::Double(d) => *d,
-                    _ => unreachable!(),
-                };
-                v1 == v2
-            } else {
-                let v1 = match self {
-                    Value::Bool(b) => *b,
-                    _ => unreachable!(),
-                };
-                let v2 = match other {
-                    Value::Bool(b) => *b,
-                    _ => unreachable!(),
-                };
-                v1 == v2
-            }
-        }
-    }
-
-    pub fn greater_than(&self, other: &Value) -> bool {
-        let ltype = self.valtype();
-
-        let rtype = other.valtype();
-
-        if ltype != rtype {
-            false
-        } else {
-            if ltype == ValueType::INT {
-                let v1 = match self {
-                    Value::Int(i) => *i,
-                    _ => unreachable!(),
-                };
-                let v2 = match other {
-                    Value::Int(i) => *i,
-                    _ => unreachable!(),
-                };
-                v1 > v2
-            } else if ltype == ValueType::DOUBLE {
-                let v1 = match self {
-                    Value::Double(d) => *d,
-                    _ => unreachable!(),
-                };
-                let v2 = match other {
-                    Value::Double(d) => *d,
-                    _ => unreachable!(),
-                };
-                v1 > v2
-            } else {
-                let v1 = match self {
-                    Value::Bool(b) => *b,
-                    _ => unreachable!(),
-                };
-                let v2 = match other {
-                    Value::Bool(b) => *b,
-                    _ => unreachable!(),
-                };
-                v1 > v2
-            }
-        }
-    }
-
-    pub fn less_than(&self, other: &Value) -> bool {
-        let ltype = self.valtype();
-
-        let rtype = other.valtype();
-
-        if ltype != rtype {
-            false
-        } else {
-            if ltype == ValueType::INT {
-                let v1 = match self {
-                    Value::Int(i) => *i,
-                    _ => unreachable!(),
-                };
-                let v2 = match other {
-                    Value::Int(i) => *i,
-                    _ => unreachable!(),
-                };
-                v1 < v2
-            } else if ltype == ValueType::DOUBLE {
-                let v1 = match self {
-                    Value::Double(d) => *d,
-                    _ => unreachable!(),
-                };
-                let v2 = match other {
-                    Value::Double(d) => *d,
-                    _ => unreachable!(),
-                };
-                v1 < v2
-            } else {
-                let v1 = match self {
-                    Value::Bool(b) => *b,
-                    _ => unreachable!(),
-                };
-                let v2 = match other {
-                    Value::Bool(b) => *b,
-                    _ => unreachable!(),
-                };
-                v1 < v2
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnOp {
-    NEGATE,
-    FLIP,
-    NOT,
+    /// Arithmetic negation. Turns positive numbers negative, and negative numbers positive
+    Negate,
+    /// Flips all of the bits of the provided value
+    Flip,
+    /// Logical negation. !true = false, and !false = true
+    Not,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BinOp {
-    ADD,
-    SUB,
-    MULT,
-    DIV,
-    MOD,
-    AND,
-    OR,
-    EQ,
-    NE,
-    GT,
-    LT,
-    GTE,
-    LTE,
+    Add,
+    Sub,
+    Mult,
+    Div,
+    Mod,
+    And,
+    Or,
+    Eq,
+    Ne,
+    Gt,
+    Lt,
+    Gte,
+    Lte,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ExpNode {
     BinOp(Box<ExpNode>, BinOp, Box<ExpNode>),
     UnOp(UnOp, Box<ExpNode>),
     Constant(Value),
 }
 
+// Generates binary operator parsing code, only suitable for extremely simple binary operators
+macro_rules! gen_binop {
+    ($tokens:ident, $session:ident, $func_name:ident, $token_kind:expr, $op_kind:expr) => {{
+        Self::skip_whitespace($tokens);
+        if let Some(mut lhs) = Self::$func_name($tokens, $session)? {
+            Self::skip_whitespace($tokens);
+            while let Some(&token) = $tokens.peek() {
+                // See if there is the correct operator
+                if token.kind == $token_kind {
+                    // If it is, consume it
+                    $tokens.next();
+
+                    if let Some(rhs) = Self::$func_name($tokens, $session)? {
+                        lhs = ExpNode::BinOp(Box::new(lhs), $op_kind, Box::new(rhs));
+                    } else {
+                        let db = $session
+                            .struct_span_error(token.as_span(), "trailing operator".to_string());
+                        return Err(db);
+                    }
+                }
+                // If there isn't, break the loop
+                else {
+                    break;
+                }
+            }
+
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
+        }
+    }};
+}
+
 pub struct ExpressionParser {}
 
 impl ExpressionParser {
-    pub fn parse_expression(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
-        ExpressionParser::parse_logical_or(token_iter)
-    }
+    pub fn parse_expression<'a>(
+        tokens: &mut TokenIter,
+        session: &'a Session,
+        nested: bool,
+    ) -> ExpResult<'a> {
+        let parsed = Self::parse_logical_or(tokens, session)?;
 
-    pub fn parse_logical_or(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_logical_and(token_iter)?;
+        if !nested {
+            while let Some(token) = tokens.next() {
+                if token.kind != TokenKind::Whitespace {
+                    let db = session.struct_span_error(
+                        token.as_span(),
+                        "trailing token in expression".to_string(),
+                    );
 
-        while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::OR {
-            token_iter.next();
-
-            let rhs = ExpressionParser::parse_logical_and(token_iter)?;
-
-            lhs = ExpNode::BinOp(lhs.into(), BinOp::OR, rhs.into());
-        }
-
-        Ok(lhs)
-    }
-
-    pub fn parse_logical_and(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_equality_exp(token_iter)?;
-
-        while token_iter.peek().is_some() && token_iter.peek().unwrap().tt() == TokenType::AND {
-            token_iter.next();
-
-            let rhs = ExpressionParser::parse_equality_exp(token_iter)?;
-
-            lhs = ExpNode::BinOp(lhs.into(), BinOp::AND, rhs.into());
-        }
-
-        Ok(lhs)
-    }
-
-    pub fn parse_equality_exp(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_relational_exp(token_iter)?;
-
-        while token_iter.peek().is_some()
-            && (match token_iter.peek().unwrap().tt() {
-                TokenType::EQ => true,
-                TokenType::NE => true,
-                _ => false,
-            })
-        {
-            let op = match token_iter.next().unwrap().tt() {
-                TokenType::EQ => BinOp::EQ,
-                TokenType::NE => BinOp::NE,
-                _ => unreachable!(),
-            };
-
-            let rhs = ExpressionParser::parse_relational_exp(token_iter)?;
-
-            lhs = ExpNode::BinOp(lhs.into(), op, rhs.into());
-        }
-
-        Ok(lhs)
-    }
-
-    pub fn parse_relational_exp(
-        token_iter: &mut Peekable<Iter<Token>>,
-    ) -> ExpressionResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_additive_exp(token_iter)?;
-
-        while token_iter.peek().is_some()
-            && (match token_iter.peek().unwrap().tt() {
-                TokenType::GT => true,
-                TokenType::LT => true,
-                TokenType::GTE => true,
-                TokenType::LTE => true,
-                _ => false,
-            })
-        {
-            let op = match token_iter.next().unwrap().tt() {
-                TokenType::GT => BinOp::GT,
-                TokenType::LT => BinOp::LT,
-                TokenType::GTE => BinOp::GTE,
-                TokenType::LTE => BinOp::LTE,
-                _ => unreachable!(),
-            };
-
-            let rhs = ExpressionParser::parse_additive_exp(token_iter)?;
-
-            lhs = ExpNode::BinOp(lhs.into(), op, rhs.into());
-        }
-
-        Ok(lhs)
-    }
-
-    pub fn parse_additive_exp(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_term(token_iter)?;
-
-        while token_iter.peek().is_some()
-            && (match token_iter.peek().unwrap().tt() {
-                TokenType::ADD => true,
-                TokenType::MINUS => true,
-                _ => false,
-            })
-        {
-            let op = match token_iter.next().unwrap().tt() {
-                TokenType::ADD => BinOp::ADD,
-                TokenType::MINUS => BinOp::SUB,
-                _ => unreachable!(),
-            };
-
-            let rhs = ExpressionParser::parse_term(token_iter)?;
-
-            lhs = ExpNode::BinOp(lhs.into(), op, rhs.into());
-        }
-
-        Ok(lhs)
-    }
-
-    pub fn parse_term(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
-        let mut lhs = ExpressionParser::parse_factor(token_iter)?;
-
-        while token_iter.peek().is_some()
-            && (match token_iter.peek().unwrap().tt() {
-                TokenType::MULT => true,
-                TokenType::DIV => true,
-                _ => false,
-            })
-        {
-            let op = match token_iter.next().unwrap().tt() {
-                TokenType::MULT => BinOp::MULT,
-                TokenType::DIV => BinOp::DIV,
-                _ => unreachable!(),
-            };
-
-            let rhs = ExpressionParser::parse_factor(token_iter)?;
-
-            lhs = ExpNode::BinOp(lhs.into(), op, rhs.into());
-        }
-
-        Ok(lhs)
-    }
-
-    pub fn parse_factor(token_iter: &mut Peekable<Iter<Token>>) -> ExpressionResult<ExpNode> {
-        if token_iter.peek().is_none() {
-            return Err(ExpressionError::IncompleteExpression(String::from(
-                "Expression incomplete, expected more tokens",
-            ))
-            .into());
-        }
-
-        let next_token = token_iter.peek().unwrap();
-
-        match next_token.tt() {
-            TokenType::OPENPAREN => {
-                // Consume the (
-                token_iter.next();
-
-                let exp = ExpressionParser::parse_expression(token_iter)?;
-
-                if token_iter.peek().is_some()
-                    && token_iter.peek().unwrap().tt() == TokenType::CLOSEPAREN
-                {
-                    // Consume the )
-                    token_iter.next();
-
-                    return Ok(exp);
-                } else {
-                    return Err(ExpressionError::IncompleteExpression(String::from(
-                        "Expected closing ) on expression with (",
-                    ))
-                    .into());
+                    return Err(db);
                 }
             }
-            TokenType::NEGATE | TokenType::COMP | TokenType::MINUS => {
-                let op = match token_iter.next().unwrap().tt() {
-                    TokenType::NEGATE => UnOp::NOT,
-                    TokenType::COMP => UnOp::FLIP,
-                    TokenType::MINUS => UnOp::NEGATE,
-                    _ => unreachable!(),
+        }
+
+        Ok(parsed)
+    }
+
+    fn skip_whitespace(tokens: &mut TokenIter) {
+        while let Some(token) = tokens.peek() {
+            if token.kind != TokenKind::Whitespace {
+                break;
+            } else {
+                tokens.next();
+            }
+        }
+    }
+
+    // Parses a logical or expression, or if none exists, parses the next lowest precidence
+    fn parse_logical_or<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        gen_binop!(
+            tokens,
+            session,
+            parse_logical_and,
+            TokenKind::OperatorOr,
+            BinOp::Or
+        )
+    }
+
+    // Parses a logical and expression, or if none exists, parses the next lowest precidence
+    fn parse_logical_and<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        gen_binop!(
+            tokens,
+            session,
+            parse_equality_exp,
+            TokenKind::OperatorAnd,
+            BinOp::And
+        )
+    }
+
+    // Parses an equality expression, or if none exists, parses the next lowest precidence
+    fn parse_equality_exp<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        Self::skip_whitespace(tokens);
+        if let Some(mut lhs) = Self::parse_relational_exp(tokens, session)? {
+            Self::skip_whitespace(tokens);
+            while let Some(&&token) = tokens.peek() {
+                // Check if it is an equality operator: ==, !=
+                let op = match token.kind {
+                    TokenKind::OperatorEquals => BinOp::Eq,
+                    TokenKind::OperatorNotEquals => BinOp::Ne,
+                    _ => {
+                        break;
+                    }
                 };
 
-                let factor = ExpressionParser::parse_factor(token_iter)?;
+                tokens.next();
 
-                return Ok(ExpNode::UnOp(op, factor.into()));
+                if let Some(rhs) = Self::parse_relational_exp(tokens, session)? {
+                    lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
+                } else {
+                    let db =
+                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
+                    return Err(db);
+                }
             }
-            TokenType::INT => {
-                // Get the int value out of it
-                let v = match next_token.data() {
-                    TokenData::INT(v) => v,
-                    _ => unreachable!(),
-                };
-                // Consume it
-                token_iter.next();
-                return Ok(ExpNode::Constant(Value::Int(*v)).into());
-            }
-            TokenType::DOUBLE => {
-                // Get the double value out of it
-                let v = match next_token.data() {
-                    TokenData::DOUBLE(v) => v,
-                    _ => unreachable!(),
-                };
-                // Consume it
-                token_iter.next();
-                return Ok(ExpNode::Constant(Value::Double(*v)).into());
-            }
-            TokenType::BOOL => {
-                let b = match next_token.data() {
-                    TokenData::BOOL(b) => *b,
-                    _ => unreachable!(),
-                };
-                // Consume it
-                token_iter.next();
 
-                return Ok(ExpNode::Constant(Value::Bool(b)).into());
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
+        }
+    }
+
+    // Parses a relational expression, or if none exists, parses the next lowest precidence
+    fn parse_relational_exp<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        Self::skip_whitespace(tokens);
+        if let Some(mut lhs) = Self::parse_additive_exp(tokens, session)? {
+            Self::skip_whitespace(tokens);
+            while let Some(&&token) = tokens.peek() {
+                // Check if it is a relational operator: >, <, >=, or <=
+                let op = match token.kind {
+                    TokenKind::OperatorGreaterThan => BinOp::Gt,
+                    TokenKind::OperatorLessThan => BinOp::Lt,
+                    TokenKind::OperatorGreaterEquals => BinOp::Gte,
+                    TokenKind::OperatorLessEquals => BinOp::Lte,
+                    _ => {
+                        break;
+                    }
+                };
+
+                tokens.next();
+
+                if let Some(rhs) = Self::parse_additive_exp(tokens, session)? {
+                    lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
+                } else {
+                    let db =
+                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
+                    return Err(db);
+                }
             }
-            _ => {
-                return Err(ExpressionError::InvalidToken(
-                    next_token.as_str().to_owned(),
-                ));
+
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
+        }
+    }
+
+    // Parses an additive expression, or if none exists, parses the next lowest precidence
+    fn parse_additive_exp<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        Self::skip_whitespace(tokens);
+        if let Some(mut lhs) = Self::parse_term(tokens, session)? {
+            Self::skip_whitespace(tokens);
+            while let Some(&&token) = tokens.peek() {
+                // Check if it is an additive operator: +/-
+                let op = match token.kind {
+                    TokenKind::OperatorPlus => BinOp::Add,
+                    TokenKind::OperatorMinus => BinOp::Sub,
+                    _ => {
+                        break;
+                    }
+                };
+
+                tokens.next();
+
+                if let Some(rhs) = Self::parse_term(tokens, session)? {
+                    lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
+                } else {
+                    let db =
+                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
+                    return Err(db);
+                }
             }
+
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
+        }
+    }
+
+    // Parses an expression term, or if none exists, parses the next lowest precidence
+    fn parse_term<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        Self::skip_whitespace(tokens);
+        if let Some(mut lhs) = Self::parse_factor(tokens, session)? {
+            Self::skip_whitespace(tokens);
+            while let Some(&&token) = tokens.peek() {
+                // Check if it is a multiplicative operator: * or /
+                let op = match token.kind {
+                    TokenKind::OperatorMultiply => BinOp::Mult,
+                    TokenKind::OperatorDivide => BinOp::Div,
+                    _ => {
+                        break;
+                    }
+                };
+
+                tokens.next();
+
+                if let Some(rhs) = Self::parse_factor(tokens, session)? {
+                    lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
+                } else {
+                    let db =
+                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
+                    return Err(db);
+                }
+            }
+
+            Ok(Some(lhs))
+        } else {
+            Ok(None)
+        }
+    }
+
+    // This function handles parsing the smallest unit of an expression. Either another expression
+    // in parenthesis, or unary operations. It also parses constants.
+    fn parse_factor<'a>(tokens: &mut TokenIter, session: &'a Session) -> ExpResult<'a> {
+        Self::skip_whitespace(tokens);
+        if let Some(&token) = tokens.next() {
+            match token.kind {
+                // (
+                TokenKind::SymbolLeftParen => {
+                    let inner_expression = Self::parse_expression(tokens, session, true)?;
+
+                    Self::skip_whitespace(tokens);
+                    if let Some(next) = tokens.next() {
+                        if next.kind != TokenKind::SymbolRightParen {
+                            println!("Token was: {:?}", next);
+                            // Error
+                            let db = session.struct_span_error(
+                                next.as_span(),
+                                "expected closing )".to_string(),
+                            );
+
+                            Err(db)
+                        } else {
+                            Ok(inner_expression)
+                        }
+                    } else {
+                        // Error
+                        let db = session
+                            .struct_span_error(token.as_span(), "missing closing )".to_string());
+
+                        Err(db)
+                    }
+                }
+                // !, ~, -
+                TokenKind::OperatorNegate
+                | TokenKind::OperatorCompliment
+                | TokenKind::OperatorMinus => {
+                    let op = match token.kind {
+                        TokenKind::OperatorNegate => UnOp::Not,
+                        TokenKind::OperatorCompliment => UnOp::Flip,
+                        TokenKind::OperatorMinus => UnOp::Negate,
+                        _ => unreachable!(),
+                    };
+
+                    if let Some(factor) = Self::parse_factor(tokens, session)? {
+                        Ok(Some(ExpNode::UnOp(op, Box::new(factor))))
+                    } else {
+                        let db = session.struct_span_error(
+                            token.as_span(),
+                            "operator with no expression".to_string(),
+                        );
+
+                        Err(db)
+                    }
+                }
+                TokenKind::LiteralInteger | TokenKind::LiteralHex | TokenKind::LiteralBinary => {
+                    let value_snippet = session.span_to_snippet(&token.as_span());
+                    let value_str = value_snippet.as_slice();
+
+                    if let Ok(value) = match token.kind {
+                        TokenKind::LiteralInteger => parse_integer_literal(value_str),
+                        TokenKind::LiteralHex => parse_hexadecimal_literal(value_str),
+                        TokenKind::LiteralBinary => parse_binary_literal(value_str),
+                        _ => unreachable!(),
+                    } {
+                        Ok(Some(ExpNode::Constant(Value::Int(value))))
+                    } else {
+                        let db = session.struct_span_error(
+                            token.as_span(),
+                            "literal too large to be stored".to_string(),
+                        );
+
+                        Err(db)
+                    }
+                }
+                TokenKind::LiteralFloat => {
+                    let value_snippet = session.span_to_snippet(&token.as_span());
+                    let value_str = value_snippet.as_slice();
+
+                    if let Ok(value) = parse_float_literal(value_str) {
+                        Ok(Some(ExpNode::Constant(Value::Double(value))))
+                    } else {
+                        let db = session.struct_bug(format!("error parsing float {}", value_str));
+
+                        Err(db)
+                    }
+                }
+                TokenKind::LiteralTrue | TokenKind::LiteralFalse => Ok(Some(ExpNode::Constant(
+                    Value::Bool(token.kind == TokenKind::LiteralTrue),
+                ))),
+                _ => {
+                    let mut db = session
+                        .struct_error("expected parenthesis, constant, or operator".to_string());
+
+                    db.span_label(token.as_span(), "found invalid token".to_string());
+
+                    Err(db)
+                }
+            }
+        } else {
+            Ok(None)
         }
     }
 }

@@ -1,8 +1,4 @@
-mod preprocessed;
-pub use preprocessed::tokens_to_text;
+mod verifier;
+pub use verifier::*;
 
-mod generator;
-pub use generator::*;
-
-mod errors;
-pub use errors::*;
+pub mod generator;

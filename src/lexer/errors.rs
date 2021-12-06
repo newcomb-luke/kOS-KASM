@@ -1,121 +1,85 @@
-use super::Token;
 use std::{error::Error, fmt::Display, fmt::Formatter};
 
 pub type LexResult<T> = Result<T, LexError>;
-pub type LiteralResult<T> = Result<T, LiteralParseError>;
 
 #[derive(Debug)]
 pub enum LexError {
-    TokenAfterLineContinue(Token),
-    ExpectedChar(String, String),
-    UnexpectedChar(char),
-    LoneChar(char),
-    TrailingEscape,
-    InvalidEscapedChar(char),
-    LiteralError(LiteralParseError),
-    ErrorWrapper(String, usize, Box<dyn Error>),
+    TokenParseError(usize),
 }
 
-#[derive(Debug)]
-pub enum LiteralParseError {
-    ExpectedBinary,
-    ExpectedHex,
-    InvalidDouble(String),
-    InvalidBinary(String),
-    InvalidHex(String),
-    InvalidInt(String),
-    BinaryTooLarge(String),
-    HexTooLarge(String),
-    IntTooLarge(String),
+pub trait TokenIndex {
+    fn token_index(&self) -> usize;
 }
 
-impl Error for LexError {}
-impl Error for LiteralParseError {}
+pub trait Emittable: IndexEmittable {
+    fn emit(&self, file_context: &FileContext, tokens: &Vec<Token>) -> std::io::Result<()> {
+        let mut index = 0;
+        let mut error_token = None;
 
-impl Display for LexError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LexError::TokenAfterLineContinue(token) => {
-                write!(
-                    f,
-                    "Error parsing, \\ should only be followed by a newline. Found: {}",
-                    token.as_str()
-                )
+        for (iter_index, token) in tokens.iter().enumerate() {
+            if iter_index == self.token_index() {
+                error_token = Some(token);
+                break;
             }
-            LexError::ExpectedChar(found, expected) => {
-                write!(f, "Found {}, expected {}", found, expected)
-            }
-            LexError::UnexpectedChar(c) => {
-                write!(f, "Unexpected char {} while parsing token", c)
-            }
-            LexError::LoneChar(c) => {
-                write!(f, "Found line {} char", c)
-            }
-            LexError::TrailingEscape => {
-                write!(
-                    f,
-                    "Found trailing \\, consider \\\\ or finishing the escape sequence"
-                )
-            }
-            LexError::InvalidEscapedChar(c) => {
-                write!(f, "\\{} is not a valid escape sequence", c)
-            }
-            LexError::LiteralError(e) => {
-                write!(f, "{}", e)
-            }
-            LexError::ErrorWrapper(file, line, e) => {
-                write!(
-                    f,
-                    "Error lexing input in file {} line {}. {}.",
-                    file, line, e
-                )
-            }
+
+            index += token.len;
+        }
+
+        if let Some(token) = error_token {
+            self.emit_index(file_context, index, token.clone())
+        } else {
+            Console::emit(
+                crate::output::console::Level::Bug,
+                file_context,
+                "Internal error in assembler",
+                "",
+                0,
+                0,
+            )
         }
     }
 }
 
-impl Display for LiteralParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+pub trait IndexEmittable: TokenIndex {
+    fn emit_index(
+        &self,
+        file_context: &FileContext,
+        index: u32,
+        token: Token,
+    ) -> std::io::Result<()>;
+}
+
+impl TokenIndex for Phase0Error {
+    fn token_index(&self) -> usize {
         match self {
-            LiteralParseError::ExpectedBinary => {
-                write!(f, "Found characters 0b, expected binary literal")
-            }
-            LiteralParseError::ExpectedHex => {
-                write!(f, "Found characters 0x, expected hex literal")
-            }
-            LiteralParseError::InvalidDouble(d) => {
-                write!(f, "Invalid double literal {}", d)
-            }
-            LiteralParseError::InvalidBinary(b) => {
-                write!(f, "Invalid binary literal {}", b)
-            }
-            LiteralParseError::InvalidHex(x) => {
-                write!(f, "Invalid hex literal {}", x)
-            }
-            LiteralParseError::InvalidInt(i) => {
-                write!(f, "Invalid int literal {}", i)
-            }
-            LiteralParseError::BinaryTooLarge(b) => {
-                write!(
-                    f,
-                    "Binary literal {} too large to fit into 32-bit integer",
-                    b
-                )
-            }
-            LiteralParseError::HexTooLarge(x) => {
-                write!(
-                    f,
-                    "Hexadecimal literal {} too large to fit into 32-bit integer",
-                    x
-                )
-            }
-            LiteralParseError::IntTooLarge(i) => {
-                write!(
-                    f,
-                    "Integer literal {} too large to fit into 32-bit integer",
-                    i
-                )
-            }
+            Phase0Error::JunkAfterBackslashError(token_index) => *token_index,
         }
     }
 }
+
+impl IndexEmittable for Phase0Error {
+    fn emit_index(
+        &self,
+        file_context: &FileContext,
+        index: u32,
+        token: Token,
+    ) -> std::io::Result<()> {
+        let (prefix, message) = match self {
+            Phase0Error::JunkAfterBackslashError(_) => (
+                "Unable to parse line continuation",
+                "Found token after \\ character",
+            ),
+        };
+
+        Console::emit(
+            crate::output::console::Level::Error,
+            file_context,
+            prefix,
+            message,
+            index,
+            token.len,
+        )
+    }
+}
+
+impl Emittable for Phase0Error {}

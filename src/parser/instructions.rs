@@ -144,17 +144,17 @@ impl Instruction {
                         .unwrap()
                         .contains(&OperandType::STRING)
                     {
-                        kosvalue = KOSValue::STRING(value.to_owned());
+                        kosvalue = KOSValue::String(value.to_owned());
                         operand_accepted = true;
                     } else if possible_types
                         .get(op_index)
                         .unwrap()
                         .contains(&OperandType::STRINGVALUE)
                     {
-                        kosvalue = KOSValue::STRINGVALUE(value.to_owned());
+                        kosvalue = KOSValue::StringValue(value.to_owned());
                         operand_accepted = true;
                     } else {
-                        kosvalue = KOSValue::NULL;
+                        kosvalue = KOSValue::Null;
                         operand_accepted = false;
                     }
 
@@ -229,7 +229,7 @@ impl Instruction {
                         .contains(&OperandType::ARGMARKER);
 
                     if operand_accepted {
-                        new_operands.push(Operand::VALUE(KOSValue::ARGMARKER));
+                        new_operands.push(Operand::VALUE(KOSValue::ArgMarker));
 
                         Instruction::assert_single_token(operand, "argument marker")?;
                     }
@@ -243,7 +243,7 @@ impl Instruction {
                         .contains(&OperandType::NULL);
 
                     if operand_accepted {
-                        new_operands.push(Operand::VALUE(KOSValue::NULL));
+                        new_operands.push(Operand::VALUE(KOSValue::Null));
 
                         Instruction::assert_single_token(operand, "null value")?;
                     }
@@ -285,7 +285,7 @@ impl Instruction {
                         Err(e) => match e {
                             InstructionParseError::InternalOperandNotAcceptedError => {
                                 operand_accepted = false;
-                                KOSValue::NULL
+                                KOSValue::Null
                             }
                             InstructionParseError::InternalOperandTooLargeError => {
                                 return Err(InstructionParseError::IntOperandTooLargeError(
@@ -347,10 +347,10 @@ impl Instruction {
                 } else {
                     match Instruction::get_smallest_int_type(value, possible_types) {
                         Ok(op_type) => Ok(match op_type {
-                            OperandType::BYTE => KOSValue::BYTE(int_value as i8),
-                            OperandType::INT16 => KOSValue::INT16(int_value as i16),
-                            OperandType::INT32 => KOSValue::INT32(int_value),
-                            OperandType::SCALARINT => KOSValue::SCALARINT(int_value),
+                            OperandType::BYTE => KOSValue::Byte(int_value as i8),
+                            OperandType::INT16 => KOSValue::Int16(int_value as i16),
+                            OperandType::INT32 => KOSValue::Int32(int_value),
+                            OperandType::SCALARINT => KOSValue::ScalarInt(int_value),
                             _ => unreachable!(),
                         }),
                         Err(_) => Err(InstructionParseError::InternalOperandTooLargeError),
@@ -361,9 +361,9 @@ impl Instruction {
                 let bool_value = value.to_bool();
                 // This will default to the non-value version
                 if possible_types.contains(&OperandType::BOOL) {
-                    Ok(KOSValue::BOOL(bool_value))
+                    Ok(KOSValue::Bool(bool_value))
                 } else if possible_types.contains(&OperandType::BOOLEANVALUE) {
-                    Ok(KOSValue::BOOLEANVALUE(bool_value))
+                    Ok(KOSValue::BoolValue(bool_value))
                 } else {
                     Err(InstructionParseError::InternalOperandNotAcceptedError)
                 }
@@ -372,9 +372,9 @@ impl Instruction {
                 let double_value = value.to_double();
                 // This will also default to the non-value version
                 if possible_types.contains(&OperandType::DOUBLE) {
-                    Ok(KOSValue::DOUBLE(double_value))
+                    Ok(KOSValue::Double(double_value))
                 } else if possible_types.contains(&OperandType::SCALARDOUBLE) {
-                    Ok(KOSValue::SCALARDOUBLE(double_value))
+                    Ok(KOSValue::ScalarDouble(double_value))
                 } else {
                     Err(InstructionParseError::InternalOperandNotAcceptedError)
                 }
@@ -568,7 +568,7 @@ impl Instruction {
             0x4a => vec![],
             0x4b => vec![],
             0x4c => vec![
-                vec![OperandType::STRING],
+                vec![OperandType::STRING, OperandType::NULL],
                 vec![
                     OperandType::STRING,
                     OperandType::INT16,
