@@ -300,7 +300,7 @@ impl Preprocessor {
                         // Then define it
                         label_manager.def(
                             id,
-                            Label::new(id, LabelType::UNDEF, LabelInfo::EXTERN, LabelValue::NONE),
+                            Label::new(id, LabelType::UNDEFFUNC, LabelInfo::EXTERN, LabelValue::NONE),
                         );
                     }
                     DirectiveType::GLOBAL => {
@@ -312,7 +312,7 @@ impl Preprocessor {
                         {
                             return Err(PreprocessError::ExpectedAfterDirective(
                                 String::from("identifier"),
-                                String::from(".extern"),
+                                String::from(".global"),
                                 directive_line,
                             )
                             .into());
@@ -375,7 +375,7 @@ impl Preprocessor {
                                 id,
                                 Label::new(
                                     id,
-                                    LabelType::UNDEF,
+                                    LabelType::UNDEFFUNC,
                                     LabelInfo::GLOBAL,
                                     LabelValue::NONE,
                                 ),
@@ -554,25 +554,22 @@ impl Preprocessor {
                             _ => unreachable!(),
                         };
 
-                        // If this function was declared as global, it will already be in the Label table
-                        // If it is in the Label table and it isn't global though, it is a duplicate
+                        // We need to check if an entry with this id was already made in the table
                         if label_manager.ifdef(func_label_id) {
                             // Retrieve it
                             let declared_label = label_manager.get(func_label_id).unwrap();
 
-                            // Check if it isn't global
-                            if declared_label.label_info() != LabelInfo::GLOBAL {
-                                // Then it is a duplicate
+                            // We need to check if it is undefined, because if it was already defined, it is a duplicate
+                            // If it is global though, it is expected to be undefined, so skip if it is global
+                            if declared_label.label_info() != LabelInfo::GLOBAL && (declared_label.label_type() != LabelType::UNDEFFUNC && declared_label.label_type() != LabelType::UNDEF) {
                                 return Err(PreprocessError::DuplicateLabel(
                                     func_label_id.to_owned(),
-                                    directive_line,
+                                    directive_line + 1,
                                 )
                                 .into());
                             }
-                            // If it is global, then we need to make the new Label info global as well
-                            else {
-                                label_info = LabelInfo::GLOBAL;
-                            }
+
+                            label_info = declared_label.label_info();
                         }
                         // If it isn't already declared, then the new Label's info will be local
                         else {
@@ -1052,11 +1049,6 @@ impl Preprocessor {
                             new_tokens.push(token);
                         }
                     }
-                    // If it is a boolean value
-                    else if id == "true" || id == "false" {
-                        // Push it right along
-                        new_tokens.push(token);
-                    }
                     // We also need to check if it is an external Label
                     else if label_manager.ifdef(id) {
                         // If it is, it will be dealt with much later on down the line, so just push it
@@ -1341,7 +1333,7 @@ impl Preprocessor {
                     // Get the token
                     let token = token_iter.next().unwrap();
 
-                    // If this token is another definiition expansion...
+                    // If this token is another definition expansion...
                     if token.tt() == TokenType::IDENTIFIER && definition_table.ifdef(id) {
                         // Get the id
                         let inner_id = match token.data() {
@@ -1418,27 +1410,34 @@ impl Preprocessor {
             let token = without_placeholders_iter.next().unwrap();
 
             // If this token is another definition expansion...
-            if token.tt() == TokenType::IDENTIFIER && definition_table.ifdef(id) {
-                // Get the id
-                let inner_id = match token.data() {
-                    TokenData::STRING(s) => s,
-                    _ => unreachable!(),
-                };
+            if token.tt() == TokenType::IDENTIFIER {
+                let token_id = match token.data() { TokenData::STRING(s) => s, _ => unreachable!() };
 
-                // We don't want recursive expansion, that would be bad.
-                if *id == *inner_id {
-                    return Err(DefinitionError::RecursiveExpansion);
+                if definition_table.ifdef(token_id) {
+                    // Get the id
+                    let inner_id = match token.data() {
+                        TokenData::STRING(s) => s,
+                        _ => unreachable!(),
+                    };
+
+                    // We don't want recursive expansion, that would be bad.
+                    if *id == *inner_id {
+                        return Err(DefinitionError::RecursiveExpansion);
+                    }
+
+                    // Expand it
+                    let mut inner = self.expand_definition(
+                        inner_id,
+                        &mut without_placeholders_iter,
+                        definition_table,
+                    )?;
+
+                    // Append it to the expanded tokens list
+                    expanded_tokens.append(&mut inner);
+                } else {
+                    // Just append the token
+                    expanded_tokens.push(token.clone());
                 }
-
-                // Expand it
-                let mut inner = self.expand_definition(
-                    inner_id,
-                    &mut without_placeholders_iter,
-                    definition_table,
-                )?;
-
-                // Append it to the expanded tokens list
-                expanded_tokens.append(&mut inner);
             }
             // If it isn't
             else {
@@ -1467,6 +1466,13 @@ impl Preprocessor {
         // Create a new lexer just for this file
         let mut lexer = Lexer::new();
 
+        // If it is an absolute path, we don't need to do anything. If it is not, make it one by adding the include path
+        if !file_path.is_absolute() {
+            let include_path = Path::new(&self.include_path);
+            path_buffer = include_path.join(file_path);
+            file_path = path_buffer.as_path();
+        }
+
         // If the file does not exist, error out here
         if !file_path.exists() {
             return Err(PreprocessError::InvalidIncludeFile(
@@ -1479,13 +1485,6 @@ impl Preprocessor {
             return Err(PreprocessError::DirectoryIncludeError(
                 file_path.to_str().unwrap().to_owned(),
             ));
-        }
-
-        // If it is an absolute path, we don't need to do anything. If it is not, make it one by adding the include path
-        if !file_path.is_absolute() {
-            let include_path = Path::new(&self.include_path);
-            path_buffer = include_path.join(file_path);
-            file_path = path_buffer.as_path();
         }
 
         // Attempt to read the file as text

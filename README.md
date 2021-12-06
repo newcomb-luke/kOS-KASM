@@ -1,5 +1,4 @@
-# kOS-KASM
-
+# KASM
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/newcomb-luke/kOS-KASM/Rust%20CI?label=build)
 [![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/newcomb-luke/kOS-KASM)](https://deps.rs/repo/github/newcomb-luke/kOS-KASM)
 ![GitHub](https://img.shields.io/github/license/newcomb-luke/kOS-KASM)
@@ -91,6 +90,6 @@ kasm program.kasm -c "Compiled by MyCompiler"
 
 ## Features
 
-* Extensive [preprocessor directives]()
+* Extensive [preprocessor directives](https://newcomb-luke.github.io/kOS-KASM/chapter_3/kasm_preprocessor.html)
 * Easy to use functions and labels
 * Some small size optimizations over compiled KerboScript

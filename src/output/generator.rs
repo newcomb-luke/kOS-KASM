@@ -63,7 +63,7 @@ impl<'a, 'c> Generator<'a, 'c> {
 
             functions_and_sections.push((function_section, function));
         }
-
+      
         // Create the file symbol
         let file_symbol_name = self.get_file_sym_name();
         let file_symbol_name_index = sym_str_tab.add(&file_symbol_name);
@@ -195,31 +195,6 @@ impl<'a, 'c> Generator<'a, 'c> {
     ) -> Result<FuncSection, ()> {
         let function_section_index = function_section.section_index();
         let mut local_instruction_index = 0;
-
-        /*
-        // The linker expects the assembler to perform a label reset as the first instruction in
-        // _start
-        if function.name == "_start" {
-            let label_reset = VerifiedInstruction::OneOp {
-                opcode: Opcode::Lbrt,
-                operand: VerifiedOperand::Value(KOSValue::String(String::from("@0001"))),
-            };
-
-            let generated_instr = self.generate_instruction(
-                label_reset,
-                function_section_index,
-                local_instruction_index,
-                data_section,
-                reld_section,
-                sym_tab,
-                sym_str_tab,
-            )?;
-
-            function_section.add(generated_instr);
-
-            local_instruction_index += 1;
-        }
-        */
 
         for instruction in function.instructions {
             let opcode = instruction.opcode();

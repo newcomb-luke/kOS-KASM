@@ -1,5 +1,7 @@
 use std::{iter::Peekable, slice::Iter};
 
+use kerbalobjects::SymbolInfo;
+
 use super::errors::ParseError;
 use crate::{
     Instruction, Label, LabelInfo, LabelManager, LabelType, LabelValue, ParseResult, Token,
@@ -10,14 +12,16 @@ pub struct Function {
     name: String,
     instructions: Vec<Instruction>,
     size: u16,
+    info: SymbolInfo
 }
 
 impl Function {
-    pub fn new(name: &str, instructions: Vec<Instruction>, size: u16) -> Function {
+    pub fn new(name: &str, instructions: Vec<Instruction>, size: u16, info: SymbolInfo) -> Function {
         Function {
             name: name.to_owned(),
             instructions,
             size,
+            info
         }
     }
 
@@ -158,7 +162,15 @@ impl Function {
             }
         }
 
-        Ok(Function::new(func_name, instructions, size))
+        Ok(Function::new(func_name, instructions, size, Function::label_info_to_symbol(func_info)))
+    }
+
+    fn label_info_to_symbol(info: LabelInfo) -> SymbolInfo {
+        match info {
+            LabelInfo::GLOBAL => SymbolInfo::GLOBAL,
+            LabelInfo::LOCAL => SymbolInfo::LOCAL,
+            LabelInfo::EXTERN => SymbolInfo::EXTERN,
+        }
     }
 
     pub fn instructions(&self) -> &Vec<Instruction> {
@@ -171,5 +183,9 @@ impl Function {
 
     pub fn size(&self) -> u16 {
         self.size
+    }
+
+    pub fn info(&self) -> SymbolInfo {
+        self.info
     }
 }
