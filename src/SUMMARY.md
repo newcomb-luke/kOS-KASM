@@ -22,4 +22,5 @@
 	- [Hello World](./chapter_5/hello_world.md)
 	- [Launch](./chapter_5/launch.md)
 	- [Better Launch](./chapter_5/better_launch.md)
+	- [Miscellaneous](./chapter_5/miscellaneous.md)
 - [Advanced Tutorial]()
