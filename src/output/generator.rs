@@ -63,7 +63,7 @@ impl<'a, 'c> Generator<'a, 'c> {
 
             functions_and_sections.push((function_section, function));
         }
-      
+
         // Create the file symbol
         let file_symbol_name = self.get_file_sym_name();
         let file_symbol_name_index = sym_str_tab.add(&file_symbol_name);
