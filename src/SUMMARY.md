@@ -23,4 +23,7 @@
 	- [Launch](./chapter_5/launch.md)
 	- [Better Launch](./chapter_5/better_launch.md)
 	- [Miscellaneous](./chapter_5/miscellaneous.md)
+	- [Functions](./chapter_5/functions.md)
+	- [Static Libraries](./chapter_5/static_libraries.md)
+	- [Shared Libraries](./chapter_5/shared_libraries.md)
 - [Advanced Tutorial]()

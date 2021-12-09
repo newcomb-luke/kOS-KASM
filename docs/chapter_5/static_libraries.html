@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Tutorial - KASM Guide</title>
+        <title>Static Libraries - KASM Guide</title>
 
 
         <!-- Custom HTML head -->
@@ -81,7 +81,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../introduction/introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><a href="../installation/installation.html">Installation</a></li><li class="chapter-item expanded "><a href="../chapter_1/running_kasm.html"><strong aria-hidden="true">1.</strong> Running KASM</a></li><li class="chapter-item expanded "><a href="../chapter_2/kasm_language.html"><strong aria-hidden="true">2.</strong> KASM Language</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_2/for_beginners.html"><strong aria-hidden="true">2.1.</strong> For Beginners</a></li><li class="chapter-item expanded "><a href="../chapter_2/basic_syntax.html"><strong aria-hidden="true">2.2.</strong> Basic Syntax</a></li><li class="chapter-item expanded "><a href="../chapter_2/data_types.html"><strong aria-hidden="true">2.3.</strong> Data Types</a></li><li class="chapter-item expanded "><a href="../chapter_2/expressions.html"><strong aria-hidden="true">2.4.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="../chapter_2/instructions_list.html"><strong aria-hidden="true">2.5.</strong> Full Instruction List</a></li></ol></li><li class="chapter-item expanded "><a href="../chapter_3/kasm_preprocessor.html"><strong aria-hidden="true">3.</strong> KASM Preprocessor</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_3/single_line_macros.html"><strong aria-hidden="true">3.1.</strong> Single-Line Macros</a></li><li class="chapter-item expanded "><a href="../chapter_3/multi_line_macros.html"><strong aria-hidden="true">3.2.</strong> Multi-Line Macros</a></li><li class="chapter-item expanded "><a href="../chapter_3/repeats.html"><strong aria-hidden="true">3.3.</strong> Repeats</a></li><li class="chapter-item expanded "><a href="../chapter_3/include.html"><strong aria-hidden="true">3.4.</strong> Include</a></li><li class="chapter-item expanded "><a href="../chapter_3/if_directives.html"><strong aria-hidden="true">3.5.</strong> If* Directives</a></li></ol></li><li class="chapter-item expanded "><a href="../chapter_4/assembly_directives.html"><strong aria-hidden="true">4.</strong> Assembly Directives</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_4/sections.html"><strong aria-hidden="true">4.1.</strong> Sections</a></li></ol></li><li class="chapter-item expanded "><a href="../chapter_5/tutorial.html" class="active"><strong aria-hidden="true">5.</strong> Tutorial</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_5/hello_world.html"><strong aria-hidden="true">5.1.</strong> Hello World</a></li><li class="chapter-item expanded "><a href="../chapter_5/launch.html"><strong aria-hidden="true">5.2.</strong> Launch</a></li><li class="chapter-item expanded "><a href="../chapter_5/better_launch.html"><strong aria-hidden="true">5.3.</strong> Better Launch</a></li><li class="chapter-item expanded "><a href="../chapter_5/miscellaneous.html"><strong aria-hidden="true">5.4.</strong> Miscellaneous</a></li><li class="chapter-item expanded "><a href="../chapter_5/functions.html"><strong aria-hidden="true">5.5.</strong> Functions</a></li><li class="chapter-item expanded "><a href="../chapter_5/static_libraries.html"><strong aria-hidden="true">5.6.</strong> Static Libraries</a></li><li class="chapter-item expanded "><a href="../chapter_5/shared_libraries.html"><strong aria-hidden="true">5.7.</strong> Shared Libraries</a></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Advanced Tutorial</div></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../introduction/introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><a href="../installation/installation.html">Installation</a></li><li class="chapter-item expanded "><a href="../chapter_1/running_kasm.html"><strong aria-hidden="true">1.</strong> Running KASM</a></li><li class="chapter-item expanded "><a href="../chapter_2/kasm_language.html"><strong aria-hidden="true">2.</strong> KASM Language</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_2/for_beginners.html"><strong aria-hidden="true">2.1.</strong> For Beginners</a></li><li class="chapter-item expanded "><a href="../chapter_2/basic_syntax.html"><strong aria-hidden="true">2.2.</strong> Basic Syntax</a></li><li class="chapter-item expanded "><a href="../chapter_2/data_types.html"><strong aria-hidden="true">2.3.</strong> Data Types</a></li><li class="chapter-item expanded "><a href="../chapter_2/expressions.html"><strong aria-hidden="true">2.4.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="../chapter_2/instructions_list.html"><strong aria-hidden="true">2.5.</strong> Full Instruction List</a></li></ol></li><li class="chapter-item expanded "><a href="../chapter_3/kasm_preprocessor.html"><strong aria-hidden="true">3.</strong> KASM Preprocessor</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_3/single_line_macros.html"><strong aria-hidden="true">3.1.</strong> Single-Line Macros</a></li><li class="chapter-item expanded "><a href="../chapter_3/multi_line_macros.html"><strong aria-hidden="true">3.2.</strong> Multi-Line Macros</a></li><li class="chapter-item expanded "><a href="../chapter_3/repeats.html"><strong aria-hidden="true">3.3.</strong> Repeats</a></li><li class="chapter-item expanded "><a href="../chapter_3/include.html"><strong aria-hidden="true">3.4.</strong> Include</a></li><li class="chapter-item expanded "><a href="../chapter_3/if_directives.html"><strong aria-hidden="true">3.5.</strong> If* Directives</a></li></ol></li><li class="chapter-item expanded "><a href="../chapter_4/assembly_directives.html"><strong aria-hidden="true">4.</strong> Assembly Directives</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_4/sections.html"><strong aria-hidden="true">4.1.</strong> Sections</a></li></ol></li><li class="chapter-item expanded "><a href="../chapter_5/tutorial.html"><strong aria-hidden="true">5.</strong> Tutorial</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_5/hello_world.html"><strong aria-hidden="true">5.1.</strong> Hello World</a></li><li class="chapter-item expanded "><a href="../chapter_5/launch.html"><strong aria-hidden="true">5.2.</strong> Launch</a></li><li class="chapter-item expanded "><a href="../chapter_5/better_launch.html"><strong aria-hidden="true">5.3.</strong> Better Launch</a></li><li class="chapter-item expanded "><a href="../chapter_5/miscellaneous.html"><strong aria-hidden="true">5.4.</strong> Miscellaneous</a></li><li class="chapter-item expanded "><a href="../chapter_5/functions.html"><strong aria-hidden="true">5.5.</strong> Functions</a></li><li class="chapter-item expanded "><a href="../chapter_5/static_libraries.html" class="active"><strong aria-hidden="true">5.6.</strong> Static Libraries</a></li><li class="chapter-item expanded "><a href="../chapter_5/shared_libraries.html"><strong aria-hidden="true">5.7.</strong> Shared Libraries</a></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Advanced Tutorial</div></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -142,19 +142,94 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="tutorial"><a class="header" href="#tutorial">Tutorial</a></h1>
-<p>This tutorial assumes that you have both <strong>kasm</strong> and <a href="https://github.com/newcomb-luke/kOS-KLinker"><strong>kld</strong></a> installed.</p>
-<p>This also assumes that you have a moderate understanding of programming, and hopefully at least a small understanding of assembly language.</p>
+                        <h1 id="static-libraries"><a class="header" href="#static-libraries">Static Libraries</a></h1>
+<p>Static libraries are collections of code that are put all into one file, but can be written in multiple files.
+They allow you to reuse code that you have already assembled using <code>KASM</code>, so that you don't need to run it each time.</p>
+<p>This is where <code>global</code> and <code>external</code> symbols come into play.</p>
+<p>Let's say we have the function from last time called <code>add_two</code>, but we want to put it with a bunch of other math functions
+(for some reason) so we put it in a file called <code>math.kasm</code>:</p>
+<p><strong>math.kasm</strong></p>
+<pre><code>.func
+add_two:
+    add
+    ret 0
+</code></pre>
+<p>And this is where we call it:</p>
+<p><strong>main.kasm</strong></p>
+<pre><code>.global _start
+
+.func
+_start:
+    push @
+    push 2
+    push 3
+    call add_two, #
+    call #, &quot;print()&quot;
+    pop
+    eop
+</code></pre>
+<p>If you tried to assemble <code>main.kasm</code> as-is, it would give you the following error:</p>
+<pre><code>error: instruction references symbol `add_two`, that does not exist
+ --&gt;  main.kasm:8:4
+  |
+8 |     call add_two, #
+  |     ^^^^
+  |
+</code></pre>
+<p>The file <code>main.kasm</code> has no way of knowing that the function <code>add_two</code> actually exists in another file,
+it assumes you will write it in the same file, which we did not.</p>
+<p>So you need to tell KASM that it will exist in another file, that it will be &quot;external&quot; to this file.</p>
+<p>Therefore we use the <code>.extern</code> keyword to declare <code>add_two</code> as external:</p>
+<pre><code>.global _start
+.extern .func add_two
+</code></pre>
+<p>You note that you also have to specify the type of <code>add_two</code> as a function.</p>
+<p><code>main.kasm</code> will now assemble! But if you try to run <code>kld</code> like in the past to turn it in to a .ksm file,
+you will get an error:</p>
+<pre><code>Unresolved external symbol error. External symbol &quot;add_two&quot; has no definition
+</code></pre>
+<p>It says we never defined <code>add_two</code>, and that is because we never actually added the code for it!</p>
+<p>In order to do that, we need to assemble the file we put <code>add_two</code> in:</p>
+<pre><code>kasm -o math.ko math.kasm
+</code></pre>
+<p>Now we have <code>math.ko</code>, which we can pass to the linker at the same time as <code>main.ko</code>:</p>
+<pre><code>kld -o program.ksm main.ko add.ko
+</code></pre>
+<p>Although... this will give you the same error as before, and that is because we never told KASM to make add_two
+available to other files. By default KASM makes every function you have local, so that in theory you can
+name a function the same thing twice, and as long as they are local to two different files, then it will work
+as expected, each will call their own version, and you won't have to make two different names for them.</p>
+<p>To tell KASM to make a function &quot;global&quot; to be seen by other files, we use the <code>.global</code> keyword:</p>
+<pre><code>.global add_two
+
+.func
+add_two:
+    add
+    ret 0
+</code></pre>
+<p>Now we have told KASM to make <code>add_two</code> global. So now if we run:</p>
+<pre><code>kasm -o math.ko math.kasm
+kld -o program.ksm main.ko math.ko
+</code></pre>
+<p>It will not give us an error! And it will work as expected.</p>
+<p>You can add as many static libraries as you want to a program, by specifying each one to <code>kld</code>:</p>
+<pre><code>kld -o complex.ksm math.ko main.ko draw.ko files.ko otherstuff.ko ...
+</code></pre>
+<p>This will make one giant file named <code>complex.ksm</code> that will have all of the code it needs in it.</p>
+<p>There are certain times though, that may not want to have one large file, but instead split it up into multiple
+files, that we could even possible switch out with future versions and the program that relies on it doesn't need to be
+recompiled, a good example would be how regular KerboScript deals with functions in other files.</p>
+<p>This is where <strong>shared libraries</strong> come in.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../chapter_4/sections.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../chapter_5/functions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="../chapter_5/hello_world.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../chapter_5/shared_libraries.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -164,11 +239,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../chapter_4/sections.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../chapter_5/functions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="../chapter_5/hello_world.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="../chapter_5/shared_libraries.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

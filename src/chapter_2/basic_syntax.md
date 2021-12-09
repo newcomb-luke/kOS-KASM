@@ -8,6 +8,19 @@ Most of these fields are optional, with restriction of the operands field based 
 
 KASM uses backslash (\\) as a continuation character; if a line ends with a backslash, the next line is considered to be a part of the backslashed line.
 
+Example:
+
+```
+push \
+     2
+```
+
+Would be parsed as the same as:
+
+```
+push 2
+```
+
 There are no restrictions places on whitespace, such as spaces or tabs, however except for when using the \ character, new lines are to be minded.
 
 ## Basic Instructions

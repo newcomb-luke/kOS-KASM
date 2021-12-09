@@ -1,3 +1,5 @@
 *.vim
 Cargo.lock
 target/
+*.ko
+*.ksm

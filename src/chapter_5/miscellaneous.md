@@ -121,7 +121,3 @@ stol "$i"
 .loop_end:
     escp 1
 ```
-
-## Functions
-
-

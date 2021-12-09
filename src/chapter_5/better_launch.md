@@ -26,7 +26,8 @@ escp 1
 
 The first operand to `bscp` is the new scope ID, and the second is supposed to be the "parent ID", or the scope that this scope is in.
 
-The operand to `escp` is the scope ID that we are ending. This removes any variables that were declared in that scope.
+The operand to `escp` is the number of scopes that we are ending. We have only created one variable scope, so the operand here is `1`.
+This removes any variables that were declared in that scope.
 
 If you know C-style languages, or even just KerboScript, you can think of `bscp` as a `{` and `escp` as a `}`
 
