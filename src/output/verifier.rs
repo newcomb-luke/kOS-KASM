@@ -228,7 +228,7 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
                 }
             }
             InstructionOperand::Bool(b) => {
-                if accepted.contains(&OperandType::ArgMarker) {
+                if accepted.contains(&OperandType::Bool) {
                     Ok(VerifiedOperand::Value(KOSValue::Bool(*b)))
                 } else if accepted.contains(&OperandType::BooleanValue) {
                     Ok(VerifiedOperand::Value(KOSValue::BoolValue(*b)))
