@@ -36,8 +36,8 @@ _start:
 
 This declares a function, named `_start` which only contains one instruction: `eop`
 
-`eop` tells kOS that the code is over, and this instruction should ***always*** go at the end of your `_start` or `_init` functions.
-Otherwise, strange things happen.
+`eop` tells kOS that the code is over, and this instruction should ***always*** go at the end of your `_start` function.
+Otherwise, strange and difficult to debug things happen.
 
 Now we can resume writing our hello world program!
 

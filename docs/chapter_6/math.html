@@ -1,0 +1,542 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Math Functions - KASM Guide</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../introduction/introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><a href="../installation/installation.html">Installation</a></li><li class="chapter-item expanded "><a href="../chapter_1/running_kasm.html"><strong aria-hidden="true">1.</strong> Running KASM</a></li><li class="chapter-item expanded "><a href="../chapter_2/kasm_language.html"><strong aria-hidden="true">2.</strong> KASM Language</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_2/for_beginners.html"><strong aria-hidden="true">2.1.</strong> For Beginners</a></li><li class="chapter-item expanded "><a href="../chapter_2/basic_syntax.html"><strong aria-hidden="true">2.2.</strong> Basic Syntax</a></li><li class="chapter-item expanded "><a href="../chapter_2/data_types.html"><strong aria-hidden="true">2.3.</strong> Data Types</a></li><li class="chapter-item expanded "><a href="../chapter_2/expressions.html"><strong aria-hidden="true">2.4.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="../chapter_2/instructions_list.html"><strong aria-hidden="true">2.5.</strong> Full Instruction List</a></li></ol></li><li class="chapter-item expanded "><a href="../chapter_3/kasm_preprocessor.html"><strong aria-hidden="true">3.</strong> KASM Preprocessor</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_3/single_line_macros.html"><strong aria-hidden="true">3.1.</strong> Single-Line Macros</a></li><li class="chapter-item expanded "><a href="../chapter_3/multi_line_macros.html"><strong aria-hidden="true">3.2.</strong> Multi-Line Macros</a></li><li class="chapter-item expanded "><a href="../chapter_3/repeats.html"><strong aria-hidden="true">3.3.</strong> Repeats</a></li><li class="chapter-item expanded "><a href="../chapter_3/include.html"><strong aria-hidden="true">3.4.</strong> Include</a></li><li class="chapter-item expanded "><a href="../chapter_3/if_directives.html"><strong aria-hidden="true">3.5.</strong> If* Directives</a></li></ol></li><li class="chapter-item expanded "><a href="../chapter_4/assembly_directives.html"><strong aria-hidden="true">4.</strong> Assembly Directives</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_4/sections.html"><strong aria-hidden="true">4.1.</strong> Sections</a></li></ol></li><li class="chapter-item expanded "><a href="../chapter_5/tutorial.html"><strong aria-hidden="true">5.</strong> Tutorial</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_5/hello_world.html"><strong aria-hidden="true">5.1.</strong> Hello World</a></li><li class="chapter-item expanded "><a href="../chapter_5/launch.html"><strong aria-hidden="true">5.2.</strong> Launch</a></li><li class="chapter-item expanded "><a href="../chapter_5/better_launch.html"><strong aria-hidden="true">5.3.</strong> Better Launch</a></li><li class="chapter-item expanded "><a href="../chapter_5/miscellaneous.html"><strong aria-hidden="true">5.4.</strong> Miscellaneous</a></li><li class="chapter-item expanded "><a href="../chapter_5/functions.html"><strong aria-hidden="true">5.5.</strong> Functions</a></li><li class="chapter-item expanded "><a href="../chapter_5/static_libraries.html"><strong aria-hidden="true">5.6.</strong> Static Libraries</a></li><li class="chapter-item expanded "><a href="../chapter_5/shared_libraries.html"><strong aria-hidden="true">5.7.</strong> Shared Libraries</a></li></ol></li><li class="chapter-item expanded "><a href="../chapter_6/built_ins.html"><strong aria-hidden="true">6.</strong> Built-In List</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../chapter_6/math.html" class="active"><strong aria-hidden="true">6.1.</strong> Math Functions</a></li><li class="chapter-item expanded "><a href="../chapter_6/general.html"><strong aria-hidden="true">6.2.</strong> General</a></li><li class="chapter-item expanded "><a href="../chapter_6/file_io.html"><strong aria-hidden="true">6.3.</strong> File I/O</a></li><li class="chapter-item expanded "><a href="../chapter_6/internal.html"><strong aria-hidden="true">6.4.</strong> Internal</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">KASM Guide</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="math-functions"><a class="header" href="#math-functions">Math Functions</a></h1>
+<h2 id="table-of-contents"><a class="header" href="#table-of-contents">Table of Contents</a></h2>
+<ul>
+<li><a href="#abs">abs</a></li>
+<li><a href="#mod">mod</a></li>
+<li><a href="#floor">floor</a></li>
+<li><a href="#ceiling">ceiling</a></li>
+<li><a href="#round">round</a></li>
+<li><a href="#sqrt">sqrt</a></li>
+<li><a href="#ln">ln</a></li>
+<li><a href="#log10">log10</a></li>
+<li><a href="#min">min</a></li>
+<li><a href="#max">max</a></li>
+<li><a href="#random">random</a></li>
+<li><a href="#randomseed">randomseed</a></li>
+<li><a href="#char">char</a></li>
+<li><a href="#unchar">unchar</a></li>
+<li><a href="#sin">sin</a></li>
+<li><a href="#cos">cos</a></li>
+<li><a href="#tan">tan</a></li>
+<li><a href="#arcsin">arcsin</a></li>
+<li><a href="#arccos">arccos</a></li>
+<li><a href="#arctan">arctan</a></li>
+<li><a href="#arctan2">arctan2</a></li>
+<li><a href="#anglediff">anglediff</a></li>
+</ul>
+<h2 id="abs"><a class="header" href="#abs">abs()</a></h2>
+<h4 id="takes"><a class="header" href="#takes">Takes</a></h4>
+<ul>
+<li>Any number type</li>
+</ul>
+<h4 id="description"><a class="header" href="#description">Description</a></h4>
+<ul>
+<li>Calculates the absolute value of the provided number</li>
+</ul>
+<h4 id="returns"><a class="header" href="#returns">Returns</a></h4>
+<ul>
+<li>The absolute value of the provided number (as a double)</li>
+</ul>
+<h2 id="mod"><a class="header" href="#mod">mod()</a></h2>
+<h4 id="takes-1"><a class="header" href="#takes-1">Takes</a></h4>
+<ul>
+<li>Any number type (divisor)</li>
+<li>Another argument of any number type (dividend)</li>
+</ul>
+<h4 id="description-1"><a class="header" href="#description-1">Description</a></h4>
+<ul>
+<li>Calculates the remainder of a division of the two numbers, also known as a modulus. (dividend % divisor)</li>
+</ul>
+<h4 id="returns-1"><a class="header" href="#returns-1">Returns</a></h4>
+<ul>
+<li>The modulus of both numbers</li>
+</ul>
+<h2 id="floor"><a class="header" href="#floor">floor()</a></h2>
+<h4 id="takes-2"><a class="header" href="#takes-2">Takes</a></h4>
+<ul>
+<li>Any number type, the number to round</li>
+<li>(Optional) the number of places to round to as an integer</li>
+</ul>
+<h4 id="description-2"><a class="header" href="#description-2">Description</a></h4>
+<ul>
+<li>If one number is provided, it is rounded down to the next integer. 1.8 would be rounded down to 1.0</li>
+<li>If two numbers are provided, the first is rounded to the number of decimal places as the second. If given 1.887 and 2, the result would be 1.88</li>
+</ul>
+<h4 id="returns-2"><a class="header" href="#returns-2">Returns</a></h4>
+<ul>
+<li>The rounded value</li>
+</ul>
+<h2 id="ceiling"><a class="header" href="#ceiling">ceiling()</a></h2>
+<h4 id="takes-3"><a class="header" href="#takes-3">Takes</a></h4>
+<ul>
+<li>Any number type, the number to round</li>
+<li>(Optional) the number of places to round to as an integer</li>
+</ul>
+<h4 id="description-3"><a class="header" href="#description-3">Description</a></h4>
+<ul>
+<li>If one number is provided, it is rounded up to the next integer. 1.1 would be rounded up to 2.0</li>
+<li>If two numbers are provided, the first is rounded to the number of decimal places as the second. If given 1.888 and 2, the result would be 1.89</li>
+</ul>
+<h4 id="returns-3"><a class="header" href="#returns-3">Returns</a></h4>
+<ul>
+<li>The rounded value</li>
+</ul>
+<h2 id="round"><a class="header" href="#round">round()</a></h2>
+<h4 id="takes-4"><a class="header" href="#takes-4">Takes</a></h4>
+<ul>
+<li>Any number type, the number to round</li>
+<li>(Optional) the number of places to round as an integer</li>
+</ul>
+<h4 id="description-4"><a class="header" href="#description-4">Description</a></h4>
+<ul>
+<li>If one number is provided, it is rounded to to the nearest integer. 1.1 would be rounded down to 1.0, and 1.6 would be rounded up to 2.0</li>
+<li>If two numbers are provided, the first is rounded to the number of decimal places as the second. If given 1.888 and 2, the result would be 1.89, and
+if given 1.882 and 2, the result would be 1.88</li>
+</ul>
+<h4 id="returns-4"><a class="header" href="#returns-4">Returns</a></h4>
+<ul>
+<li>The rounded value</li>
+</ul>
+<h2 id="sqrt"><a class="header" href="#sqrt">sqrt()</a></h2>
+<h4 id="takes-5"><a class="header" href="#takes-5">Takes</a></h4>
+<ul>
+<li>Any number type, the number to take the square root of </li>
+</ul>
+<h4 id="description-5"><a class="header" href="#description-5">Description</a></h4>
+<ul>
+<li>If a is the number provided, performs sqrt(a)</li>
+</ul>
+<h4 id="returns-5"><a class="header" href="#returns-5">Returns</a></h4>
+<ul>
+<li>The square root of the value</li>
+</ul>
+<h2 id="ln"><a class="header" href="#ln">ln()</a></h2>
+<h4 id="takes-6"><a class="header" href="#takes-6">Takes</a></h4>
+<ul>
+<li>Any number type, the number to take the natural logarithm of</li>
+</ul>
+<h4 id="description-6"><a class="header" href="#description-6">Description</a></h4>
+<ul>
+<li>If a is the number provided, performs ln(a)</li>
+</ul>
+<h4 id="returns-6"><a class="header" href="#returns-6">Returns</a></h4>
+<ul>
+<li>The natural log of the value</li>
+</ul>
+<h2 id="log10"><a class="header" href="#log10">log10()</a></h2>
+<h4 id="takes-7"><a class="header" href="#takes-7">Takes</a></h4>
+<ul>
+<li>Any number type, the number to take the base 10 log of</li>
+</ul>
+<h4 id="description-7"><a class="header" href="#description-7">Description</a></h4>
+<ul>
+<li>If a is the number provided, performs log_10(a)</li>
+</ul>
+<h4 id="returns-7"><a class="header" href="#returns-7">Returns</a></h4>
+<ul>
+<li>The log base 10 of the value</li>
+</ul>
+<h2 id="min"><a class="header" href="#min">min()</a></h2>
+<h4 id="takes-8"><a class="header" href="#takes-8">Takes</a></h4>
+<ul>
+<li>2 of any number type OR 2 of any string type</li>
+</ul>
+<h4 id="description-8"><a class="header" href="#description-8">Description</a></h4>
+<ul>
+<li>If numbers are provided, it returns the minimum of the two</li>
+<li>If strings are provided, it returns the one that is considered to be &quot;less&quot;, useful for sorting</li>
+</ul>
+<h4 id="returns-8"><a class="header" href="#returns-8">Returns</a></h4>
+<ul>
+<li>The minimum of the two values provided</li>
+</ul>
+<h2 id="max"><a class="header" href="#max">max()</a></h2>
+<h4 id="takes-9"><a class="header" href="#takes-9">Takes</a></h4>
+<ul>
+<li>2 of any number type OR 2 of any string type</li>
+</ul>
+<h4 id="description-9"><a class="header" href="#description-9">Description</a></h4>
+<ul>
+<li>If numbers are provided, it returns the maximum of the two</li>
+<li>If strings are provided, it returns the one that is considered to be &quot;greater&quot;, useful for sorting</li>
+</ul>
+<h4 id="returns-9"><a class="header" href="#returns-9">Returns</a></h4>
+<ul>
+<li>The maximum of the two values provided</li>
+</ul>
+<h2 id="random"><a class="header" href="#random">random()</a></h2>
+<h4 id="takes-10"><a class="header" href="#takes-10">Takes</a></h4>
+<ul>
+<li>(Optional) a StringValue for the key for a named random number generator</li>
+</ul>
+<h4 id="description-10"><a class="header" href="#description-10">Description</a></h4>
+<ul>
+<li>
+<p>If no argument is provided, then the next number from the default random number generator is provided</p>
+</li>
+<li>
+<p>If an argument is provided, you get the next number from a named random number generator. You can invent however
+many keys you like and each one is a new random number generator. Supplying a key probably only means something if
+you have previously used the <code>randomseed()</code> function with the same key.</p>
+</li>
+</ul>
+<h4 id="returns-10"><a class="header" href="#returns-10">Returns</a></h4>
+<ul>
+<li>A pseudo-random number</li>
+</ul>
+<h2 id="randomseed"><a class="header" href="#randomseed">randomseed()</a></h2>
+<h4 id="takes-11"><a class="header" href="#takes-11">Takes</a></h4>
+<ul>
+<li>A key to identify the initialized random number generator</li>
+<li>Then an integer</li>
+</ul>
+<h4 id="description-11"><a class="header" href="#description-11">Description</a></h4>
+<ul>
+<li>Initializes a new random number sequence from a seed, giving it a key name you can use to refer to it in future calls to <code>random()</code></li>
+</ul>
+<h4 id="returns-11"><a class="header" href="#returns-11">Returns</a></h4>
+<ul>
+<li>Nothing (a useless 0)</li>
+</ul>
+<h2 id="char"><a class="header" href="#char">char()</a></h2>
+<h4 id="takes-12"><a class="header" href="#takes-12">Takes</a></h4>
+<ul>
+<li>An integer</li>
+</ul>
+<h4 id="description-12"><a class="header" href="#description-12">Description</a></h4>
+<ul>
+<li>Creates a single-character string containing the unicode character specified</li>
+</ul>
+<h4 id="returns-12"><a class="header" href="#returns-12">Returns</a></h4>
+<ul>
+<li>The string</li>
+</ul>
+<h2 id="unchar"><a class="header" href="#unchar">unchar()</a></h2>
+<h4 id="takes-13"><a class="header" href="#takes-13">Takes</a></h4>
+<ul>
+<li>A string</li>
+</ul>
+<h4 id="description-13"><a class="header" href="#description-13">Description</a></h4>
+<ul>
+<li>Converts the character in the string provided to a unicode number representing the character</li>
+</ul>
+<h4 id="returns-13"><a class="header" href="#returns-13">Returns</a></h4>
+<ul>
+<li>The integer</li>
+</ul>
+<h2 id="sin"><a class="header" href="#sin">sin()</a></h2>
+<h4 id="takes-14"><a class="header" href="#takes-14">Takes</a></h4>
+<ul>
+<li>Any number</li>
+</ul>
+<h4 id="description-14"><a class="header" href="#description-14">Description</a></h4>
+<ul>
+<li>Calculates the sine of a number in degrees</li>
+</ul>
+<h4 id="returns-14"><a class="header" href="#returns-14">Returns</a></h4>
+<ul>
+<li>The result</li>
+</ul>
+<h2 id="cos"><a class="header" href="#cos">cos()</a></h2>
+<h4 id="takes-15"><a class="header" href="#takes-15">Takes</a></h4>
+<ul>
+<li>Any number</li>
+</ul>
+<h4 id="description-15"><a class="header" href="#description-15">Description</a></h4>
+<ul>
+<li>Calculates the cosine of a number in degrees</li>
+</ul>
+<h4 id="returns-15"><a class="header" href="#returns-15">Returns</a></h4>
+<ul>
+<li>The result</li>
+</ul>
+<h2 id="tan"><a class="header" href="#tan">tan()</a></h2>
+<h4 id="takes-16"><a class="header" href="#takes-16">Takes</a></h4>
+<ul>
+<li>Any number</li>
+</ul>
+<h4 id="description-16"><a class="header" href="#description-16">Description</a></h4>
+<ul>
+<li>Calculates the tangent of a number in degrees</li>
+</ul>
+<h4 id="returns-16"><a class="header" href="#returns-16">Returns</a></h4>
+<ul>
+<li>The result</li>
+</ul>
+<h2 id="arcsin"><a class="header" href="#arcsin">arcsin()</a></h2>
+<h4 id="takes-17"><a class="header" href="#takes-17">Takes</a></h4>
+<ul>
+<li>Any number</li>
+</ul>
+<h4 id="description-17"><a class="header" href="#description-17">Description</a></h4>
+<ul>
+<li>Calculates the inverse sine of a number</li>
+</ul>
+<h4 id="returns-17"><a class="header" href="#returns-17">Returns</a></h4>
+<ul>
+<li>The result (in degrees)</li>
+</ul>
+<h2 id="arccos"><a class="header" href="#arccos">arccos()</a></h2>
+<h4 id="takes-18"><a class="header" href="#takes-18">Takes</a></h4>
+<ul>
+<li>Any number</li>
+</ul>
+<h4 id="description-18"><a class="header" href="#description-18">Description</a></h4>
+<ul>
+<li>Calculates the inverse cosine of a number</li>
+</ul>
+<h4 id="returns-18"><a class="header" href="#returns-18">Returns</a></h4>
+<ul>
+<li>The result (in degrees)</li>
+</ul>
+<h2 id="arctan"><a class="header" href="#arctan">arctan()</a></h2>
+<h4 id="takes-19"><a class="header" href="#takes-19">Takes</a></h4>
+<ul>
+<li>Any number</li>
+</ul>
+<h4 id="description-19"><a class="header" href="#description-19">Description</a></h4>
+<ul>
+<li>Calculates the inverse tangent of a number</li>
+</ul>
+<h4 id="returns-19"><a class="header" href="#returns-19">Returns</a></h4>
+<ul>
+<li>The result (in degrees)</li>
+</ul>
+<h2 id="arctan2"><a class="header" href="#arctan2">arctan2()</a></h2>
+<h4 id="takes-20"><a class="header" href="#takes-20">Takes</a></h4>
+<ul>
+<li>Any number, x</li>
+<li>Any number, y</li>
+</ul>
+<h4 id="description-20"><a class="header" href="#description-20">Description</a></h4>
+<ul>
+<li>Calculates the inverse tangent of a pair of numbers as (y / x), which resolves ambiguities in the direction of the arctangent so that direction
+is preserved.</li>
+</ul>
+<h4 id="returns-20"><a class="header" href="#returns-20">Returns</a></h4>
+<ul>
+<li>The result (in degrees)</li>
+</ul>
+<h2 id="anglediff"><a class="header" href="#anglediff">anglediff()</a></h2>
+<h4 id="takes-21"><a class="header" href="#takes-21">Takes</a></h4>
+<ul>
+<li>Any number, x</li>
+<li>Any number, y</li>
+</ul>
+<h4 id="description-21"><a class="header" href="#description-21">Description</a></h4>
+<ul>
+<li>Calculates the angle that would need to be added to x, in order to get angle y. For example, calling it with 90 and 45 would return -45, because 90 - 45 =  45.</li>
+</ul>
+<h3 id="returns-21"><a class="header" href="#returns-21">Returns</a></h3>
+<ul>
+<li>The difference in angle, in degrees</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../chapter_6/built_ins.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../chapter_6/general.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../chapter_6/built_ins.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../chapter_6/general.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            var socket = new WebSocket("ws://localhost:3000/__livereload");
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </body>
+</html>
