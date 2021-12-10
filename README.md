@@ -16,6 +16,10 @@ Any custom programming language for kOS can be implemented on top of KASM and th
 
 For documentation on how to use KASM, see [the guide](https://newcomb-luke.github.io/kOS-KASM/)
 
+## Support
+
+Besides reading the guide above, support on how to use and write KASM code can be found in the [KASM Discord Server](https://discord.gg/APETM2ceVZ).
+
 ## Installation
 
 The Kerbal Assembler can either be installed via [cargo](https://github.com/rust-lang/cargo) through [crates.io](https://crates.io/), or as a standalone binary.
