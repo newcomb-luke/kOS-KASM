@@ -32,15 +32,27 @@ cargo install kasm
 
 `kasm` should then be added to your shell's PATH, and can be run from any terminal
 
-To install using the standalone binaries:
+You will need to install KLinker separately using `cargo install klinker`
+
+#### Full Toolchain
+
+The release files labeled "full" contain KASM as well as KLinker and KDump. These are the recommended way of installing KASM.
+
+#### Standalone Version
+
+The standalone version can be used if you have prevously installed KLinker or KDump separately.
+
+#### Instructions
+
+To install using the binaries:
 * Download and extract the .zip file from Releases on the right
 * Place the executable in the desired location
 * Run the executable through the terminal, Powershell on Windows or the default terminal on Mac OS or Linux.
 
 To install using the Windows installer:
-* Download and extract the .zip file from Releases on the right
+* Download the .msi file from Releases on the right
 * Run the installer
-* `kasm` should now be added to your PATH and available from any CMD or Powershell window
+* `kasm` and associated tools should now be added to your PATH and available from any CMD or Powershell window
 
 ## Usage
 
