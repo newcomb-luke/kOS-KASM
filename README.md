@@ -18,6 +18,8 @@ For documentation on how to use KASM, see [the guide](https://newcomb-luke.githu
 
 ## Support
 
+There is now a new Visual Studio Code [Extension](https://marketplace.visualstudio.com/items?itemName=LukeNewcomb.kasm-kerbal-os) for KASM which enables syntax highlighting.
+
 Besides reading the guide above, support on how to use and write KASM code can be found in the [KASM Discord Server](https://discord.gg/APETM2ceVZ).
 
 ## Installation
