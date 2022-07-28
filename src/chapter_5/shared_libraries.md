@@ -53,7 +53,7 @@ push "$runonce"
 bfa run_program
 pop_loop:
     pop
-    argb
+    targ
     btr after_pop
     jmp pop_loop
 after_pop:

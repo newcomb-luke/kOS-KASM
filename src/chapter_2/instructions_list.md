@@ -2,6 +2,8 @@
 
 This is simply a list of all instructions that are in KASM, grouped by common purpose.
 
+For more detailed instruction descriptions and information, see [here](https://github.com/newcomb-luke/kOS-KLinker/blob/main/docs/Instruction-docs.md).
+
 ## Stack Operations
 
 **push** (any) - Pushes a value to the stack
@@ -17,7 +19,9 @@ This is simply a list of all instructions that are in KASM, grouped by common pu
 
 **eval** - Returns the value referenced by the topmost variable on the stack
 
-**targ** - Asserts that the topmost thing on the stack is an argument marker (throws a kOS error if it isn't!)
+**argb** - Asserts that the topmost thing on the stack is an argument marker (throws a kOS error if it isn't!)
+
+**targ** - Tests if the topmost thing on the stack is an argument marker and pushes a true on top if it is, or false if it is not.
 
 ## Mathematical Operations
 

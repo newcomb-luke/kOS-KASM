@@ -7,7 +7,7 @@
 
 
         <!-- Custom HTML head -->
-
+        
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -89,7 +89,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                <div id="menu-bar-hover-placeholder"></div>
+                                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -144,6 +144,7 @@
                     <main>
                         <h1 id="full-instruction-list"><a class="header" href="#full-instruction-list">Full Instruction List</a></h1>
 <p>This is simply a list of all instructions that are in KASM, grouped by common purpose.</p>
+<p>For more detailed instruction descriptions and information, see <a href="https://github.com/newcomb-luke/kOS-KLinker/blob/main/docs/Instruction-docs.md">here</a>.</p>
 <h2 id="stack-operations"><a class="header" href="#stack-operations">Stack Operations</a></h2>
 <p><strong>push</strong> (any) - Pushes a value to the stack</p>
 <p><strong>pushv</strong> (any) - Pushes a value to the stack, but as kOS &quot;scalar&quot; or &quot;value&quot; versions<br />
@@ -152,7 +153,8 @@
 <p><strong>dup</strong> - Copies the value from the top of the stack and pushes that copy, so there are two of the original</p>
 <p><strong>swap</strong> - Swaps the value on the top of the stack and the one below it</p>
 <p><strong>eval</strong> - Returns the value referenced by the topmost variable on the stack</p>
-<p><strong>targ</strong> - Asserts that the topmost thing on the stack is an argument marker (throws a kOS error if it isn't!)</p>
+<p><strong>argb</strong> - Asserts that the topmost thing on the stack is an argument marker (throws a kOS error if it isn't!)</p>
+<p><strong>targ</strong> - Tests if the topmost thing on the stack is an argument marker and pushes a true on top if it is, or false if it is not.</p>
 <h2 id="mathematical-operations"><a class="header" href="#mathematical-operations">Mathematical Operations</a></h2>
 <p>These all push the result back to the stack</p>
 <p>All of these behave in this way:</p>
@@ -249,20 +251,6 @@ the first thing done by triggers that wish to be cancel-able by other triggers.<
 
         </div>
 
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
 
 
 

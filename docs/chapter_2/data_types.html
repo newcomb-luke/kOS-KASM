@@ -7,7 +7,7 @@
 
 
         <!-- Custom HTML head -->
-
+        
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -89,7 +89,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                <div id="menu-bar-hover-placeholder"></div>
+                                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -145,21 +145,22 @@
                         <h1 id="data-types"><a class="header" href="#data-types">Data Types</a></h1>
 <p>In kOS, unlike in many other computing platforms, each value has an associated type.</p>
 <p>These types are as follows:</p>
-<table><thead><tr><th>Argument Type Value</th><th align="center">Type</th></tr></thead><tbody>
-<tr><td>0</td><td align="center">NULL</td></tr>
-<tr><td>1</td><td align="center">Bool</td></tr>
-<tr><td>2</td><td align="center">Byte</td></tr>
-<tr><td>3</td><td align="center">Int16</td></tr>
-<tr><td>4</td><td align="center">Int32</td></tr>
-<tr><td>5</td><td align="center">Float</td></tr>
-<tr><td>6</td><td align="center">Double</td></tr>
-<tr><td>7</td><td align="center">String</td></tr>
-<tr><td>8</td><td align="center">ARG MARKER</td></tr>
-<tr><td>9</td><td align="center">ScalarInt</td></tr>
-<tr><td>10</td><td align="center">ScalarDouble</td></tr>
-<tr><td>11</td><td align="center">BoolValue</td></tr>
-<tr><td>12</td><td align="center">StringValue</td></tr>
+<div class="table-wrapper"><table><thead><tr><th>Argument Type Value</th><th style="text-align: center">Type</th></tr></thead><tbody>
+<tr><td>0</td><td style="text-align: center">NULL</td></tr>
+<tr><td>1</td><td style="text-align: center">Bool</td></tr>
+<tr><td>2</td><td style="text-align: center">Byte</td></tr>
+<tr><td>3</td><td style="text-align: center">Int16</td></tr>
+<tr><td>4</td><td style="text-align: center">Int32</td></tr>
+<tr><td>5</td><td style="text-align: center">Float</td></tr>
+<tr><td>6</td><td style="text-align: center">Double</td></tr>
+<tr><td>7</td><td style="text-align: center">String</td></tr>
+<tr><td>8</td><td style="text-align: center">ARG MARKER</td></tr>
+<tr><td>9</td><td style="text-align: center">ScalarInt</td></tr>
+<tr><td>10</td><td style="text-align: center">ScalarDouble</td></tr>
+<tr><td>11</td><td style="text-align: center">BoolValue</td></tr>
+<tr><td>12</td><td style="text-align: center">StringValue</td></tr>
 </tbody></table>
+</div>
 <ul>
 <li><strong>NULL</strong> is a value that is equivalent to &quot;nothing&quot;</li>
 <li><strong>Bool</strong> is a true or false value</li>
@@ -248,20 +249,6 @@ l  .sv   &quot;kOS&quot;    ; StringValue
 
         </div>
 
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
 
 
 
