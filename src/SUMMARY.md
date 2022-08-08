@@ -26,7 +26,6 @@
 	- [Functions](./chapter_5/functions.md)
 	- [Static Libraries](./chapter_5/static_libraries.md)
 	- [Shared Libraries](./chapter_5/shared_libraries.md)
-	- [Lists](./chapter_5/lists.md)
 - [Built-In List](./chapter_6/built_ins.md)
 	- [Math Functions](./chapter_6/math.md)
 	- [General](./chapter_6/general.md)
