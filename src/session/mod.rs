@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::{path::PathBuf, rc::Rc, sync::RwLock};
 
 use crate::{
@@ -19,7 +20,7 @@ impl Session {
         let flags = HandlerFlags {
             colored_output: Self::colored_output(),
             emit_warnings: config.emit_warnings,
-            quiet: !config.is_cli,
+            quiet: !config.emit_errors,
         };
 
         let source_manager = Rc::new(RwLock::new(SourceManager::new()));
@@ -45,15 +46,15 @@ impl Session {
         self.source_manager.read().unwrap().get_by_id(file_id)
     }
 
-    pub fn is_file(&self, path: &str) -> bool {
-        PathBuf::from(path).is_file()
+    pub fn is_file(&self, path: &Path) -> bool {
+        path.is_file()
     }
 
     pub fn at_file_max(&self) -> bool {
         self.num_files > u8::MAX as usize
     }
 
-    pub fn read_file(&mut self, path: &str) -> std::io::Result<u8> {
+    pub fn read_file(&mut self, path: &Path) -> std::io::Result<u8> {
         let path_buf = PathBuf::from(&path);
 
         // This should be fine, given that we _should have_ already checked that this is a file

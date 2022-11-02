@@ -388,7 +388,7 @@ impl<'a> Executor<'a> {
         }
 
         // Read it
-        let file_id = match self.session.read_file(path_buf_str) {
+        let file_id = match self.session.read_file(&path_buf) {
             Ok(file_id) => file_id,
             Err(e) => {
                 self.session

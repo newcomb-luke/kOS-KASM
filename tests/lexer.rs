@@ -10,11 +10,11 @@ use kasm::{
 // Lexes a source string to a vector, but can panic
 fn lex_from_text(source: &str) -> Vec<Token> {
     let config = Config {
-        is_cli: true,
+        emit_errors: true,
         emit_warnings: false,
         root_dir: PathBuf::new(),
         run_preprocessor: false,
-        output_preprocessed: false,
+        preprocess_only: false,
         include_path: None,
         file_sym_name: None,
         comment: String::new(),
@@ -33,9 +33,7 @@ fn lex_from_text(source: &str) -> Vec<Token> {
     let lexer = Lexer::new(&primary_file.source, 0, &session);
 
     // Lex the tokens, if they are all valid
-    let tokens = lexer.lex().expect("Lexing failed");
-
-    tokens
+    lexer.lex().expect("Lexing failed")
 }
 
 #[test]
@@ -267,9 +265,9 @@ fn lex_delimiters() {
 
     let tokens = lex_from_text(source);
 
-    let mut token_iter = tokens.iter();
+    let token_iter = tokens.iter();
 
-    while let Some(token) = token_iter.next() {
+    for token in token_iter {
         let correct = *correct_iter.next().unwrap();
 
         assert_eq!(token.kind, correct);
