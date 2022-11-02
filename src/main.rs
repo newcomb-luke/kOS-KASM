@@ -1,6 +1,5 @@
 use clap::Parser;
 use kasm::{AssemblyOutput, CLIConfig};
-use kerbalobjects::ToBytes;
 use std::fs::File;
 use std::path::Path;
 use std::{io::Write, process};
@@ -17,7 +16,7 @@ fn main() {
                 let mut file_buffer = Vec::with_capacity(2048);
 
                 // Actually write to the buffer
-                object.to_bytes(&mut file_buffer);
+                object.write(&mut file_buffer);
 
                 let output_path = config
                     .output_path

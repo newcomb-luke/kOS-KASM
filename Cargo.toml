@@ -1,6 +1,6 @@
 [package]
 name = "kasm"
-version = "1.0.0"
+version = "2.0.0"
 authors = ["Luke Newcomb <newcomb.luke@protonmail.com>"]
 edition = "2021"
 license = "GPL-3.0"
@@ -9,9 +9,9 @@ readme = "README.md"
 homepage = "https://github.com/newcomb-luke/kOS-KASM"
 
 [dependencies]
+atty = "0.2.14"
 clap = { version = "4.0.18", features = ["derive"] }
-kerbalobjects = "3.1.13"
+kerbalobjects = "4.0"
 logos = "0.12.0"
 termcolor = "1.1"
-atty = "0.2.14"
 pathdiff = "0.2.1"

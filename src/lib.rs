@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use clap::{ArgAction, Parser};
 use errors::SourceFile;
-use kerbalobjects::kofile::KOFile;
+use kerbalobjects::ko::WritableKOFile;
 
 pub mod errors;
 pub mod session;
@@ -116,7 +116,7 @@ pub struct CLIConfig {
 /// Represents the two possible types of output that KASM supports
 pub enum AssemblyOutput {
     /// An assembled object file
-    Object(KOFile),
+    Object(Box<WritableKOFile>),
     /// Preprocessed source code
     Source(String),
 }
@@ -209,7 +209,7 @@ fn assemble(mut session: Session) -> Result<AssemblyOutput, ()> {
 
     let kofile = generator.generate(verified_functions)?;
 
-    Ok(AssemblyOutput::Object(kofile))
+    Ok(AssemblyOutput::Object(Box::new(kofile)))
 }
 
 // Generates preprocessed source output

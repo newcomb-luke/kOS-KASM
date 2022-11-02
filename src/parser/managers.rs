@@ -1,6 +1,6 @@
 use std::collections::{hash_map::Iter, HashMap};
 
-use kerbalobjects::{kofile::symbols::SymBind, KOSValue};
+use kerbalobjects::{ko::symbols::SymBind, KOSValue};
 
 use crate::errors::Span;
 
@@ -21,13 +21,18 @@ pub enum SymbolValue {
 #[derive(Debug, Clone)]
 pub struct DeclaredSymbol {
     pub declared_span: Span,
-    pub binding: SymBind,
+    pub binding: Option<SymBind>,
     pub sym_type: SymbolType,
     pub value: SymbolValue,
 }
 
 impl DeclaredSymbol {
-    pub fn new(span: Span, binding: SymBind, sym_type: SymbolType, value: SymbolValue) -> Self {
+    pub fn new(
+        span: Span,
+        binding: Option<SymBind>,
+        sym_type: SymbolType,
+        value: SymbolValue,
+    ) -> Self {
         Self {
             declared_span: span,
             binding,

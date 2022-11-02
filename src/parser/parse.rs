@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use kerbalobjects::{kofile::symbols::SymBind, KOSValue, Opcode};
+use kerbalobjects::{ko::symbols::SymBind, KOSValue, Opcode};
 
 use crate::{
     errors::Span,
@@ -215,18 +215,22 @@ impl<'a> Parser<'a> {
         }
 
         for (_, symbol) in self.symbol_manager.symbols() {
-            if symbol.sym_type == SymbolType::Default && symbol.binding == SymBind::Extern {
-                self.session
-                    .struct_span_error(
-                        symbol.declared_span,
-                        "external symbols must have the type specified".to_string(),
-                    )
-                    .emit();
+            if let Some(SymBind::Extern) = symbol.binding {
+                if symbol.sym_type == SymbolType::Default {
+                    self.session
+                        .struct_span_error(
+                            symbol.declared_span,
+                            "external symbols must have the type specified".to_string(),
+                        )
+                        .emit();
 
-                return Err(());
+                    return Err(());
+                }
             }
 
-            if symbol.value == SymbolValue::Undefined && symbol.binding != SymBind::Extern {
+            if symbol.value == SymbolValue::Undefined && symbol.binding.is_none()
+                || symbol.binding.unwrap() != SymBind::Extern
+            {
                 self.session
                     .struct_span_error(
                         symbol.declared_span,
@@ -415,7 +419,9 @@ impl<'a> Parser<'a> {
 
         if let Some(existing_symbol) = self.symbol_manager.get_mut(&ident_str) {
             if existing_symbol.value == SymbolValue::Undefined {
-                if existing_symbol.binding != SymBind::Extern {
+                if existing_symbol.binding.is_none()
+                    || existing_symbol.binding.unwrap() != SymBind::Extern
+                {
                     existing_symbol.value = SymbolValue::Value(value);
                 } else {
                     self.session
@@ -445,7 +451,7 @@ impl<'a> Parser<'a> {
         } else {
             let new_symbol = DeclaredSymbol::new(
                 ident_span,
-                SymBind::Unknown,
+                None,
                 SymbolType::Value,
                 SymbolValue::Value(value),
             );
@@ -476,14 +482,8 @@ impl<'a> Parser<'a> {
         } else {
             let mut exp_tokens = expression_tokens.iter().peekable();
             let parsed_exp =
-                match ExpressionParser::parse_expression(&mut exp_tokens, self.session, false) {
-                    Ok(exp) => exp,
-                    Err(mut db) => {
-                        db.emit();
-
-                        return Err(());
-                    }
-                };
+                ExpressionParser::parse_expression(&mut exp_tokens, self.session, false)
+                    .map_err(|mut db| db.emit())?;
 
             if let Some(exp) = parsed_exp {
                 let evaluated = match ExpressionEvaluator::evaluate(&exp) {
@@ -584,7 +584,7 @@ impl<'a> Parser<'a> {
             } else {
                 let declared_symbol = DeclaredSymbol::new(
                     ident_token.as_span(),
-                    SymBind::Unknown,
+                    None,
                     sym_type,
                     SymbolValue::Undefined,
                 );
@@ -724,14 +724,7 @@ impl<'a> Parser<'a> {
         // Because this is a declaration of a symbol we should check if this symbol was
         // previously declared
         if let Some(declared_symbol) = self.symbol_manager.get_mut(&ident_string) {
-            if declared_symbol.binding == binding {
-                self.session
-                    .struct_span_warn(
-                        next.as_span(),
-                        "redundant declaration of symbol binding".to_string(),
-                    )
-                    .emit();
-            } else if declared_symbol.binding == SymBind::Unknown {
+            if declared_symbol.binding.is_none() {
                 if sym_type != SymbolType::Default {
                     if declared_symbol.sym_type != SymbolType::Default {
                         if declared_symbol.sym_type != sym_type {
@@ -768,7 +761,14 @@ impl<'a> Parser<'a> {
                     return Err(());
                 }
 
-                declared_symbol.binding = binding;
+                declared_symbol.binding = Some(binding);
+            } else if declared_symbol.binding.unwrap() == binding {
+                self.session
+                    .struct_span_warn(
+                        next.as_span(),
+                        "redundant declaration of symbol binding".to_string(),
+                    )
+                    .emit();
             } else {
                 self.session
                     .struct_span_error(next.as_span(), "conflicting symbol bindings".to_string())
@@ -777,8 +777,12 @@ impl<'a> Parser<'a> {
                 return Err(());
             }
         } else {
-            let declared_symbol =
-                DeclaredSymbol::new(next.as_span(), binding, sym_type, SymbolValue::Undefined);
+            let declared_symbol = DeclaredSymbol::new(
+                next.as_span(),
+                Some(binding),
+                sym_type,
+                SymbolValue::Undefined,
+            );
 
             self.symbol_manager.insert(ident_string, declared_symbol);
         }
@@ -818,7 +822,7 @@ impl<'a> Parser<'a> {
                 }
 
                 // If this was declared to have a binding of "extern"
-                if existing_symbol.binding == SymBind::Extern {
+                if let Some(SymBind::Extern) = existing_symbol.binding {
                     self.session
                         .struct_span_error(
                             label.as_span(),
@@ -841,7 +845,7 @@ impl<'a> Parser<'a> {
                 self.session
                     .struct_span_error(
                         label.as_span(),
-                        "function declaraed with same name as existing symbol".to_string(),
+                        "function declared with same name as existing symbol".to_string(),
                     )
                     .span_label(
                         existing_symbol.declared_span,
@@ -855,7 +859,7 @@ impl<'a> Parser<'a> {
         else {
             let declared_symbol = DeclaredSymbol::new(
                 label.as_span(),
-                SymBind::Unknown,
+                None,
                 SymbolType::Func,
                 SymbolValue::Function,
             );
@@ -1134,22 +1138,20 @@ impl<'a> Parser<'a> {
             }
         };
 
-        if one_token {
-            if raw.len() > 1 {
-                let unexpected = raw.get(1).unwrap();
+        if one_token && raw.len() > 1 {
+            let unexpected = raw.get(1).unwrap();
 
-                self.session
-                    .struct_span_error(
-                        unexpected.as_span(),
-                        "expected comma after operand, found token".to_string(),
-                    )
-                    .emit();
+            self.session
+                .struct_span_error(
+                    unexpected.as_span(),
+                    "expected comma after operand, found token".to_string(),
+                )
+                .emit();
 
-                return Err(());
-            }
+            Err(())
+        } else {
+            Ok(operand)
         }
-
-        Ok(operand)
     }
 
     fn parse_opcode(
