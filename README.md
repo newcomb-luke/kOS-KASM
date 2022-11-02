@@ -1,11 +1,4 @@
 # KASM
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/newcomb-luke/kOS-KASM/Rust%20CI?label=build)
-[![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/newcomb-luke/kOS-KASM)](https://deps.rs/repo/github/newcomb-luke/kOS-KASM)
-![GitHub](https://img.shields.io/github/license/newcomb-luke/kOS-KASM)
-
-![Crates.io](https://img.shields.io/crates/v/kasm?color=%235555cc)
-![Crates.io](https://img.shields.io/crates/d/kasm)
-
 [<img src="https://img.shields.io/badge/github-newcomb--luke%2FkOS--KASM-8da0cb?style=for-the-badge&logo=github&labelColor=555555" alt="github" height="24">](https://github.com/newcomb-luke/kOS-KASM)
 [<img src="https://img.shields.io/crates/v/kasm?color=fc8d62&logo=rust&style=for-the-badge" alt="github" height="24">](https://crates.io/crates/kasm)
 [<img alt="License" src="https://img.shields.io/github/license/newcomb-luke/kOS-KASM?style=for-the-badge" height="24">]()
