@@ -1,6 +1,6 @@
 [package]
 name = "kasm"
-version = "2.0.0"
+version = "2.0.1"
 authors = ["Luke Newcomb <newcomb.luke@protonmail.com>"]
 edition = "2021"
 license = "GPL-3.0"
@@ -11,7 +11,7 @@ homepage = "https://github.com/newcomb-luke/kOS-KASM"
 [dependencies]
 atty = "0.2.14"
 clap = { version = "4.0.18", features = ["derive"] }
-kerbalobjects = "4.0"
+kerbalobjects = { path = "../kerbalobjects.rs" }
 logos = "0.12.0"
 termcolor = "1.1"
 pathdiff = "0.2.1"

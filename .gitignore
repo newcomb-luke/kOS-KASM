@@ -17,3 +17,5 @@ Cargo.lock
 
 *.vim
 *.idea
+
+!tests/sources/*.kasm

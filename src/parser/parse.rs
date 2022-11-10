@@ -228,8 +228,8 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            if symbol.value == SymbolValue::Undefined && symbol.binding.is_none()
-                || symbol.binding.unwrap() != SymBind::Extern
+            if symbol.value == SymbolValue::Undefined
+                && (symbol.binding.is_none() || symbol.binding.unwrap() != SymBind::Extern)
             {
                 self.session
                     .struct_span_error(
@@ -366,7 +366,7 @@ impl<'a> Parser<'a> {
                             if s.kind == TokenKind::LiteralString {
                                 let value_snippet = self.session.span_to_snippet(&s.as_span());
                                 let value_str = value_snippet.as_slice();
-                                let value_str = (&value_str[1..value_str.len() - 1]).to_string();
+                                let value_str = value_str[1..value_str.len() - 1].to_string();
 
                                 if other == TokenKind::TypeS {
                                     KOSValue::String(value_str)
@@ -422,6 +422,7 @@ impl<'a> Parser<'a> {
                 if existing_symbol.binding.is_none()
                     || existing_symbol.binding.unwrap() != SymBind::Extern
                 {
+                    existing_symbol.sym_type = SymbolType::Value;
                     existing_symbol.value = SymbolValue::Value(value);
                 } else {
                     self.session
@@ -666,7 +667,7 @@ impl<'a> Parser<'a> {
     fn parse_binding(&mut self, span: Span, binding: SymBind) -> PResult {
         self.skip_whitespace();
 
-        // The next token must be either a type, or an identifer
+        // The next token must be either a type, or an identifier
         let mut next = self.expect_consume_token(span, "expected either type or identifier")?;
 
         self.skip_whitespace();
@@ -905,7 +906,7 @@ impl<'a> Parser<'a> {
                 &label_str[1..label_str.len() - 1]
             )
         } else {
-            (&label_str[..label_str.len() - 1]).to_string()
+            label_str[..label_str.len() - 1].to_string()
         };
 
         if let Some(existing_label) = self.label_manager.get(&label_str) {

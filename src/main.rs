@@ -20,7 +20,7 @@ fn main() {
 
                 let output_path = config
                     .output_path
-                    .unwrap_or_else(|| config.input_path.with_extension(".ko"));
+                    .unwrap_or_else(|| config.input_path.with_extension("ko"));
 
                 let mut output_file = try_create_file(&output_path);
 
@@ -58,7 +58,7 @@ fn main() {
 }
 
 fn try_create_file(path: &Path) -> File {
-    match File::create(&path) {
+    match File::create(path) {
         Ok(file) => file,
         Err(e) => {
             eprintln!("Error creating `{}`: {}", path.to_string_lossy(), e);

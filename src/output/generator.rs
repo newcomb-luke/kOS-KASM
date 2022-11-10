@@ -93,7 +93,7 @@ impl<'a, 'c> Generator<'a, 'c> {
                     SymbolType::Func => SymType::Func,
                     SymbolType::Value => SymType::NoType,
                     _ => {
-                        unreachable!();
+                        panic!("Default symbol types should have been removed by now");
                     }
                 };
 
@@ -156,6 +156,11 @@ impl<'a, 'c> Generator<'a, 'c> {
                             .emit();
                         return Err(());
                     }
+                } else {
+                    self.session
+                        .struct_bug("symbol had type Default during generation".to_string())
+                        .emit();
+                    return Err(());
                 }
             }
         }
@@ -206,9 +211,9 @@ impl<'a, 'c> Generator<'a, 'c> {
         sym_str_tab: &StringTable,
     ) -> Result<FuncSection, ()> {
         let function_section_index = function_section.section_index();
-        let mut local_instruction_index: u32 = 0;
 
-        for instruction in function.instructions {
+        for (local_instruction_index, instruction) in function.instructions.into_iter().enumerate()
+        {
             let opcode = instruction.opcode();
 
             let generated_instr = self.generate_instruction(
@@ -226,8 +231,6 @@ impl<'a, 'c> Generator<'a, 'c> {
             if opcode != Opcode::Lbrt {
                 self.global_instruction_index += 1;
             }
-
-            local_instruction_index += 1;
         }
 
         Ok(function_section)

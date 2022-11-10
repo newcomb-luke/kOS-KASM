@@ -1,0 +1,12 @@
+.extern .func other
+.extern .value data
+.global global_value
+.global _start
+
+.func
+_start:
+    push data
+    call other, #
+
+.section .data
+global_value .i32 2
