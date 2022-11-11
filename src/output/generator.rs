@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
+use kerbalobjects::ko::sections::{DataIdx, InstrIdx};
+use kerbalobjects::ko::symbols::OperandIndex;
+use kerbalobjects::ko::{SectionIdx, WritableKOFile};
 use kerbalobjects::{
-    kofile::{
-        sections::{DataSection, FuncSection, ReldSection, SectionIndex, StringTable, SymbolTable},
+    ko::{
+        sections::{DataSection, FuncSection, ReldSection, StringTable, SymbolTable},
         symbols::{KOSymbol, ReldEntry, SymBind, SymType},
         Instr, KOFile,
     },
@@ -32,17 +35,17 @@ impl<'a, 'c> Generator<'a, 'c> {
     }
 
     /// Generates the final object file
-    pub fn generate(mut self, functions: Vec<VerifiedFunction>) -> Result<KOFile, ()> {
-        let mut function_map: HashMap<String, u16> = HashMap::new();
+    pub fn generate(mut self, functions: Vec<VerifiedFunction>) -> Result<WritableKOFile, ()> {
+        let mut function_map: HashMap<String, SectionIdx> = HashMap::new();
         let mut functions_and_sections = Vec::with_capacity(functions.len());
 
         let mut ko = KOFile::new();
 
-        let mut data_section = ko.new_datasection(".data");
+        let mut data_section = ko.new_data_section(".data");
         let mut sym_tab = ko.new_symtab(".symtab");
         let mut comment_tab = ko.new_strtab(".comment");
         let mut sym_str_tab = ko.new_strtab(".symstrtab");
-        let mut reld_section = ko.new_reldsection(".reld");
+        let mut reld_section = ko.new_reld_section(".reld");
         let mut function_sections = Vec::new();
 
         // Immediately add an initial value to the data section. This is to get around a slight
@@ -56,10 +59,10 @@ impl<'a, 'c> Generator<'a, 'c> {
 
         // Create all of the function sections for each function we have
         for function in functions {
-            let function_section = ko.new_funcsection(&function.name);
-            let function_section_index = ko.sh_index_by_name(&function.name).unwrap();
+            let function_section = ko.new_func_section(&function.name);
+            let function_section_index = ko.get_section_index_by_name(&function.name).unwrap();
 
-            function_map.insert(function.name.to_string(), function_section_index as u16);
+            function_map.insert(function.name.to_string(), function_section_index);
 
             functions_and_sections.push((function_section, function));
         }
@@ -69,11 +72,11 @@ impl<'a, 'c> Generator<'a, 'c> {
         let file_symbol_name_index = sym_str_tab.add(&file_symbol_name);
         let file_symbol = KOSymbol::new(
             file_symbol_name_index,
-            0,
+            DataIdx::PLACEHOLDER,
             0,
             SymBind::Global,
             SymType::File,
-            0,
+            SectionIdx::NULL,
         );
         sym_tab.add(file_symbol);
 
@@ -83,24 +86,31 @@ impl<'a, 'c> Generator<'a, 'c> {
             // none
             let name_index = sym_str_tab.add(name);
 
-            if symbol.binding == SymBind::Extern {
+            if let Some(SymBind::Extern) = symbol.binding {
                 // Doesn't have a value for us to insert
 
                 let sym_type = match symbol.sym_type {
                     SymbolType::Func => SymType::Func,
                     SymbolType::Value => SymType::NoType,
                     _ => {
-                        unreachable!();
+                        panic!("Default symbol types should have been removed by now");
                     }
                 };
 
-                let symbol = KOSymbol::new(name_index, 0, 0, SymBind::Extern, sym_type, 0);
+                let symbol = KOSymbol::new(
+                    name_index,
+                    DataIdx::PLACEHOLDER,
+                    0,
+                    SymBind::Extern,
+                    sym_type,
+                    SectionIdx::NULL,
+                );
 
                 sym_tab.add(symbol);
             } else {
                 // Default symbols to be local
-                let bind = if symbol.binding != SymBind::Unknown {
-                    symbol.binding
+                let bind = if let Some(binding) = symbol.binding {
+                    binding
                 } else {
                     SymBind::Local
                 };
@@ -111,8 +121,14 @@ impl<'a, 'c> Generator<'a, 'c> {
                     let function_index = *function_map.get(name).unwrap();
 
                     // Here we set the size to be 0, but it will be updated later
-                    let function_symbol =
-                        KOSymbol::new(name_index, 0, 0, bind, SymType::Func, function_index);
+                    let function_symbol = KOSymbol::new(
+                        name_index,
+                        DataIdx::PLACEHOLDER,
+                        0,
+                        bind,
+                        SymType::Func,
+                        function_index,
+                    );
 
                     sym_tab.add(function_symbol);
                 } else if symbol.sym_type == SymbolType::Value {
@@ -127,7 +143,7 @@ impl<'a, 'c> Generator<'a, 'c> {
                             size,
                             bind,
                             SymType::NoType,
-                            data_section.section_index() as u16,
+                            data_section.section_index(),
                         );
 
                         sym_tab.add(symbol);
@@ -140,6 +156,11 @@ impl<'a, 'c> Generator<'a, 'c> {
                             .emit();
                         return Err(());
                     }
+                } else {
+                    self.session
+                        .struct_bug("symbol had type Default during generation".to_string())
+                        .emit();
+                    return Err(());
                 }
             }
         }
@@ -173,15 +194,11 @@ impl<'a, 'c> Generator<'a, 'c> {
         }
 
         // Finally, we are done
-        if ko.update_headers().is_err() {
+        ko.validate().map_err(|(_, _)| {
             self.session
                 .struct_bug("Failed to update kerbal object headers".to_string())
-                .emit();
-
-            return Err(());
-        }
-
-        Ok(ko)
+                .emit()
+        })
     }
 
     fn generate_function(
@@ -194,15 +211,15 @@ impl<'a, 'c> Generator<'a, 'c> {
         sym_str_tab: &StringTable,
     ) -> Result<FuncSection, ()> {
         let function_section_index = function_section.section_index();
-        let mut local_instruction_index = 0;
 
-        for instruction in function.instructions {
+        for (local_instruction_index, instruction) in function.instructions.into_iter().enumerate()
+        {
             let opcode = instruction.opcode();
 
             let generated_instr = self.generate_instruction(
                 instruction,
                 function_section_index,
-                local_instruction_index,
+                InstrIdx::from(local_instruction_index),
                 data_section,
                 reld_section,
                 sym_tab,
@@ -214,8 +231,6 @@ impl<'a, 'c> Generator<'a, 'c> {
             if opcode != Opcode::Lbrt {
                 self.global_instruction_index += 1;
             }
-
-            local_instruction_index += 1;
         }
 
         Ok(function_section)
@@ -224,8 +239,8 @@ impl<'a, 'c> Generator<'a, 'c> {
     fn generate_instruction(
         &mut self,
         instruction: VerifiedInstruction,
-        function_section_index: usize,
-        local_instruction_index: usize,
+        function_section_index: SectionIdx,
+        local_instruction_index: InstrIdx,
         data_section: &mut DataSection,
         reld_section: &mut ReldSection,
         sym_tab: &SymbolTable,
@@ -236,7 +251,7 @@ impl<'a, 'c> Generator<'a, 'c> {
             VerifiedInstruction::OneOp { opcode, operand } => {
                 let op = self.handle_operand(
                     operand,
-                    0,
+                    OperandIndex::One,
                     function_section_index,
                     local_instruction_index,
                     data_section,
@@ -253,7 +268,7 @@ impl<'a, 'c> Generator<'a, 'c> {
             } => {
                 let op1 = self.handle_operand(
                     operand1,
-                    0,
+                    OperandIndex::One,
                     function_section_index,
                     local_instruction_index,
                     data_section,
@@ -263,7 +278,7 @@ impl<'a, 'c> Generator<'a, 'c> {
                 )?;
                 let op2 = self.handle_operand(
                     operand2,
-                    1,
+                    OperandIndex::Two,
                     function_section_index,
                     local_instruction_index,
                     data_section,
@@ -280,14 +295,14 @@ impl<'a, 'c> Generator<'a, 'c> {
     fn handle_operand(
         &mut self,
         operand: VerifiedOperand,
-        operand_index: usize,
-        function_section_index: usize,
-        local_instruction_index: usize,
+        operand_index: OperandIndex,
+        function_section_index: SectionIdx,
+        local_instruction_index: InstrIdx,
         data_section: &mut DataSection,
         reld_section: &mut ReldSection,
         sym_tab: &SymbolTable,
         sym_str_tab: &StringTable,
-    ) -> Result<usize, ()> {
+    ) -> Result<DataIdx, ()> {
         Ok(match operand {
             VerifiedOperand::Value(value) => data_section.add_checked(value),
             VerifiedOperand::Label(location) => {
@@ -299,7 +314,7 @@ impl<'a, 'c> Generator<'a, 'c> {
                 data_section.add_checked(value)
             }
             VerifiedOperand::Symbol(s) => {
-                let name_index = sym_str_tab.find(&s).unwrap();
+                let name_index = sym_str_tab.position(&s).unwrap();
 
                 let symbol_index = sym_tab.position_by_name(name_index).unwrap();
 
@@ -312,7 +327,7 @@ impl<'a, 'c> Generator<'a, 'c> {
 
                 reld_section.add(reld_entry);
 
-                0
+                DataIdx::PLACEHOLDER
             }
         })
     }

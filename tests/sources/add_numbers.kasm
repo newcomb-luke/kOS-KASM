@@ -1,0 +1,17 @@
+.global _start
+
+.func
+_start:
+    bscp 0, 1
+    argb
+
+    push @
+
+    pushv 2
+    pushv 2
+    add
+
+    call #, "print()"
+    pop
+
+    escp 1

@@ -1,9 +1,10 @@
 #![allow(clippy::result_unit_err)]
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use clap::{ArgAction, Parser};
 use errors::SourceFile;
-use kerbalobjects::kofile::KOFile;
+use kerbalobjects::ko::WritableKOFile;
 
 pub mod errors;
 pub mod session;
@@ -26,61 +27,123 @@ use crate::{
 pub static VERSION: &'_ str = env!("CARGO_PKG_VERSION");
 
 /// Various configuration parameters for altering how the assembler acts
+#[derive(Debug, Clone, Parser)]
 pub struct Config {
     /// This value should be true when this assembler is being run in CLI mode, like in this crate
     /// itself. This causes it to emit errors to stdout, instead of just returning Err(())
-    pub is_cli: bool,
+    #[arg(skip = true)]
+    pub emit_errors: bool,
     /// If warnings should be emitted during assembly
+    #[arg(
+        short = 'w',
+        long = "no-warn",
+        help = "Disables warnings from being displayed",
+        action = ArgAction::SetFalse
+    )]
     pub emit_warnings: bool,
     /// The "root directory" is usually the directory in which KASM was run, so that file paths can
     /// be expressed relative to the current location
+    #[arg(skip = std::env::current_dir().expect("KASM run in directory that doesn't exist anymore"))]
     pub root_dir: PathBuf,
     /// If the preprocessor should be run or not. The benefit of not running it is that the
     /// assembly process will be faster without it
+    #[arg(
+        short = 'a',
+        long = "no-preprocess",
+        help = "Run the assembly process without running the preprocessor",
+        action = ArgAction::SetFalse
+    )]
     pub run_preprocessor: bool,
     /// If assembly should take place, or if the output file should be preprocessed source code.
     /// This can be useful for debugging or just generating code
-    pub output_preprocessed: bool,
+    #[arg(
+        short = 'p',
+        long = "preprocess-only",
+        help = "Instead of outputting an object file, emits KASM after the preprocessing step",
+        conflicts_with("run_preprocessor")
+    )]
+    pub preprocess_only: bool,
     /// If specified, instead of the preprocessor looking at the current working directory for
     /// files to include, it will search the provided path
-    pub include_path: Option<String>,
+    #[arg(
+        short = 'i',
+        long = "include-path",
+        help = "Specifies the include path for the assembler. Defaults to the current working directory"
+    )]
+    pub include_path: Option<PathBuf>,
     /// If specified, instead of the object file's "file" symbol being set to the name of the input
     /// file, it will be set to this provided value. This can be useful when creating a compiler
     /// with KASM as it allows you to use the source file's name and not the assembled file's name.
+    #[arg(
+        short = 'f',
+        long = "file",
+        help = "Adds a file symbol to the generated object file with the given name. Defaults to input file name"
+    )]
     pub file_sym_name: Option<String>,
     /// If specified, instead of the default "Compiled with KASM {}", another comment will be
     /// placed inside of the produced object file. This is useful for setting messages for
     /// compilers that generate KASM
+    #[arg(
+        short = 'c',
+        long = "comment",
+        help = "Sets the comment field of the output object file to the value of this. Defaults to KASM and the current version",
+        default_value_t = format!("Compiled by KASM {}", VERSION)
+    )]
     pub comment: String,
+}
+
+/// Configuration parameters, but for exclusive use by a command line interface
+#[derive(Debug, Clone, Parser)]
+#[command(author, version, about = "Kerbal Assembler", long_about = None)]
+pub struct CLIConfig {
+    /// The input file path to load
+    #[arg(value_name = "INPUT", help = "Sets the input file")]
+    pub input_path: PathBuf,
+    /// The output file path, which is now optional. If none is provided
+    /// the file name will be the same as the input file, and the file extension
+    /// is inferred by the assembler flags in Config
+    #[arg(
+        short = 'o',
+        long = "output",
+        value_name = "OUTPUT",
+        help = "Sets the output path to use"
+    )]
+    pub output_path: Option<PathBuf>,
+    #[command(flatten)]
+    pub base_config: Config,
 }
 
 /// Represents the two possible types of output that KASM supports
 pub enum AssemblyOutput {
     /// An assembled object file
-    Object(KOFile),
+    Object(Box<WritableKOFile>),
     /// Preprocessed source code
     Source(String),
 }
 
 /// Assemble a file given by a provided path
-pub fn assemble_path(path: String, config: Config) -> Result<AssemblyOutput, ()> {
+pub fn assemble_path(path: &Path, config: Config) -> Result<AssemblyOutput, ()> {
     let mut session = Session::new(config);
 
     // Check if we have been given a valid file
-    if !session.is_file(&path) {
+    if !session.is_file(path) {
         session
-            .struct_error(format!("input `{}` is not a file", &path))
+            .struct_error(format!("input `{}` is not a file", path.to_string_lossy()))
             .emit();
 
         return Err(());
     }
 
     // Read it
-    match session.read_file(&path) {
+    match session.read_file(path) {
         Ok(_) => {}
         Err(e) => {
             session
-                .struct_bug(format!("unable to read file `{}`: {}", &path, e))
+                .struct_bug(format!(
+                    "unable to read file `{}`: {}",
+                    path.to_string_lossy(),
+                    e
+                ))
                 .emit();
 
             return Err(());
@@ -128,7 +191,7 @@ fn assemble(mut session: Session) -> Result<AssemblyOutput, ()> {
     }
 
     // If we should output the preprocessed tokens instead of assembling
-    if session.config().output_preprocessed {
+    if session.config().preprocess_only {
         let output = generate_preprocessed(tokens, &session);
 
         return Ok(AssemblyOutput::Source(output));
@@ -146,7 +209,7 @@ fn assemble(mut session: Session) -> Result<AssemblyOutput, ()> {
 
     let kofile = generator.generate(verified_functions)?;
 
-    Ok(AssemblyOutput::Object(kofile))
+    Ok(AssemblyOutput::Object(Box::new(kofile)))
 }
 
 // Generates preprocessed source output
