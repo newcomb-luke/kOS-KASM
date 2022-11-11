@@ -35,13 +35,8 @@ The Kerbal Assembler can either be installed via [cargo](https://github.com/rust
 
 #### Windows
 
-#### Full Toolchain
-
-The release files labeled "full" contain KASM as well as KLinker and KDump. These are the recommended way of installing KASM.
-
-#### Standalone Version
-
-The standalone version can be used if you have previously installed KLinker or KDump separately.
+If you have previously installed KLinker and KDump "standalone" through their own installers, when running the Windows
+installer, deselect KDump and KLinker from the "features" menu.
 
 * Download the .msi file from Releases on the right
 * Run the installer
