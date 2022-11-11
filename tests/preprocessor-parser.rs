@@ -19,11 +19,11 @@ use kasm::preprocessor::parser::Parser;
 // Lexes a source string to a vector, but can panic
 fn lex_from_text(source: &str) -> (Vec<Token>, Session) {
     let config = Config {
-        is_cli: true,
+        emit_errors: true,
         emit_warnings: false,
         root_dir: PathBuf::new(),
         run_preprocessor: false,
-        output_preprocessed: false,
+        preprocess_only: false,
         include_path: None,
         file_sym_name: None,
         comment: String::new(),
@@ -74,7 +74,8 @@ fn parse_int_literal() {
             let snippet = session.span_to_snippet(&tokens.first().unwrap().as_span());
             let s = snippet.as_slice();
 
-            let num = parse_integer_literal(s).expect(&format!("Invalid integer literal: {}", s));
+            let num = parse_integer_literal(s)
+                .unwrap_or_else(|_| panic!("Invalid integer literal: {}", s));
 
             assert_eq!(num, 23);
         } else {
@@ -105,7 +106,8 @@ fn parse_hex_literal() {
             let snippet = session.span_to_snippet(&token.as_span());
             let s = snippet.as_slice();
 
-            let num = parse_hexadecimal_literal(s).expect(&format!("Invalid hex literal: {}", s));
+            let num = parse_hexadecimal_literal(s)
+                .unwrap_or_else(|_| panic!("Invalid hex literal: {}", s));
 
             assert_eq!(num, 0x24);
         }
@@ -120,7 +122,8 @@ fn parse_hex_literal() {
             let snippet = session.span_to_snippet(&token.as_span());
             let s = snippet.as_slice();
 
-            let num = parse_hexadecimal_literal(s).expect(&format!("Invalid hex literal: {}", s));
+            let num = parse_hexadecimal_literal(s)
+                .unwrap_or_else(|_| panic!("Invalid hex literal: {}", s));
 
             assert_eq!(num, 0x00FF);
         }
@@ -149,7 +152,8 @@ fn parse_bin_literal() {
             let snippet = session.span_to_snippet(&token.as_span());
             let s = snippet.as_slice();
 
-            let num = parse_binary_literal(s).expect(&format!("Invalid binary literal: {}", s));
+            let num =
+                parse_binary_literal(s).unwrap_or_else(|_| panic!("Invalid binary literal: {}", s));
 
             assert_eq!(num, 0b1101);
         }
@@ -164,7 +168,8 @@ fn parse_bin_literal() {
             let snippet = session.span_to_snippet(&token.as_span());
             let s = snippet.as_slice();
 
-            let num = parse_binary_literal(s).expect(&format!("Invalid binary literal: {}", s));
+            let num =
+                parse_binary_literal(s).unwrap_or_else(|_| panic!("Invalid binary literal: {}", s));
 
             assert_eq!(num, 0b0000_1111);
         }

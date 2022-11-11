@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use kerbalobjects::{kofile::symbols::SymBind, KOSValue, Opcode};
+use kerbalobjects::{ko::symbols::SymBind, KOSValue, Opcode};
 
 use crate::{
     errors::Span,
@@ -294,7 +294,7 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
                         // We can do a little error checking, but if it is external, we can't
                         // really do much
 
-                        if symbol.binding != SymBind::Extern {
+                        if symbol.binding.unwrap() != SymBind::Extern {
                             let is_ok = match &symbol.value {
                                 SymbolValue::Value(value) => {
                                     let operand_type = match value {
