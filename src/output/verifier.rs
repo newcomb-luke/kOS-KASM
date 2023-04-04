@@ -585,7 +585,7 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
             Opcode::Targ => &[&[]],
             Opcode::Tcan => &[&[]],
 
-            Opcode::Prl => &[&[OperandType::String]],
+            Opcode::Prl => &[&[OperandType::String, OperandType::Function]],
             Opcode::Pdrl => &[
                 &[OperandType::String, OperandType::Function],
                 &[OperandType::Bool],
