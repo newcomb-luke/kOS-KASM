@@ -93,6 +93,25 @@ pub fn run_assembly_test(input: AssemblyTestInput) {
     }
 }
 
+pub fn run_simple_assembly_test(file_name_base: String) {
+    let config = Config {
+        emit_errors: true,
+        emit_warnings: true,
+        root_dir: PathBuf::from("./tests/"),
+        run_preprocessor: true,
+        preprocess_only: false,
+        include_path: None,
+        file_sym_name: None,
+        comment: String::from("KASM test"),
+    };
+
+    assemble_path(
+        &PathBuf::from(format!("./tests/sources/{}.kasm", &file_name_base)),
+        config,
+    )
+    .unwrap();
+}
+
 fn try_create_file(path: &Path) -> File {
     match File::create(path) {
         Ok(file) => file,

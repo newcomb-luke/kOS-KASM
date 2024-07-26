@@ -1,0 +1,137 @@
+.global _start
+
+.define PITCHOVER_ALTITUDE 12000
+.define HORIZONTAL_ALTITUDE 45000
+.define FAIRING_DEPLOY_ALTITUDE 70000
+.define PERIAPSIS_TARGET 100000
+.define BURN2_TIME_TO_APOAPSIS 15
+
+.macro PRINT 1
+    push @
+    push &1
+    call #, "print()"
+    pop
+.endmacro
+
+.macro PITCHTO 1
+    push @
+    push 90
+    push &1
+    push -90
+    call #, "heading()"
+    stog "$steering"
+.endmacro
+
+.macro THROTTLETO 1
+    push &1
+    stog "$throttle"
+.endmacro
+
+.macro STAGE
+    push @
+    call #, "stage()"
+    pop
+.endmacro
+
+.macro COMPARE_ALTITUDE 1
+    push 0
+    wait
+    push "$ship"
+    gmb "altitude"
+    push &1
+    cgt
+.endmacro
+
+.macro WAIT 1
+    push &1
+    wait
+.endmacro
+
+.func
+toggle_flybywire:
+    push true
+    call #, "toggleflybywire()"
+    pop
+    push @
+    ret 0
+
+.func
+_start:
+    push @
+    push "throttle"
+    call toggle_flybywire, #
+
+    push @
+    push "steering"
+    call toggle_flybywire, #
+
+    call main, #
+
+.func
+main:
+    PRINT("LAUNCHING")
+
+    THROTTLETO(1.0)
+    PITCHTO(90)
+    STAGE()
+
+    .before_pitchover:
+        COMPARE_ALTITUDE(PITCHOVER_ALTITUDE)
+        bfa .before_pitchover
+    
+    PRINT("ENTERING PITCH OVER")
+    PITCHTO(45)
+    
+    .pitchover:
+        COMPARE_ALTITUDE(HORIZONTAL_ALTITUDE)
+        bfa .pitchover
+
+    PRINT("ENTERING COAST PHASE")
+    THROTTLETO(0.0)
+    STAGE()
+    PITCHTO(0)
+
+    .fairing_coast:
+        COMPARE_ALTITUDE(FAIRING_DEPLOY_ALTITUDE)
+        bfa .fairing_coast
+    
+    WAIT(5)
+    STAGE
+
+    .burn_coast:
+        WAIT(0)
+        push BURN2_TIME_TO_APOAPSIS
+        push "$ship"
+        gmb "orbit"
+        gmb "eta"
+        gmb "apoapsis"
+        cgt
+        bfa .burn_coast
+
+    PRINT("ENTERING BURN 2")
+
+    PITCHTO(0)
+    THROTTLETO(1.0)
+
+    .orbit_wait:
+        WAIT(0)
+        push "$ship"
+        gmb "orbit"
+        gmb "periapsis"
+        push PERIAPSIS_TARGET
+        cgt
+        bfa .orbit_wait
+    
+    THROTTLETO(0.0)
+    WAIT(1)
+    STAGE
+    WAIT(1)
+
+    push true
+    sto "$ag1"
+
+    WAIT(1)
+
+    PRINT("ORBIT ACHIEVED")
+    
+    eop

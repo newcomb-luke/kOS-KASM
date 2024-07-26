@@ -1,8 +1,8 @@
 use std::{iter::Peekable, slice::Iter};
 
 use crate::{
-    errors::DiagnosticBuilder,
-    lexer::{Token, TokenKind},
+    errors::{DiagnosticBuilder, Span},
+    lexer::{Literal, Operator, Symbol, Token, TokenKind},
     session::Session,
 };
 
@@ -69,9 +69,7 @@ macro_rules! gen_binop {
                     if let Some(rhs) = Self::$func_name($tokens, $session)? {
                         lhs = ExpNode::BinOp(Box::new(lhs), $op_kind, Box::new(rhs));
                     } else {
-                        let db = $session
-                            .struct_span_error(token.as_span(), "trailing operator".to_string());
-                        return Err(db);
+                        return struct_trailing_op_error(token.as_span(), $session);
                     }
                 }
                 // If there isn't, break the loop
@@ -129,7 +127,7 @@ impl ExpressionParser {
             tokens,
             session,
             parse_logical_and,
-            TokenKind::OperatorOr,
+            TokenKind::Operator(Operator::Or),
             BinOp::Or
         )
     }
@@ -140,7 +138,7 @@ impl ExpressionParser {
             tokens,
             session,
             parse_equality_exp,
-            TokenKind::OperatorAnd,
+            TokenKind::Operator(Operator::And),
             BinOp::And
         )
     }
@@ -153,8 +151,8 @@ impl ExpressionParser {
             while let Some(&&token) = tokens.peek() {
                 // Check if it is an equality operator: ==, !=
                 let op = match token.kind {
-                    TokenKind::OperatorEquals => BinOp::Eq,
-                    TokenKind::OperatorNotEquals => BinOp::Ne,
+                    TokenKind::Operator(Operator::Equals) => BinOp::Eq,
+                    TokenKind::Operator(Operator::NotEquals) => BinOp::Ne,
                     _ => {
                         break;
                     }
@@ -165,9 +163,7 @@ impl ExpressionParser {
                 if let Some(rhs) = Self::parse_relational_exp(tokens, session)? {
                     lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
                 } else {
-                    let db =
-                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
-                    return Err(db);
+                    return struct_trailing_op_error(token.as_span(), session);
                 }
             }
 
@@ -185,10 +181,10 @@ impl ExpressionParser {
             while let Some(&&token) = tokens.peek() {
                 // Check if it is a relational operator: >, <, >=, or <=
                 let op = match token.kind {
-                    TokenKind::OperatorGreaterThan => BinOp::Gt,
-                    TokenKind::OperatorLessThan => BinOp::Lt,
-                    TokenKind::OperatorGreaterEquals => BinOp::Gte,
-                    TokenKind::OperatorLessEquals => BinOp::Lte,
+                    TokenKind::Operator(Operator::GreaterThan) => BinOp::Gt,
+                    TokenKind::Operator(Operator::LessThan) => BinOp::Lt,
+                    TokenKind::Operator(Operator::GreaterEquals) => BinOp::Gte,
+                    TokenKind::Operator(Operator::LessEquals) => BinOp::Lte,
                     _ => {
                         break;
                     }
@@ -199,9 +195,7 @@ impl ExpressionParser {
                 if let Some(rhs) = Self::parse_additive_exp(tokens, session)? {
                     lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
                 } else {
-                    let db =
-                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
-                    return Err(db);
+                    return struct_trailing_op_error(token.as_span(), session);
                 }
             }
 
@@ -219,8 +213,8 @@ impl ExpressionParser {
             while let Some(&&token) = tokens.peek() {
                 // Check if it is an additive operator: +/-
                 let op = match token.kind {
-                    TokenKind::OperatorPlus => BinOp::Add,
-                    TokenKind::OperatorMinus => BinOp::Sub,
+                    TokenKind::Operator(Operator::Plus) => BinOp::Add,
+                    TokenKind::Operator(Operator::Minus) => BinOp::Sub,
                     _ => {
                         break;
                     }
@@ -231,9 +225,7 @@ impl ExpressionParser {
                 if let Some(rhs) = Self::parse_term(tokens, session)? {
                     lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
                 } else {
-                    let db =
-                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
-                    return Err(db);
+                    return struct_trailing_op_error(token.as_span(), session);
                 }
             }
 
@@ -251,8 +243,8 @@ impl ExpressionParser {
             while let Some(&&token) = tokens.peek() {
                 // Check if it is a multiplicative operator: * or /
                 let op = match token.kind {
-                    TokenKind::OperatorMultiply => BinOp::Mult,
-                    TokenKind::OperatorDivide => BinOp::Div,
+                    TokenKind::Operator(Operator::Multiply) => BinOp::Mult,
+                    TokenKind::Operator(Operator::Divide) => BinOp::Div,
                     _ => {
                         break;
                     }
@@ -263,9 +255,6 @@ impl ExpressionParser {
                 if let Some(rhs) = Self::parse_factor(tokens, session)? {
                     lhs = ExpNode::BinOp(Box::new(lhs), op, Box::new(rhs));
                 } else {
-                    let db =
-                        session.struct_span_error(token.as_span(), "trailing operator".to_string());
-                    return Err(db);
                 }
             }
 
@@ -282,12 +271,12 @@ impl ExpressionParser {
         if let Some(&token) = tokens.next() {
             match token.kind {
                 // (
-                TokenKind::SymbolLeftParen => {
+                TokenKind::Symbol(Symbol::LeftParen) => {
                     let inner_expression = Self::parse_expression(tokens, session, true)?;
 
                     Self::skip_whitespace(tokens);
                     if let Some(next) = tokens.next() {
-                        if next.kind != TokenKind::SymbolRightParen {
+                        if next.kind != TokenKind::Symbol(Symbol::RightParen) {
                             println!("Token was: {:?}", next);
                             // Error
                             let db = session.struct_span_error(
@@ -308,13 +297,13 @@ impl ExpressionParser {
                     }
                 }
                 // !, ~, -
-                TokenKind::OperatorNegate
-                | TokenKind::OperatorCompliment
-                | TokenKind::OperatorMinus => {
+                TokenKind::Operator(Operator::Negate)
+                | TokenKind::Operator(Operator::Compliment)
+                | TokenKind::Operator(Operator::Minus) => {
                     let op = match token.kind {
-                        TokenKind::OperatorNegate => UnOp::Not,
-                        TokenKind::OperatorCompliment => UnOp::Flip,
-                        TokenKind::OperatorMinus => UnOp::Negate,
+                        TokenKind::Operator(Operator::Negate) => UnOp::Not,
+                        TokenKind::Operator(Operator::Compliment) => UnOp::Flip,
+                        TokenKind::Operator(Operator::Minus) => UnOp::Negate,
                         _ => unreachable!(),
                     };
 
@@ -329,14 +318,14 @@ impl ExpressionParser {
                         Err(db)
                     }
                 }
-                TokenKind::LiteralInteger | TokenKind::LiteralHex | TokenKind::LiteralBinary => {
+                TokenKind::Literal(Literal::Integer) | TokenKind::Literal(Literal::Hex) | TokenKind::Literal(Literal::Binary) => {
                     let value_snippet = session.span_to_snippet(&token.as_span());
                     let value_str = value_snippet.as_slice();
 
                     if let Ok(value) = match token.kind {
-                        TokenKind::LiteralInteger => parse_integer_literal(value_str),
-                        TokenKind::LiteralHex => parse_hexadecimal_literal(value_str),
-                        TokenKind::LiteralBinary => parse_binary_literal(value_str),
+                        TokenKind::Literal(Literal::Integer) => parse_integer_literal(value_str),
+                        TokenKind::Literal(Literal::Hex) => parse_hexadecimal_literal(value_str),
+                        TokenKind::Literal(Literal::Binary) => parse_binary_literal(value_str),
                         _ => unreachable!(),
                     } {
                         Ok(Some(ExpNode::Constant(Value::Int(value))))
@@ -349,7 +338,7 @@ impl ExpressionParser {
                         Err(db)
                     }
                 }
-                TokenKind::LiteralFloat => {
+                TokenKind::Literal(Literal::Float) => {
                     let value_snippet = session.span_to_snippet(&token.as_span());
                     let value_str = value_snippet.as_slice();
 
@@ -361,8 +350,8 @@ impl ExpressionParser {
                         Err(db)
                     }
                 }
-                TokenKind::LiteralTrue | TokenKind::LiteralFalse => Ok(Some(ExpNode::Constant(
-                    Value::Bool(token.kind == TokenKind::LiteralTrue),
+                TokenKind::Literal(Literal::True) | TokenKind::Literal(Literal::False) => Ok(Some(ExpNode::Constant(
+                    Value::Bool(token.kind == TokenKind::Literal(Literal::True)),
                 ))),
                 _ => {
                     let mut db = session
@@ -377,4 +366,11 @@ impl ExpressionParser {
             Ok(None)
         }
     }
+
+}
+
+fn struct_trailing_op_error<'a>(span: Span, session: &'a Session) -> ExpResult<'a> {
+    let db =
+        session.struct_span_error(span, "trailing operator".to_string());
+    Err(db)
 }

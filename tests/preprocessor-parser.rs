@@ -2,14 +2,8 @@ use std::path::PathBuf;
 
 use kasm::{
     errors::SourceFile,
-    lexer::{Lexer, Token, TokenKind},
-    preprocessor::parser::parse_binary_literal,
-    preprocessor::past::PASTNode,
-    preprocessor::{expressions::ExpressionParser, parser::parse_hexadecimal_literal},
-    preprocessor::{
-        expressions::{BinOp, ExpNode, UnOp, Value},
-        parser::parse_integer_literal,
-    },
+    lexer::{Lexer, Literal, Token, TokenKind},
+    preprocessor::{expressions::{BinOp, ExpNode, ExpressionParser, UnOp, Value}, parser::{parse_binary_literal, parse_hexadecimal_literal, parse_integer_literal}, past::{IncludePath, PASTNode}},
     session::Session,
     Config,
 };
@@ -19,7 +13,7 @@ use kasm::preprocessor::parser::Parser;
 // Lexes a source string to a vector, but can panic
 fn lex_from_text(source: &str) -> (Vec<Token>, Session) {
     let config = Config {
-        emit_errors: true,
+        emit_errors: false,
         emit_warnings: false,
         root_dir: PathBuf::new(),
         run_preprocessor: false,
@@ -47,30 +41,30 @@ fn lex_from_text(source: &str) -> (Vec<Token>, Session) {
     (tokens, session)
 }
 
-fn parse_source(source: &str) -> (Vec<PASTNode>, Session) {
+fn parse_source(source: &str) -> Result<(Vec<PASTNode>, Session), ()> {
     let (tokens, session) = lex_from_text(source);
 
     let preprocessor_parser = Parser::new(tokens, &session);
 
-    let nodes = preprocessor_parser.parse().expect("Failed to parse");
+    let nodes = preprocessor_parser.parse().map_err(|_| ())?;
 
-    (nodes, session)
+    Ok((nodes, session))
 }
 
 #[test]
 fn parse_int_literal() {
     let source = "23";
 
-    let (nodes, session) = parse_source(source);
+    let (nodes, session) = parse_source(source).unwrap();
 
     assert_eq!(nodes.len(), 1);
 
-    if let PASTNode::BenignTokens(benign_tokens) = nodes.first().unwrap() {
-        let tokens = &benign_tokens.tokens;
+    if let PASTNode::InertTokens(inert_tokens) = nodes.first().unwrap() {
+        let tokens = &inert_tokens.tokens;
 
         assert_eq!(tokens.len(), 1);
 
-        if tokens.first().unwrap().kind == TokenKind::LiteralInteger {
+        if tokens.first().unwrap().kind == TokenKind::Literal(Literal::Integer) {
             let snippet = session.span_to_snippet(&tokens.first().unwrap().as_span());
             let s = snippet.as_slice();
 
@@ -82,7 +76,7 @@ fn parse_int_literal() {
             panic!("BenignTokens did not contain a literal integer");
         }
     } else {
-        panic!("PASTNode was not BenignTokens");
+        panic!("PASTNode was not InertTokens");
     }
 }
 
@@ -90,19 +84,19 @@ fn parse_int_literal() {
 fn parse_hex_literal() {
     let source = "0x24 0x00_FF";
 
-    let (nodes, session) = parse_source(source);
+    let (nodes, session) = parse_source(source).unwrap();
 
     assert_eq!(nodes.len(), 1);
 
-    if let PASTNode::BenignTokens(benign_tokens) = nodes.first().unwrap() {
-        let tokens = &benign_tokens.tokens;
+    if let PASTNode::InertTokens(inert_tokens) = nodes.first().unwrap() {
+        let tokens = &inert_tokens.tokens;
 
         assert_eq!(tokens.len(), 3);
 
         let mut tokens = tokens.iter();
 
         let token = tokens.next().unwrap();
-        if token.kind == TokenKind::LiteralHex {
+        if token.kind == TokenKind::Literal(Literal::Hex) {
             let snippet = session.span_to_snippet(&token.as_span());
             let s = snippet.as_slice();
 
@@ -118,7 +112,7 @@ fn parse_hex_literal() {
         }
 
         let token = tokens.next().unwrap();
-        if token.kind == TokenKind::LiteralHex {
+        if token.kind == TokenKind::Literal(Literal::Hex) {
             let snippet = session.span_to_snippet(&token.as_span());
             let s = snippet.as_slice();
 
@@ -128,7 +122,7 @@ fn parse_hex_literal() {
             assert_eq!(num, 0x00FF);
         }
     } else {
-        panic!("PASTNode was not BenignTokens");
+        panic!("PASTNode was not InertTokens");
     }
 }
 
@@ -136,19 +130,19 @@ fn parse_hex_literal() {
 fn parse_bin_literal() {
     let source = "0b1101 0b0000_1111";
 
-    let (nodes, session) = parse_source(source);
+    let (nodes, session) = parse_source(source).unwrap();
 
     assert_eq!(nodes.len(), 1);
 
-    if let PASTNode::BenignTokens(benign_tokens) = nodes.first().unwrap() {
-        let tokens = &benign_tokens.tokens;
+    if let PASTNode::InertTokens(inert_tokens) = nodes.first().unwrap() {
+        let tokens = &inert_tokens.tokens;
 
         assert_eq!(tokens.len(), 3);
 
         let mut tokens = tokens.iter();
 
         let token = tokens.next().unwrap();
-        if token.kind == TokenKind::LiteralBinary {
+        if token.kind == TokenKind::Literal(Literal::Binary) {
             let snippet = session.span_to_snippet(&token.as_span());
             let s = snippet.as_slice();
 
@@ -164,7 +158,7 @@ fn parse_bin_literal() {
         }
 
         let token = tokens.next().unwrap();
-        if token.kind == TokenKind::LiteralBinary {
+        if token.kind == TokenKind::Literal(Literal::Binary) {
             let snippet = session.span_to_snippet(&token.as_span());
             let s = snippet.as_slice();
 
@@ -174,7 +168,7 @@ fn parse_bin_literal() {
             assert_eq!(num, 0b0000_1111);
         }
     } else {
-        panic!("PASTNode was not BenignTokens");
+        panic!("PASTNode was not InertTokens");
     }
 }
 
@@ -182,12 +176,12 @@ fn parse_bin_literal() {
 fn parse_expression() {
     let source = "!(2 == -(4 * 4))";
 
-    let (nodes, session) = parse_source(source);
+    let (nodes, session) = parse_source(source).unwrap();
 
     assert_eq!(nodes.len(), 1);
 
-    if let PASTNode::BenignTokens(benign_tokens) = nodes.first().unwrap() {
-        let tokens = &benign_tokens.tokens;
+    if let PASTNode::InertTokens(inert_tokens) = nodes.first().unwrap() {
+        let tokens = &inert_tokens.tokens;
 
         assert_eq!(tokens.len(), 15);
 
@@ -226,6 +220,40 @@ fn parse_expression() {
             }
         }
     } else {
-        panic!("PASTNode was not BenignTokens");
+        panic!("PASTNode was not InertTokens");
     }
+}
+
+fn test_parse_include(source: &str, path: &str) {
+    let (nodes, _) = parse_source(source).unwrap();
+
+    assert_eq!(nodes.len(), 1);
+
+    if let PASTNode::Include(include) = nodes.first().unwrap() {
+        if let IncludePath::Literal(_, s) = &include.path {
+            assert_eq!(s, path);
+        } else {
+            panic!("IncludePath was not Literal");
+        }
+    } else {
+        panic!("PASTNode was not Include");
+    }
+}
+
+#[test]
+fn parse_include_literal() {
+    let source = ".include \"test.kasm\"";
+    test_parse_include(source, "test.kasm");
+}
+
+#[test]
+fn parse_include_literal_with_trailing_whitespace() {
+    let source = ".include \"test.kasm\"     ";
+    test_parse_include(source, "test.kasm");
+}
+
+#[test]
+fn parse_include_with_trailing_tokens() {
+    let source = ".include \"test.kasm\" 2";
+    assert!(parse_source(source).is_err());
 }

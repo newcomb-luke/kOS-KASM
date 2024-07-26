@@ -1,0 +1,107 @@
+.global _init
+.global _start
+
+.macro TOGGLEFBW 1
+    push @
+    push &1
+    push true
+    call #, "toggleflybywire()"
+    pop
+.endmacro
+
+.macro STAGE
+    push @
+    call #, "stage()"
+    pop
+.endmacro
+
+.func
+calculate_throttle:
+    bscp 2, 1
+    argb
+    push 1
+    ret 1
+
+.func
+default_throttle:
+    argb
+    push "$throttle"
+    ret 0
+
+.func
+_init:
+    push "$throttle*"
+    exst
+    btr 3
+    prl default_throttle
+    sto "$throttle*"
+    push "$steering*"
+    exst
+    btr 3
+    prl default_steering
+    sto "$steering*"
+
+.func
+calculate_steering:
+    bscp 3, 1
+    argb
+    push "$up"
+    ret 1
+
+.func
+default_steering:
+    argb
+    push "$steering"
+    ret 0
+
+.func
+throttle_trigger:
+    tcan
+    bfa .not_canceled
+    push false
+    ret 0
+    .not_canceled:
+        push @
+        call #, "$throttle*"
+        stog "$throttle"
+        push true
+        ret 0
+
+.func
+steering_trigger:
+    tcan
+    bfa .not_canceled
+    push false
+    ret 0
+    .not_canceled:
+        push @
+        call #, "$steering*"
+        stog "$steering"
+        push true
+        ret 0
+
+.func
+_start:
+    bscp 1,0
+    argb
+
+    pdrl calculate_throttle, true
+    stog "$throttle*"
+    prl throttle_trigger
+    addt false, 30
+    TOGGLEFBW("throttle")
+
+    pdrl calculate_steering, true
+    stog "$steering*"
+    prl steering_trigger
+    addt false, 30
+    TOGGLEFBW("steering")
+
+    STAGE
+
+    .loop:
+        push 0
+        wait
+        jmp .loop
+    
+    escp 1

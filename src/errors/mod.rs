@@ -484,8 +484,11 @@ impl Handler {
 
     /// This registers an error with this error Handler
     pub fn error(&self, error: Diagnostic) {
-        if let Ok(inner) = self.inner.lock() {
-            inner.emitter.emit_diagnostic(&error);
+        // If we can't even emit them, don't even store them
+        if !self.flags.quiet {
+            if let Ok(inner) = self.inner.lock() {
+                inner.emitter.emit_diagnostic(&error);
+            }
         }
     }
 }
@@ -686,6 +689,11 @@ pub struct Snippet {
 impl Snippet {
     pub fn as_slice(&self) -> &str {
         &self.line[self.start_col..self.end_col]
+    }
+
+    pub fn as_string(self) -> String {
+        // Some optimization could be done here
+        self.as_slice().to_string()
     }
 }
 

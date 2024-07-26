@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use kasm::{
     errors::SourceFile,
-    lexer::{Lexer, Token, TokenKind},
+    lexer::{Directive, IfDirective, Keyword, Lexer, Literal, Operator, PreprocessorDirective, Symbol, Token, TokenKind},
     session::Session,
     Config,
 };
@@ -39,21 +39,21 @@ fn lex_from_text(source: &str) -> Vec<Token> {
 #[test]
 fn lex_operators() {
     let correct_kinds = vec![
-        TokenKind::OperatorMinus,
-        TokenKind::OperatorPlus,
-        TokenKind::OperatorCompliment,
-        TokenKind::OperatorMultiply,
-        TokenKind::OperatorDivide,
-        TokenKind::OperatorMod,
-        TokenKind::OperatorAnd,
-        TokenKind::OperatorOr,
-        TokenKind::OperatorEquals,
-        TokenKind::OperatorNotEquals,
-        TokenKind::OperatorNegate,
-        TokenKind::OperatorGreaterThan,
-        TokenKind::OperatorLessThan,
-        TokenKind::OperatorGreaterEquals,
-        TokenKind::OperatorLessEquals,
+        TokenKind::Operator(Operator::Minus),
+        TokenKind::Operator(Operator::Plus),
+        TokenKind::Operator(Operator::Compliment),
+        TokenKind::Operator(Operator::Multiply),
+        TokenKind::Operator(Operator::Divide),
+        TokenKind::Operator(Operator::Mod),
+        TokenKind::Operator(Operator::And),
+        TokenKind::Operator(Operator::Or),
+        TokenKind::Operator(Operator::Equals),
+        TokenKind::Operator(Operator::NotEquals),
+        TokenKind::Operator(Operator::Negate),
+        TokenKind::Operator(Operator::GreaterThan),
+        TokenKind::Operator(Operator::LessThan),
+        TokenKind::Operator(Operator::GreaterEquals),
+        TokenKind::Operator(Operator::LessEquals),
     ];
 
     let mut correct_iter = correct_kinds.iter();
@@ -77,9 +77,9 @@ fn lex_operators() {
 #[test]
 fn lex_keywords() {
     let correct_kinds = vec![
-        TokenKind::KeywordSection,
-        TokenKind::KeywordText,
-        TokenKind::KeywordData,
+        TokenKind::Keyword(Keyword::Section),
+        TokenKind::Keyword(Keyword::Text),
+        TokenKind::Keyword(Keyword::Data),
     ];
 
     let mut correct_iter = correct_kinds.iter();
@@ -103,31 +103,31 @@ fn lex_keywords() {
 #[test]
 fn lex_directives() {
     let correct_kinds = vec![
-        TokenKind::DirectiveDefine,
-        TokenKind::DirectiveMacro,
-        TokenKind::DirectiveEndmacro,
-        TokenKind::DirectiveRepeat,
-        TokenKind::DirectiveEndRepeat,
-        TokenKind::DirectiveInclude,
-        TokenKind::DirectiveExtern,
-        TokenKind::DirectiveGlobal,
-        TokenKind::DirectiveLocal,
-        TokenKind::DirectiveLine,
-        TokenKind::DirectiveType,
-        TokenKind::DirectiveValue,
-        TokenKind::DirectiveUndef,
-        TokenKind::DirectiveUnmacro,
-        TokenKind::DirectiveFunc,
-        TokenKind::DirectiveIf,
-        TokenKind::DirectiveIfNot,
-        TokenKind::DirectiveIfDef,
-        TokenKind::DirectiveIfNotDef,
-        TokenKind::DirectiveElseIf,
-        TokenKind::DirectiveElseIfNot,
-        TokenKind::DirectiveElseIfDef,
-        TokenKind::DirectiveElseIfNotDef,
-        TokenKind::DirectiveElse,
-        TokenKind::DirectiveEndIf,
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::Define)),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::Macro)),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::EndMacro)),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::Repeat)),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::EndRepeat)),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::Include)),
+        TokenKind::Directive(Directive::Extern),
+        TokenKind::Directive(Directive::Global),
+        TokenKind::Directive(Directive::Local),
+        TokenKind::Directive(Directive::Line),
+        TokenKind::Directive(Directive::Type),
+        TokenKind::Directive(Directive::Value),
+        TokenKind::Directive(Directive::Func),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::Undef)),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::Unmacro)),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::If(IfDirective::If))),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::If(IfDirective::IfNot))),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::If(IfDirective::IfDef))),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::If(IfDirective::IfNotDef))),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::If(IfDirective::ElseIf))),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::If(IfDirective::ElseIfNot))),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::If(IfDirective::ElseIfDef))),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::If(IfDirective::ElseIfNotDef))),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::If(IfDirective::Else))),
+        TokenKind::Directive(Directive::Preprocessor(PreprocessorDirective::If(IfDirective::EndIf))),
     ];
 
     let mut correct_iter = correct_kinds.iter();
@@ -145,9 +145,9 @@ fn lex_directives() {
 .line
 .type
 .value
+.func
 .undef
 .unmacro
-.func
 .if
 .ifn
 .ifdef
@@ -181,6 +181,7 @@ fn lex_labels() {
         TokenKind::Label,
         TokenKind::InnerLabel,
         TokenKind::InnerLabelReference,
+        TokenKind::MacroArgmentReference,
         TokenKind::Identifier,
     ];
 
@@ -192,6 +193,7 @@ _start:
 loop_3231:
 .endloop_3231:
 .woohoo
+&21
 loop_3231";
 
     let tokens = lex_from_text(source);
@@ -211,16 +213,16 @@ loop_3231";
 #[test]
 fn lex_literals() {
     let correct_kinds = vec![
-        TokenKind::LiteralInteger,
-        TokenKind::LiteralFloat,
-        TokenKind::LiteralHex,
-        TokenKind::LiteralHex,
-        TokenKind::LiteralBinary,
-        TokenKind::LiteralBinary,
-        TokenKind::LiteralTrue,
-        TokenKind::LiteralFalse,
-        TokenKind::LiteralString,
-        TokenKind::LiteralString,
+        TokenKind::Literal(Literal::Integer),
+        TokenKind::Literal(Literal::Float),
+        TokenKind::Literal(Literal::Hex),
+        TokenKind::Literal(Literal::Hex),
+        TokenKind::Literal(Literal::Binary),
+        TokenKind::Literal(Literal::Binary),
+        TokenKind::Literal(Literal::True),
+        TokenKind::Literal(Literal::False),
+        TokenKind::Literal(Literal::String),
+        TokenKind::Literal(Literal::String),
     ];
 
     let mut correct_iter = correct_kinds.iter();
@@ -277,18 +279,17 @@ fn lex_delimiters() {
 #[test]
 fn lex_symbols() {
     let correct_kinds = vec![
-        TokenKind::SymbolLeftParen,
-        TokenKind::SymbolComma,
-        TokenKind::SymbolHash,
-        TokenKind::SymbolAt,
-        TokenKind::SymbolAnd,
-        TokenKind::SymbolRightParen,
+        TokenKind::Symbol(Symbol::LeftParen),
+        TokenKind::Symbol(Symbol::Comma),
+        TokenKind::Symbol(Symbol::Hash),
+        TokenKind::Symbol(Symbol::At),
+        TokenKind::Symbol(Symbol::RightParen),
         TokenKind::Comment,
     ];
 
     let mut correct_iter = correct_kinds.iter();
 
-    let source = " ( , # @ & ) ; This is a comment";
+    let source = " ( , # @ ) ; This is a comment";
 
     let tokens = lex_from_text(source);
 

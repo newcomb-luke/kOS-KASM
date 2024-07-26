@@ -12,9 +12,9 @@ use crate::lexer::Token;
 
 #[derive(Debug, Clone)]
 pub enum PASTNode {
-    BenignTokens(BenignTokens),
+    InertTokens(InertTokens),
     SLMacroDef(SLMacroDef),
-    MacroInvok(MacroInvok),
+    MacroInvocation(MacroInvocation),
     MLMacroDef(MLMacroDef),
     SLMacroUndef(SLMacroUndef),
     MLMacroUndef(MLMacroUndef),
@@ -26,9 +26,9 @@ pub enum PASTNode {
 impl PASTNode {
     pub fn span_end(&self) -> usize {
         match self {
-            PASTNode::BenignTokens(benign_tokens) => benign_tokens.span.end,
+            PASTNode::InertTokens(inert_tokens) => inert_tokens.span.end,
             PASTNode::SLMacroDef(sl_macro_def) => sl_macro_def.span.end,
-            PASTNode::MacroInvok(macro_invok) => macro_invok.span.end,
+            PASTNode::MacroInvocation(macro_invocation) => macro_invocation.span.end,
             PASTNode::MLMacroDef(ml_macro_def) => ml_macro_def.span.end,
             PASTNode::SLMacroUndef(sl_macro_undef) => sl_macro_undef.span.end,
             PASTNode::MLMacroUndef(ml_macro_undef) => ml_macro_undef.span.end,
@@ -58,13 +58,13 @@ impl PartialEq for Ident {
 }
 
 #[derive(Debug, Clone)]
-pub struct BenignTokens {
+pub struct InertTokens {
     pub span: Span,
     pub tokens: Vec<Token>,
 }
 
-impl BenignTokens {
-    /// Creates a new BenignTokens struct using the tokens provided
+impl InertTokens {
+    /// Creates a new InertTokens struct using the tokens provided
     ///
     /// The vector MUST NOT BE EMPTY. If it is, this function will panic
     ///
@@ -83,16 +83,6 @@ impl BenignTokens {
 }
 
 /// A PAST Node representing a single line macro definition
-///
-/// Grammar:
-///
-/// ```sh,ignore,no_run
-/// <SLMacroDef> ::= .define <identifier>
-///              |   .define <identifier> <SLMacroDefContents>
-///              |   .define <identifier> <SLMacroDefArgs>
-///              |   .define <identifier> <SLMacroDefArgs> <SLMacroDefContents>
-/// ```
-///
 #[derive(Debug, Clone)]
 pub struct SLMacroDef {
     pub span: Span,
@@ -118,16 +108,6 @@ impl SLMacroDef {
 }
 
 /// A PAST Node representing a single line macro definition's arguments
-///
-/// Grammar:
-///
-/// ```sh,ignore,no_run
-/// <SLMacroDefArgs> ::= ()
-///                  |   (<arguments>)
-///
-/// <arguments> ::= <identifier> | <identifier>, <arguments>
-/// ```
-///
 #[derive(Debug, Clone)]
 pub struct SLMacroDefArgs {
     pub span: Span,
@@ -141,21 +121,6 @@ impl SLMacroDefArgs {
 }
 
 /// A PAST Node representing a single line macro definition's contents
-///
-/// This grammar may be incomplete, however it is meant to convey that this can contain anything
-/// except any preprocessor directives.
-///
-/// Grammar:
-///
-/// ```sh,ignore,no_run
-/// <SLMacroDefContents> ::=
-///                      |   <identifier> <SLMacroDefContents>
-///                      |   <literal> <SLMacroDefContents>
-///                      |   <non-definition directive> <SLMacroDefContents>
-///                      |   <operator> <SLMacroDefContents>
-///                      |   <keyword> <SLMacroDefContents>
-/// ```
-///
 #[derive(Debug, Clone)]
 pub struct SLMacroDefContents {
     pub span: Span,
@@ -169,14 +134,14 @@ impl SLMacroDefContents {
 }
 
 #[derive(Debug, Clone)]
-pub struct MacroInvok {
+pub struct MacroInvocation {
     pub span: Span,
     pub identifier: Ident,
-    pub args: Option<MacroInvokArgs>,
+    pub args: Option<MacroInvocationArgs>,
 }
 
-impl MacroInvok {
-    pub fn new(span: Span, identifier: Ident, args: Option<MacroInvokArgs>) -> Self {
+impl MacroInvocation {
+    pub fn new(span: Span, identifier: Ident, args: Option<MacroInvocationArgs>) -> Self {
         Self {
             span,
             identifier,
@@ -186,17 +151,17 @@ impl MacroInvok {
 }
 
 #[derive(Debug, Clone)]
-pub struct MacroInvokArgs {
+pub struct MacroInvocationArgs {
     pub span: Span,
-    pub args: Vec<MacroInvokArg>,
+    pub args: Vec<MacroInvocationArg>,
 }
 
-impl MacroInvokArgs {
-    pub fn new(span: Span, args: Vec<MacroInvokArg>) -> Self {
+impl MacroInvocationArgs {
+    pub fn new(span: Span, args: Vec<MacroInvocationArg>) -> Self {
         Self { span, args }
     }
 
-    pub fn from_vec(args: Vec<MacroInvokArg>) -> Self {
+    pub fn from_vec(args: Vec<MacroInvocationArg>) -> Self {
         let mut span = Span::new(0, 0, 0);
 
         let first_span = args.first().unwrap().span;
@@ -206,17 +171,17 @@ impl MacroInvokArgs {
         span.file = first_span.file;
         span.end = last_span.end;
 
-        MacroInvokArgs { span, args }
+        MacroInvocationArgs { span, args }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct MacroInvokArg {
+pub struct MacroInvocationArg {
     pub span: Span,
     pub contents: Vec<PASTNode>,
 }
 
-impl MacroInvokArg {
+impl MacroInvocationArg {
     pub fn new(span: Span, contents: Vec<PASTNode>) -> Self {
         Self { span, contents }
     }
@@ -264,20 +229,25 @@ impl MLMacroArgs {
             maximum,
         }
     }
+
+    /// Returns either the number of required args, or the maximum if it is Some()
+    pub fn overall_maximum(&self) -> u8 {
+        self.maximum.map(|v| v.get()).unwrap_or(self.required)
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct MLMacroDefDefaults {
     pub span: Span,
-    pub values: Vec<BenignTokens>,
+    pub values: Vec<InertTokens>,
 }
 
 impl MLMacroDefDefaults {
-    pub fn new(span: Span, values: Vec<BenignTokens>) -> Self {
+    pub fn new(span: Span, values: Vec<InertTokens>) -> Self {
         Self { span, values }
     }
 
-    pub fn from_vec(values: Vec<BenignTokens>) -> Self {
+    pub fn from_vec(values: Vec<InertTokens>) -> Self {
         let mut span = Span::new(0, 0, 0);
 
         let first_span = values.first().unwrap().span;
@@ -292,14 +262,6 @@ impl MLMacroDefDefaults {
 }
 
 /// A PAST Node that represents a single line macro undefinition
-///
-/// Grammar:
-///
-/// ```sh,ignore,no_run
-/// <SLMacroUndef> ::= .undef <ident>
-///                |   .undef <ident> <SLMacroUndefArgs>
-/// ```
-///
 #[derive(Debug, Clone)]
 pub struct SLMacroUndef {
     pub span: Span,
@@ -318,11 +280,6 @@ impl SLMacroUndef {
 }
 
 /// Represents a single line macro's number of arguments
-///
-/// ```sh,ignore,no_run
-/// <SLMacroUndefArgs> ::= <number>
-/// ```
-///
 #[derive(Debug, Clone)]
 pub struct SLMacroUndefArgs {
     pub span: Span,
@@ -336,14 +293,6 @@ impl SLMacroUndefArgs {
 }
 
 /// A PAST Node that represents a multi line macro undefinition
-///
-/// Grammar:
-///
-/// ```sh,ignore,no_run
-/// <MLMacroUndef> ::= .unmacro <ident>
-///                |   .unmacro <ident> <MLMacroArgs>
-/// ```
-///
 #[derive(Debug, Clone)]
 pub struct MLMacroUndef {
     pub span: Span,
@@ -362,13 +311,6 @@ impl MLMacroUndef {
 }
 
 /// A PAST node that represents a repeat directive
-///
-/// Grammar:
-///
-/// ```sh,ignore,no_run
-/// <Repeat> ::= .rep <RepeatNumber>
-/// ```
-///
 #[derive(Debug, Clone)]
 pub struct Repeat {
     pub span: Span,
@@ -387,13 +329,6 @@ impl Repeat {
 }
 
 /// A PAST node that represents a repeat directive's number of repetitions
-///
-/// Grammar:
-///
-/// ```sh,ignore,no_run
-/// <RepeatNumber> ::= <BenignTokens> | <MacroInvok>
-/// ```
-///
 #[derive(Debug, Clone)]
 pub struct RepeatNumber {
     pub span: Span,
@@ -517,13 +452,7 @@ impl Include {
 }
 
 #[derive(Debug, Clone)]
-pub struct IncludePath {
-    pub span: Span,
-    pub expression: Vec<PASTNode>,
-}
-
-impl IncludePath {
-    pub fn new(span: Span, expression: Vec<PASTNode>) -> Self {
-        Self { span, expression }
-    }
+pub enum IncludePath {
+    Literal(Span, String),
+    MacroInvocation(MacroInvocation)
 }

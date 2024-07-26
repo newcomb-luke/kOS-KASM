@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::past::{MLMacroArgs, MLMacroDef, MLMacroUndef, MacroInvok, SLMacroDef, SLMacroUndef};
+use super::past::{MLMacroArgs, MLMacroDef, MLMacroUndef, MacroInvocation, SLMacroDef, SLMacroUndef};
 
 pub struct SLMacroMap {
     map: HashMap<(u64, u8), SLMacroDef>,
@@ -36,9 +36,9 @@ impl SLMacroMap {
         self.map.remove(&(hash, args));
     }
 
-    pub fn get(&self, invokation: &MacroInvok) -> Option<&SLMacroDef> {
-        let hash = invokation.identifier.hash;
-        let args = match &invokation.args {
+    pub fn get(&self, invocation: &MacroInvocation) -> Option<&SLMacroDef> {
+        let hash = invocation.identifier.hash;
+        let args = match &invocation.args {
             Some(args) => args.args.len() as u8,
             None => 0,
         };
@@ -180,12 +180,12 @@ impl MLMacroMap {
         self.macros.iter().any(|entry| entry.0 == hash)
     }
 
-    /// Gets a corresponding macro definition to a macro invokation, if it does match any in the
+    /// Gets a corresponding macro definition to a macro invocation, if it does match any in the
     /// map
-    pub fn get(&self, invokation: &MacroInvok) -> Option<&MLMacroDef> {
-        let hash = invokation.identifier.hash;
+    pub fn get(&self, invocation: &MacroInvocation) -> Option<&MLMacroDef> {
+        let hash = invocation.identifier.hash;
 
-        let args = match &invokation.args {
+        let args = match &invocation.args {
             Some(args) => {
                 let num = args.args.len() as u8;
                 (num, num)

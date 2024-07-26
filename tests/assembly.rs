@@ -2,7 +2,7 @@ use kerbalobjects::ko::symbols::{SymBind, SymType};
 use kerbalobjects::Opcode;
 
 mod common;
-use common::{run_assembly_test, AssemblyTestInput};
+use common::{run_assembly_test, run_simple_assembly_test, AssemblyTestInput};
 
 #[test]
 fn externs() {
@@ -51,4 +51,14 @@ fn single_instruction() {
         expected_symbols: vec![(String::from("_start"), SymBind::Local, SymType::Func)],
         expected_code: vec![(String::from("_start"), vec![Opcode::Eop])],
     });
+}
+
+#[test]
+fn launch() {
+    run_simple_assembly_test(String::from("launch"));
+}
+
+#[test]
+fn locks() {
+    run_simple_assembly_test(String::from("locks"));
 }
