@@ -257,3 +257,15 @@ fn parse_include_with_trailing_tokens() {
     let source = ".include \"test.kasm\" 2";
     assert!(parse_source(source).is_err());
 }
+
+#[test]
+fn parse_include_without_path() {
+    let source = ".include ";
+    assert!(parse_source(source).is_err());
+}
+
+#[test]
+fn parse_include_invalid_token() {
+    let source = ".include 4";
+    assert!(parse_source(source).is_err());
+}
