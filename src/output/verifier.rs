@@ -525,6 +525,7 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
             Opcode::Sidx => &[&[]],
             Opcode::Bfa => &[&[OperandType::String, OperandType::Int32, OperandType::Label]],
             Opcode::Jmp => &[&[OperandType::String, OperandType::Int32, OperandType::Label]],
+            Opcode::Jmps => &[&[]],
             Opcode::Add => &[&[]],
             Opcode::Sub => &[&[]],
             Opcode::Mul => &[&[]],
