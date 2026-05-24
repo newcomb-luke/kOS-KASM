@@ -276,7 +276,7 @@ impl<'a> Parser<'a> {
                     // In all other cases, we require this to be a data type
                     if matches!(
                         other,
-                        TokenKind::TypeI8
+                        TokenKind::TypeU8
                             | TokenKind::TypeI16
                             | TokenKind::TypeI32
                             | TokenKind::TypeI32V
@@ -327,8 +327,8 @@ impl<'a> Parser<'a> {
                         } else {
                             // If it is a supposed to be an integer of some kind
                             if let Value::Int(i) = value {
-                                if other == TokenKind::TypeI8 {
-                                    if let Ok(i) = i8::try_from(i) {
+                                if other == TokenKind::TypeU8 {
+                                    if let Ok(i) = u8::try_from(i) {
                                         KOSValue::Byte(i)
                                     } else {
                                         self.session.struct_span_error(type_span, format!("value provided {} is too large to fit into a byte", i)).emit();
@@ -1050,7 +1050,9 @@ impl<'a> Parser<'a> {
             | TokenKind::LiteralBinary
             | TokenKind::LiteralTrue
             | TokenKind::LiteralFalse
-            | TokenKind::LiteralFloat => {
+            | TokenKind::LiteralFloat
+            | TokenKind::OperatorMinus
+            | TokenKind::OperatorNegate => {
                 let mut exp_tokens = raw.iter().peekable();
                 let parsed_exp = match ExpressionParser::parse_expression(
                     &mut exp_tokens,

@@ -626,7 +626,6 @@ impl<'a> Parser<'a> {
     fn parse_ml_macro_contents(&mut self, macro_span: Span) -> PResult<Vec<PASTNode>> {
         let mut contents = Vec::new();
         let mut benign_tokens = Vec::new();
-        let mut span = Span::new(0, 0, 0);
         let mut found_end = false;
 
         // Parse the first token. We will allow this to immediately be an .endmacro
@@ -634,9 +633,6 @@ impl<'a> Parser<'a> {
             if token.kind == TokenKind::DirectiveEndmacro {
                 found_end = true;
             } else {
-                span.start = token.as_span().start;
-                span.file = token.as_span().file;
-
                 benign_tokens.push(token);
             }
         } else {
@@ -690,9 +686,6 @@ impl<'a> Parser<'a> {
                             benign_tokens = Vec::new();
                         }
 
-                        // Update this just in case it is the last part of the contents
-                        span.end = if_statement.span.end;
-
                         contents.push(PASTNode::IfStatement(if_statement));
                     }
                     TokenKind::DirectiveEndmacro => {
@@ -708,8 +701,6 @@ impl<'a> Parser<'a> {
                             // If it is
                             // Just push it
                             benign_tokens.push(token);
-
-                            span.end = token.as_span().end;
                         } else {
                             // If it isn't, it is going to be parsed as a macro invokation
                             let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
@@ -721,9 +712,6 @@ impl<'a> Parser<'a> {
 
                                 benign_tokens = Vec::new();
                             }
-
-                            // Update this just in case it is the last part of the contents
-                            span.end = macro_invok.span.end;
 
                             contents.push(PASTNode::MacroInvok(macro_invok));
                         }
@@ -760,9 +748,6 @@ impl<'a> Parser<'a> {
                     _ => {
                         // Just push this, it is allowed and not special
                         benign_tokens.push(token);
-
-                        // Just in case this is the last one
-                        span.end = token.as_span().end;
                     }
                 }
             }
@@ -953,7 +938,6 @@ impl<'a> Parser<'a> {
     fn parse_repeat_contents(&mut self, rep_span: Span) -> PResult<Vec<PASTNode>> {
         let mut contents = Vec::new();
         let mut benign_tokens = Vec::new();
-        let mut span = Span::new(0, 0, 0);
         let mut found_end = false;
 
         // Parse the first token. We will allow this to immediately be an .endrep
@@ -961,9 +945,6 @@ impl<'a> Parser<'a> {
             if token.kind == TokenKind::DirectiveEndRepeat {
                 found_end = true;
             } else {
-                span.start = token.as_span().start;
-                span.file = token.as_span().file;
-
                 benign_tokens.push(token);
             }
         } else {
@@ -1016,8 +997,6 @@ impl<'a> Parser<'a> {
                             // If it is
                             // Just push it
                             benign_tokens.push(token);
-
-                            span.end = token.as_span().end;
                         } else {
                             // If it isn't, it is going to be parsed as a macro invokation
                             let macro_invok = self.parse_macro_invok(token.as_span(), ident_str)?;
@@ -1030,18 +1009,12 @@ impl<'a> Parser<'a> {
                                 benign_tokens = Vec::new();
                             }
 
-                            // Update this just in case it is the last part of the contents
-                            span.end = macro_invok.span.end;
-
                             contents.push(PASTNode::MacroInvok(macro_invok));
                         }
                     }
                     _ => {
                         // Just push this, it is allowed and not special
                         benign_tokens.push(token);
-
-                        // Just in case this is the last one
-                        span.end = token.as_span().end;
                     }
                 }
             }
@@ -1303,7 +1276,7 @@ impl<'a> Parser<'a> {
     // i32 is the return type because that is the maximum value that any kOS value can have, and it
     // works for our purposes as well
     //
-    fn parse_number(&mut self) -> NumPResult {
+    fn parse_number(&'_ mut self) -> NumPResult<'_> {
         if let Some(&token) = self.consume_next() {
             let span = token.as_span();
             let snippet = self.session.span_to_snippet(&span);

@@ -28,7 +28,7 @@ pub enum TokenKind {
     KeywordData,
 
     /// Types
-    TypeI8,
+    TypeU8,
     TypeI16,
     TypeI32,
     TypeI32V,
@@ -118,8 +118,8 @@ pub enum RawToken {
     #[token(".data")]
     KeywordData,
 
-    #[token(".i8")]
-    TypeI8,
+    #[token(".u8")]
+    TypeU8,
 
     #[token(".i16")]
     TypeI16,
