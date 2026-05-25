@@ -1040,10 +1040,28 @@ impl<'a> Parser<'a> {
 
         let operand = match first_token.kind {
             TokenKind::Identifier => {
-                let snippet = self.session.span_to_snippet(&first_token.as_span());
-                let identifier_str = snippet.as_slice().to_string();
+                let inner_label = if let Some(next_token) = raw.get(1) {
+                    if next_token.kind == TokenKind::InnerLabelReference {
+                        one_token = false;
+                        Some(*next_token)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
 
-                InstructionOperand::Symbol(identifier_str)
+                let snippet = self.session.span_to_snippet(&first_token.as_span());
+                let identifier_str = snippet.as_slice();
+
+                if let Some(inner_label) = inner_label {
+                    let inner_label_snippet = self.session.span_to_snippet(&inner_label.as_span());
+                    let inner_label_str = inner_label_snippet.as_slice();
+
+                    InstructionOperand::Label(format!("{}{}", identifier_str, inner_label_str))
+                } else {
+                    InstructionOperand::Symbol(identifier_str.to_string())
+                }
             }
             TokenKind::LiteralInteger
             | TokenKind::LiteralHex

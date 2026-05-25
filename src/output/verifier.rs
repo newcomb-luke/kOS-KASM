@@ -281,6 +281,11 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
                 }
             }
             InstructionOperand::Symbol(s) => {
+                if accepted.contains(&OperandType::Label) {
+                    if let Some(label) = self.label_manager.get(s) {
+                        return Ok(VerifiedOperand::Label(label.value));
+                    }
+                }
                 if let Some(symbol) = self.symbol_manager.get(s) {
                     if symbol.sym_type == SymbolType::Func {
                         if accepted.contains(&OperandType::Function) {
@@ -586,11 +591,7 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
             Opcode::Targ => &[&[]],
             Opcode::Tcan => &[&[]],
 
-            Opcode::Prl => &[&[
-                OperandType::String,
-                OperandType::Function,
-                OperandType::Label,
-            ]],
+            Opcode::Prl => &[&[OperandType::String, OperandType::Function]],
             Opcode::Pdrl => &[
                 &[OperandType::String, OperandType::Function],
                 &[OperandType::Bool],

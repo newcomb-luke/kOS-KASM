@@ -82,12 +82,12 @@ impl Session {
             .unwrap())
     }
 
-    pub fn add_file(&mut self, source_file: SourceFile) {
+    pub fn add_file(&mut self, source_file: SourceFile) -> u8 {
         self.source_manager
             .write()
             .unwrap()
             .add(source_file)
-            .unwrap();
+            .unwrap()
     }
 
     pub fn get_input_file_name(&self) -> String {

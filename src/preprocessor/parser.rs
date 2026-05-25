@@ -1012,6 +1012,46 @@ impl<'a> Parser<'a> {
                             contents.push(PASTNode::MacroInvok(macro_invok));
                         }
                     }
+                    TokenKind::SymbolAnd => {
+                        benign_tokens.push(token);
+
+                        // We expect an integer literal after this
+                        if let Some(&hopefully_num) = self.consume_next() {
+                            // If there is anything at all
+                            if hopefully_num.kind != TokenKind::LiteralInteger {
+                                if hopefully_num.kind != TokenKind::Newline {
+                                    self.session
+                                        .struct_span_error(
+                                            hopefully_num.as_span(),
+                                            "expected iteration number reference".to_string(),
+                                        )
+                                        .emit();
+                                } else {
+                                    self.session
+                                        .struct_span_error(
+                                            token.as_span(),
+                                            "expected iteration number reference after `&`"
+                                                .to_string(),
+                                        )
+                                        .emit();
+                                }
+
+                                return Err(());
+                            } else {
+                                let number_snippet =
+                                    self.session.span_to_snippet(&hopefully_num.as_span());
+                                let number_slice = number_snippet.as_slice();
+
+                                // Only 0 and 1 are allowed
+                                if number_slice != "0" && number_slice != "1" {
+                                    self.session.struct_span_error(hopefully_num.as_span(), "only `&0` or `&1` are allowed as an argument inside of repeat directives".to_string()).emit();
+                                    return Err(());
+                                } else {
+                                    benign_tokens.push(hopefully_num);
+                                }
+                            }
+                        }
+                    }
                     _ => {
                         // Just push this, it is allowed and not special
                         benign_tokens.push(token);
