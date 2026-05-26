@@ -246,7 +246,7 @@ fn generate_preprocessed(tokens: Vec<Token>, session: &Session) -> String {
             TokenKind::KeywordSection => ".section",
             TokenKind::KeywordText => ".text",
             TokenKind::KeywordData => ".data",
-            TokenKind::TypeI8 => ".i8",
+            TokenKind::TypeU8 => ".u8",
             TokenKind::TypeI16 => ".i16",
             TokenKind::TypeI32 => ".i32",
             TokenKind::TypeI32V => ".i32v",

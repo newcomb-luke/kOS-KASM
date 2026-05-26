@@ -35,9 +35,12 @@ fn main() {
                 }
             }
             AssemblyOutput::Source(source) => {
-                let output_path = config
-                    .output_path
-                    .unwrap_or_else(|| config.input_path.with_extension(".ksm"));
+                if config.output_path.is_none() {
+                    eprintln!("Output path must be specified if running preprocessor only");
+                    process::exit(5);
+                }
+
+                let output_path = config.output_path.unwrap();
 
                 let mut output_file = try_create_file(&output_path);
 

@@ -281,6 +281,11 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
                 }
             }
             InstructionOperand::Symbol(s) => {
+                if accepted.contains(&OperandType::Label) {
+                    if let Some(label) = self.label_manager.get(s) {
+                        return Ok(VerifiedOperand::Label(label.value));
+                    }
+                }
                 if let Some(symbol) = self.symbol_manager.get(s) {
                     if symbol.sym_type == SymbolType::Func {
                         if accepted.contains(&OperandType::Function) {
@@ -396,7 +401,7 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
     // instruction doesn't support integers this large, or it finds the smallest size the integer
     // can fit.
     fn maybe_squish_integer(&self, value: i32, accepted: &[OperandType]) -> Result<KOSValue, ()> {
-        let smallest_size = if <i8 as TryFrom<i32>>::try_from(value).is_ok() {
+        let smallest_size = if <u8 as TryFrom<i32>>::try_from(value).is_ok() {
             OperandType::Byte
         } else if <i16 as TryFrom<i32>>::try_from(value).is_ok() {
             OperandType::Int16
@@ -407,7 +412,7 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
         Ok(match smallest_size {
             OperandType::Byte => {
                 if accepted.contains(&OperandType::Byte) {
-                    KOSValue::Byte(value as i8)
+                    KOSValue::Byte(value as u8)
                 } else if accepted.contains(&OperandType::Int16) {
                     KOSValue::Int16(value as i16)
                 } else if accepted.contains(&OperandType::Int32) {

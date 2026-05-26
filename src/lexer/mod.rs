@@ -2,7 +2,6 @@
 
 mod token;
 use logos::Logos;
-use token::RawToken;
 pub use token::*;
 
 use crate::session::Session;
@@ -105,7 +104,7 @@ impl<'a, 'b> Lexer<'a, 'b> {
             RawToken::KeywordText => TokenKind::KeywordText,
             RawToken::KeywordData => TokenKind::KeywordData,
 
-            RawToken::TypeI8 => TokenKind::TypeI8,
+            RawToken::TypeU8 => TokenKind::TypeU8,
             RawToken::TypeI16 => TokenKind::TypeI16,
             RawToken::TypeI32 => TokenKind::TypeI32,
             RawToken::TypeI32V => TokenKind::TypeI32V,
