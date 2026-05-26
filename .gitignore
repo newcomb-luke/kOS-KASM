@@ -3,3 +3,4 @@ Cargo.lock
 target/
 *.ko
 *.ksm
+*.kasm

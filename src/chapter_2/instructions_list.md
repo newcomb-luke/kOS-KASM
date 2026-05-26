@@ -77,6 +77,8 @@ All of these behave in this way:
 
 **jmp** (string | int | label) - Unconditionally jumps to the location specified in the operand, it can be a string or an integer (for relative jumps)
 
+**jmps** - Unconditionally jumps to the absolute instruction pointer on the stack
+
 **call** (string | label), (string) - Calls a subroutine, leaving the result on the stack, both operands are strings
 
 **ret** (int) - Returns from a subroutine and pops off the number of scopes as provided in the operand

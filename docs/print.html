@@ -1,50 +1,64 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js light">
+<html lang="en" class="light sidebar-visible" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>KASM Guide</title>
-        <meta name="robots" content="noindex" />
+        <meta name="robots" content="noindex">
 
 
         <!-- Custom HTML head -->
-        
-        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon.svg">
-        <link rel="shortcut icon" href="favicon.png">
-        <link rel="stylesheet" href="css/variables.css">
-        <link rel="stylesheet" href="css/general.css">
-        <link rel="stylesheet" href="css/chrome.css">
-        <link rel="stylesheet" href="css/print.css" media="print">
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="fonts/fonts.css">
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="highlight.css">
-        <link rel="stylesheet" href="tomorrow-night.css">
-        <link rel="stylesheet" href="ayu-highlight.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-49d0a8f5.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-8487db41.js"></script>
     </head>
     <body>
-        <!-- Provide site root to javascript -->
-        <script type="text/javascript">
-            var path_to_root = "";
-            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
-        </script>
-
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
-        <script type="text/javascript">
+        <script>
             try {
-                var theme = localStorage.getItem('mdbook-theme');
-                var sidebar = localStorage.getItem('mdbook-sidebar');
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
 
                 if (theme.startsWith('"') && theme.endsWith('"')) {
                     localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
@@ -57,57 +71,70 @@
         </script>
 
         <!-- Set the theme before any content is loaded, prevents flash -->
-        <script type="text/javascript">
-            var theme;
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
-            var html = document.querySelector('html');
-            html.classList.remove('no-js')
+            const html = document.documentElement;
             html.classList.remove('light')
             html.classList.add(theme);
-            html.classList.add('js');
+            html.classList.add("js");
         </script>
 
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
         <!-- Hide / unhide sidebar before it is displayed -->
-        <script type="text/javascript">
-            var html = document.querySelector('html');
-            var sidebar = 'hidden';
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
             }
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
         </script>
 
-        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction/introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><a href="installation/installation.html">Installation</a></li><li class="chapter-item expanded "><a href="chapter_1/running_kasm.html"><strong aria-hidden="true">1.</strong> Running KASM</a></li><li class="chapter-item expanded "><a href="chapter_2/kasm_language.html"><strong aria-hidden="true">2.</strong> KASM Language</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_2/for_beginners.html"><strong aria-hidden="true">2.1.</strong> For Beginners</a></li><li class="chapter-item expanded "><a href="chapter_2/basic_syntax.html"><strong aria-hidden="true">2.2.</strong> Basic Syntax</a></li><li class="chapter-item expanded "><a href="chapter_2/data_types.html"><strong aria-hidden="true">2.3.</strong> Data Types</a></li><li class="chapter-item expanded "><a href="chapter_2/expressions.html"><strong aria-hidden="true">2.4.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="chapter_2/instructions_list.html"><strong aria-hidden="true">2.5.</strong> Full Instruction List</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_3/kasm_preprocessor.html"><strong aria-hidden="true">3.</strong> KASM Preprocessor</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_3/single_line_macros.html"><strong aria-hidden="true">3.1.</strong> Single-Line Macros</a></li><li class="chapter-item expanded "><a href="chapter_3/multi_line_macros.html"><strong aria-hidden="true">3.2.</strong> Multi-Line Macros</a></li><li class="chapter-item expanded "><a href="chapter_3/repeats.html"><strong aria-hidden="true">3.3.</strong> Repeats</a></li><li class="chapter-item expanded "><a href="chapter_3/include.html"><strong aria-hidden="true">3.4.</strong> Include</a></li><li class="chapter-item expanded "><a href="chapter_3/if_directives.html"><strong aria-hidden="true">3.5.</strong> If* Directives</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_4/assembly_directives.html"><strong aria-hidden="true">4.</strong> Assembly Directives</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_4/sections.html"><strong aria-hidden="true">4.1.</strong> Sections</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_5/tutorial.html"><strong aria-hidden="true">5.</strong> Tutorial</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_5/hello_world.html"><strong aria-hidden="true">5.1.</strong> Hello World</a></li><li class="chapter-item expanded "><a href="chapter_5/launch.html"><strong aria-hidden="true">5.2.</strong> Launch</a></li><li class="chapter-item expanded "><a href="chapter_5/better_launch.html"><strong aria-hidden="true">5.3.</strong> Better Launch</a></li><li class="chapter-item expanded "><a href="chapter_5/miscellaneous.html"><strong aria-hidden="true">5.4.</strong> Miscellaneous</a></li><li class="chapter-item expanded "><a href="chapter_5/functions.html"><strong aria-hidden="true">5.5.</strong> Functions</a></li><li class="chapter-item expanded "><a href="chapter_5/static_libraries.html"><strong aria-hidden="true">5.6.</strong> Static Libraries</a></li><li class="chapter-item expanded "><a href="chapter_5/shared_libraries.html"><strong aria-hidden="true">5.7.</strong> Shared Libraries</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_6/built_ins.html"><strong aria-hidden="true">6.</strong> Built-In List</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_6/math.html"><strong aria-hidden="true">6.1.</strong> Math Functions</a></li><li class="chapter-item expanded "><a href="chapter_6/general.html"><strong aria-hidden="true">6.2.</strong> General</a></li><li class="chapter-item expanded "><a href="chapter_6/file_io.html"><strong aria-hidden="true">6.3.</strong> File I/O</a></li><li class="chapter-item expanded "><a href="chapter_6/internal.html"><strong aria-hidden="true">6.4.</strong> Internal</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_7/general_guides.html"><strong aria-hidden="true">7.</strong> General Guides</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_7/lists.html"><strong aria-hidden="true">7.1.</strong> Lists</a></li></ol></li></ol>
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
             </div>
-            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
-        <div id="page-wrapper" class="page-wrapper">
+        <div id="mdbook-page-wrapper" class="page-wrapper">
 
             <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
-                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
-                            <i class="fa fa-bars"></i>
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
                         </button>
-                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
-                            <i class="fa fa-paint-brush"></i>
-                        </button>
-                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
-                            <i class="fa fa-search"></i>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
                         </button>
                     </div>
 
@@ -115,53 +142,59 @@
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
-                            <i id="print-button" class="fa fa-print"></i>
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
 
                     </div>
                 </div>
 
-                <div id="search-wrapper" class="hidden">
-                    <form id="searchbar-outer" class="searchbar-outer">
-                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
                     </form>
-                    <div id="searchresults-outer" class="searchresults-outer hidden">
-                        <div id="searchresults-header" class="searchresults-header"></div>
-                        <ul id="searchresults">
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
                         </ul>
                     </div>
                 </div>
 
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
-                <script type="text/javascript">
-                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
-                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
-                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
                         link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
                     });
                 </script>
 
-                <div id="content" class="content">
+                <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <h2 id="what-is-kasm"><a class="header" href="#what-is-kasm">What is KASM?</a></h2>
 <p>The Kerbal Assembler, KASM, is an assembler created for the popular Kerbal Space Program mod kOS.
 The syntax is designed to be easy to understand and allow the user to write any code they could possibly write
-in kOS's native language KerbalScript, but with more flexibility. It currently supports all kOS instructions and
+in kOS’s native language KerbalScript, but with more flexibility. It currently supports all kOS instructions and
 the toolchain to create executable Kerbal Machine Code files or KSM files. It also has strong preprocessor support.</p>
 <h2 id="license"><a class="header" href="#license">License</a></h2>
 <p>KASM is under the GPL 3.0 License</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
 <p>The Kerbal Assembler can either be installed via cargo through crates.io, as a standalone binary, or as a Windows installed executable.</p>
 <h2 id="using-cargo"><a class="header" href="#using-cargo">Using Cargo</a></h2>
 <p>To install using cargo from crates.io, run the following command:</p>
 <pre><code>cargo install kasm
 </code></pre>
-<p><strong>kasm</strong> should now be added to your shell's PATH and can be run from any terminal.</p>
+<p><strong>kasm</strong> should now be added to your shell’s PATH and can be run from any terminal.</p>
 <h2 id="as-a-standalone-binary"><a class="header" href="#as-a-standalone-binary">As a Standalone Binary</a></h2>
 <p>In order the install the binary file, you must download it from the GitHub releases.</p>
 <ol>
-<li>Download and extract the latest release's zip file from the <a href="https://github.com/newcomb-luke/kOS-KASM/releases">Releases page</a></li>
+<li>Download and extract the latest release’s zip file from the <a href="https://github.com/newcomb-luke/kOS-KASM/releases">Releases page</a></li>
 <li>Place the executable in the desired location</li>
 <li><strong>kasm</strong> is now executable from the terminal. Powershell on Windows or your terminal on MacOS or Linux.</li>
 </ol>
@@ -172,7 +205,8 @@ the toolchain to create executable Kerbal Machine Code files or KSM files. It al
 <li>Run the installer, and follow the prompts</li>
 <li><strong>kasm</strong> should now be added to your PATH and available from the CMD and Powershell windows</li>
 </ol>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="chapter-1-running-kasm"><a class="header" href="#chapter-1-running-kasm">Chapter 1: Running KASM</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="chapter-1-running-kasm"><a class="header" href="#chapter-1-running-kasm">Chapter 1: Running KASM</a></h1>
 <p>The Kerbal Assembler can be invoked after installation simply as <code>kasm</code></p>
 <p>Help can be accessed from the program itself by running:</p>
 <pre><code>kasm --help
@@ -192,7 +226,7 @@ the toolchain to create executable Kerbal Machine Code files or KSM files. It al
 <p>Because KASM is just an assembler, and it produces a non-executable file, readers
 of this may be wondering how to create a file they can run in kOS.</p>
 <p>In order to that, another tool called <a href="https://github.com/newcomb-luke/kOS-KLinker">KLinker</a> is required. When installing KASM on Windows
-a separate &quot;full&quot; installer contains KLinker as well as a useful tool called <a href="https://github.com/newcomb-luke/KDump">KDump</a>.</p>
+a separate “full” installer contains KLinker as well as a useful tool called <a href="https://github.com/newcomb-luke/KDump">KDump</a>.</p>
 <p>If you have KLinker installed then in order to create a file that can be run in kOS you can run the following two commands:</p>
 <pre><code>kasm myfile.kasm -o myfile.ko
 kld myfile.ko -o program.ksm
@@ -207,21 +241,21 @@ Although a different directory can be specified as either an absolute or relativ
 </code></pre>
 <p>This will produce an output file named <code>game.ko</code> in your KSP directory that you fill in.</p>
 <h4 id="the--i-option-specifying-the-include-directory-path"><a class="header" href="#the--i-option-specifying-the-include-directory-path">The <code>-i</code> option: Specifying the include directory path</a></h4>
-<p>By default when the KASM preprocessor is executing <a href="chapter_1/">include directives</a> it looks in the same directory in which the source file is.</p>
+<p>By default when the KASM preprocessor is executing <a href="#chapter-1-running-kasm">include directives</a> it looks in the same directory in which the source file is.</p>
 <p>If you are including many different files, it may be in your interests to organize those files into a directory called <code>include</code> in your project folder.</p>
 <p>KASM allows you to still run the <strong>kasm</strong> command where you did before, but specify the include directory as <code>include</code>.</p>
 <p>This can be done using the <strong>-i</strong> option:</p>
-<p>MacOS/Linux: </p>
+<p>MacOS/Linux:</p>
 <pre><code>kasm fancycode.kasm -i ./include/ ...
 </code></pre>
 <p>Windows:</p>
 <pre><code>kasm fancycode.kasm -i .\macros\ ...
 </code></pre>
 <h4 id="the--f-option-setting-the-file-symbol-name"><a class="header" href="#the--f-option-setting-the-file-symbol-name">The <code>-f</code> option: Setting the file symbol name</a></h4>
-<p>Normally KASM outputs to the KerbalObject file format, which stores the source file's name to be referenced later
+<p>Normally KASM outputs to the KerbalObject file format, which stores the source file’s name to be referenced later
 in the case of any errors. This defaults to the current input file name, but in the case of implementing an intermediary between
 the user and KASM such as a compiler, a different source file name should be displayed.</p>
-<p>In a hypothetical scenario let's say we have a compiler for a language called Yes Language where the files have <code>.yl</code> extensions: <code>program.yl</code></p>
+<p>In a hypothetical scenario let’s say we have a compiler for a language called Yes Language where the files have <code>.yl</code> extensions: <code>program.yl</code></p>
 <p>This compiler produces KASM source code which is assembled using <strong>kasm</strong>.</p>
 <p>This can be specified so that later error messages use the <code>.yl</code> extension using the <strong>-f</strong> option:</p>
 <pre><code>kasm program.kasm -f program.yl ...
@@ -233,7 +267,7 @@ file that explains how the file was created. This can be read using a utility su
 the file can see what program compiled the code.</p>
 <p>An example comment would currently be: <code>Compiled by KASM 0.11.0</code></p>
 <p>Any message can be displayed though with the <code>-c</code> option:</p>
-<pre><code>kasm program.kasm -c &quot;KASM is pretty neat, yo&quot; ...
+<pre><code>kasm program.kasm -c "KASM is pretty neat, yo" ...
 </code></pre>
 <ul>
 <li><strong>Note</strong>: The comment will only show up in the final .ksm file created by KLinker if the file has the program entry point (either <code>_start:</code> or <code>_init:</code>)</li>
@@ -263,13 +297,15 @@ This can be useful in some cases for debugging or simply wanting all of the code
 <p>This format is used by the linker to link multiple parts of a program together that were in seperate source files.</p>
 <p>These files can be viewed using a program called <a href="https://github.com/newcomb-luke/KDump">KDump</a>, as well as finished KSM files.</p>
 <p>KO files must be passed to the <a href="https://github.com/newcomb-luke/kOS-KLinker">linker</a> in order to become executable by kOS.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="chapter-2-kasm-language"><a class="header" href="#chapter-2-kasm-language">Chapter 2: KASM Language</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="chapter-2-kasm-language"><a class="header" href="#chapter-2-kasm-language">Chapter 2: KASM Language</a></h1>
 <p>This chapter will go over the specifics of KASM assembly language without diving into preprocessor directives.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="for-beginners"><a class="header" href="#for-beginners">For Beginners</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="for-beginners"><a class="header" href="#for-beginners">For Beginners</a></h1>
 <p>Hopefully by the time someone is reading this, there will be better options for non-KerbalScript code that
 runs inside of kOS. If you are trying to write such a program, or just want to try to learn or practice with
 assembly using Kerbal Space Program and kOS, then hopefully this page can give you a brief introduction to assembly language.</p>
-<p>If you have previous experience with assembly language, you can probably skip this section and go straight to the <a href="chapter_2/../chapter_5/tutorial.html">tutorial</a>.</p>
+<p>If you have previous experience with assembly language, you can probably skip this section and go straight to the <a href="#tutorial">tutorial</a>.</p>
 <p>For the purposes of this explanation, KerbalScript code will be used to try to illustrate some ideas.</p>
 <h3 id="code"><a class="header" href="#code">Code</a></h3>
 <p>In most programming languages, when source code is written, it has to undergo a process called compilation. This turns the
@@ -288,20 +324,20 @@ compilation to turn this code into a form that it can understand.</p>
 0x34 (X)
 </code></pre>
 <p>This may be difficult to understand at first, but we will break it down:</p>
-<p>Each line represents what is called an &quot;instruction&quot;</p>
+<p>Each line represents what is called an “instruction”</p>
 <p>Computers, like kOS, can only do one thing at a time, so it cannot add 2 and 4 together and store them in a variable called X at the same time.</p>
 <p>The first instruction has the <em>opcode</em> of 0x4e. 0x4e is a <em>hexadecimal</em> number. Each instruction is given a unique number that the computer knows,
 so it knows what operation to perform. Hexadecimal is just a way of writing this number, but in our normal base-10 number system this number is <code>78</code>.
 The number itself though, is not important.</p>
-<p>The instruction <code>0x4e</code> is called the &quot;push&quot; instruction. Inside of kOS there is a bunch of data stacked on top of each other, aptly named the &quot;stack&quot;.
+<p>The instruction <code>0x4e</code> is called the “push” instruction. Inside of kOS there is a bunch of data stacked on top of each other, aptly named the “stack”.
 The stack is used to store data that is used for something later, but not for storing things long-term like inside of variables.</p>
-<p>On the first line, <code>0x4e (2)</code> means that we are &quot;pushing&quot; the value of 2 onto the stack. So the number 2 is stored somewhere. This corresponds
+<p>On the first line, <code>0x4e (2)</code> means that we are “pushing” the value of 2 onto the stack. So the number 2 is stored somewhere. This corresponds
 to the 2 in our KerbalScript code.</p>
 <p>On the second line <code>0x4e (4)</code>, we do the same thing, but we push the value of 4. Now the stack contains the numbers 2 and 4.</p>
-<p>The third line, opcode <code>0x3c</code>, means &quot;add&quot; and it tells the computer to add the last two values on the stack. In this case, that is 2 and 4.
+<p>The third line, opcode <code>0x3c</code>, means “add” and it tells the computer to add the last two values on the stack. In this case, that is 2 and 4.
 The result is then stored back on the stack, and we know that the answer is 6.</p>
 <p>The final line, <code>0x34 (X)</code> is opcode <code>0x34</code> which tells kOS to store the value on the top of the stack into the variable that is given with the
-instruction, in this case that is 'X'.</p>
+instruction, in this case that is ‘X’.</p>
 <p>At the end of this code, the numbers 2 and 4 were added, and the result was stored inside of a variable named X.</p>
 <p>This is actually what is happening when the KerbalScript code above is run, and compiled.</p>
 <h3 id="rationale"><a class="header" href="#rationale">Rationale</a></h3>
@@ -312,11 +348,12 @@ which can be run inside of kOS, allowing them to create a new programming langua
 <pre><code>push 2
 push 4
 add
-sto &quot;$x&quot;
+sto "$x"
 </code></pre>
 <p>As you can see it can be written as a text file, and yet performs the same function!</p>
-<p>How to actually write this code, or the syntax of KASM, is explained in the <a href="chapter_2/../chapter_5/tutorial.html">tutorial</a>.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="basic-syntax"><a class="header" href="#basic-syntax">Basic Syntax</a></h1>
+<p>How to actually write this code, or the syntax of KASM, is explained in the <a href="#tutorial">tutorial</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="basic-syntax"><a class="header" href="#basic-syntax">Basic Syntax</a></h1>
 <p>Like most assemblers, each KASM source line contains some combination of four fields:</p>
 <p><code>label: instruction operands ; comment</code></p>
 <p>Most of these fields are optional, with restriction of the operands field based on which instruction it is.</p>
@@ -387,7 +424,7 @@ end:
 </code></pre>
 <p>Label names can consist of any string of letters and numbers, including underscores. Although they cannot start with a number.</p>
 <h2 id="inner-labels"><a class="header" href="#inner-labels">Inner Labels</a></h2>
-<p>All of this example code has existed in isolation, however in larger projects, one would not want to use the label &quot;loop&quot; because
+<p>All of this example code has existed in isolation, however in larger projects, one would not want to use the label “loop” because
 duplicate labels are not allowed. The user could name every single loop something different, but this can get in the way. Inner labels
 were created to solve this problem.</p>
 <p>Inner labels are tied to a parent label, so they can be reused later in the program if the parent label is different.</p>
@@ -406,10 +443,10 @@ adder:              ; This is the parent label
         push 1
         sub
 
-        push &quot;$x&quot;   ; Gets the current value inside of x
+        push "$x"   ; Gets the current value inside of x
         push 1      
         add         ; Adds 1
-        sto &quot;$x&quot;    ; Stores the result back into x
+        sto "$x"    ; Stores the result back into x
 
         jmp .loop
     .end:
@@ -420,10 +457,16 @@ subtracter:
     .loop:          ; This is not a duplicate!
         ...
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="data-types"><a class="header" href="#data-types">Data Types</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="data-types"><a class="header" href="#data-types">Data Types</a></h1>
 <p>In kOS, unlike in many other computing platforms, each value has an associated type.</p>
 <p>These types are as follows:</p>
-<div class="table-wrapper"><table><thead><tr><th>Argument Type Value</th><th style="text-align: center">Type</th></tr></thead><tbody>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument Type Value</th><th style="text-align: center">Type</th></tr>
+</thead>
+<tbody>
 <tr><td>0</td><td style="text-align: center">NULL</td></tr>
 <tr><td>1</td><td style="text-align: center">Bool</td></tr>
 <tr><td>2</td><td style="text-align: center">Byte</td></tr>
@@ -437,18 +480,19 @@ subtracter:
 <tr><td>10</td><td style="text-align: center">ScalarDouble</td></tr>
 <tr><td>11</td><td style="text-align: center">BoolValue</td></tr>
 <tr><td>12</td><td style="text-align: center">StringValue</td></tr>
-</tbody></table>
+</tbody>
+</table>
 </div>
 <ul>
-<li><strong>NULL</strong> is a value that is equivalent to &quot;nothing&quot;</li>
+<li><strong>NULL</strong> is a value that is equivalent to “nothing”</li>
 <li><strong>Bool</strong> is a true or false value</li>
 <li><strong>Byte</strong> is an integer that can store numbers from -128 to 127</li>
 <li><strong>Int16</strong> is an integer that can store numbers from -32,768 to 32,767</li>
 <li><strong>Int32</strong> is an integer that can store numbers from -2,147,483,648 to 2,147,483,647</li>
 <li><strong>Float</strong> is a number that can have a fractional component such as 2.33</li>
 <li><strong>Double</strong> is a float, but with double the precision of the fractional component, see <a href="https://en.wikipedia.org/wiki/Double-precision_floating-point_format">this</a></li>
-<li><strong>String</strong> is a &quot;string&quot; of characters, such as &quot;Hello, kOS!&quot;</li>
-<li><strong>ARG MARKER</strong> is a special value used inside of kOS that marks the end of function &quot;arguments&quot;</li>
+<li><strong>String</strong> is a “string” of characters, such as “Hello, kOS!”</li>
+<li><strong>ARG MARKER</strong> is a special value used inside of kOS that marks the end of function “arguments”</li>
 <li><strong>ScalarInt</strong> is an integer that can store the same numbers as the Int32, but has associated functions inside of kOS</li>
 <li><strong>ScalarDouble</strong> is a double, but with associated functions inside of kOS</li>
 <li><strong>BoolValue</strong> is a boolean value, true or false, but with associated functions</li>
@@ -466,8 +510,8 @@ subtracter:
 <p>00 would be stored as an <code>Int16</code> because it is the smallest type that can hold the value of <code>200</code>.</p>
 <p>When trying to pass any floating-point number such as <code>2.33</code>, KASM will automatically store it as a <code>Double</code>.</p>
 <p>If you wanted to push a <code>StringValue</code> instead of a <code>String</code> in KASM, you simply use the pushv pseudoinstruction:</p>
-<pre><code>push  &quot;Hello&quot;        ; This is a regular String
-pushv &quot;kOS!&quot;         ; This will push a StringValue
+<pre><code>push  "Hello"        ; This is a regular String
+pushv "kOS!"         ; This will push a StringValue
 </code></pre>
 <p>If <code>pushv</code> is given an integer, it will be pushed as a <code>ScalarInt</code>.</p>
 <h2 id="pushing-other-types"><a class="header" href="#pushing-other-types">Pushing Other Types</a></h2>
@@ -490,14 +534,15 @@ c  .i8   120      ; Byte
 d  .i16  300      ; Int16
 e  .i32  900      ; Int32
 f  .f64  2.33     ; Double
-g  .s    &quot;Hello&quot;  ; String
+g  .s    "Hello"  ; String
 h  @              ; Arg Marker
 i  .i32v 900      ; ScalarInt
 j  .f64v 2.33     ; ScalarDouble
 k  .bf   false    ; BoolValue
-l  .sv   &quot;kOS&quot;    ; StringValue
+l  .sv   "kOS"    ; StringValue
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="expressions"><a class="header" href="#expressions">Expressions</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="expressions"><a class="header" href="#expressions">Expressions</a></h1>
 <p>Expressions can be used in KASM in place of constants, when it is more convenient to do so.</p>
 <p>In KASM, expressions either produce an integer, a double, or a boolean value.
 An integer is not allowed to be used in place of a boolean, nor a double. Nor a boolean in place of either.</p>
@@ -549,18 +594,18 @@ pushv (5.0 / 2.0) &gt; 2.0
 pushv true
 </code></pre>
 <p>Expressions become more useful when introducing macros in future sections.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="full-instruction-list"><a class="header" href="#full-instruction-list">Full Instruction List</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="full-instruction-list"><a class="header" href="#full-instruction-list">Full Instruction List</a></h1>
 <p>This is simply a list of all instructions that are in KASM, grouped by common purpose.</p>
 <p>For more detailed instruction descriptions and information, see <a href="https://github.com/newcomb-luke/kOS-KLinker/blob/main/docs/Instruction-docs.md">here</a>.</p>
 <h2 id="stack-operations"><a class="header" href="#stack-operations">Stack Operations</a></h2>
 <p><strong>push</strong> (any) - Pushes a value to the stack</p>
-<p><strong>pushv</strong> (any) - Pushes a value to the stack, but as kOS &quot;scalar&quot; or &quot;value&quot; versions<br />
-(this instruction does not exist in kOS, it is just for the purposes of user control)</p>
+<p><strong>pushv</strong> (any) - Pushes a value to the stack, but as kOS “scalar” or “value” versions<br>(this instruction does not exist in kOS, it is just for the purposes of user control)</p>
 <p><strong>pop</strong> - Removes the value from the top of the stack and discards it</p>
 <p><strong>dup</strong> - Copies the value from the top of the stack and pushes that copy, so there are two of the original</p>
 <p><strong>swap</strong> - Swaps the value on the top of the stack and the one below it</p>
 <p><strong>eval</strong> - Returns the value referenced by the topmost variable on the stack</p>
-<p><strong>argb</strong> - Asserts that the topmost thing on the stack is an argument marker (throws a kOS error if it isn't!)</p>
+<p><strong>argb</strong> - Asserts that the topmost thing on the stack is an argument marker (throws a kOS error if it isn’t!)</p>
 <p><strong>targ</strong> - Tests if the topmost thing on the stack is an argument marker and pushes a true on top if it is, or false if it is not.</p>
 <h2 id="mathematical-operations"><a class="header" href="#mathematical-operations">Mathematical Operations</a></h2>
 <p>These all push the result back to the stack</p>
@@ -589,6 +634,7 @@ pushv true
 <p><strong>eop</strong> - Tells kOS that this is the end of the program</p>
 <p><strong>nop</strong> - No-Op, does nothing</p>
 <p><strong>jmp</strong> (string | int | label) - Unconditionally jumps to the location specified in the operand, it can be a string or an integer (for relative jumps)</p>
+<p><strong>jmps</strong> - Unconditionally jumps to the absolute instruction pointer on the stack</p>
 <p><strong>call</strong> (string | label), (string) - Calls a subroutine, leaving the result on the stack, both operands are strings</p>
 <p><strong>ret</strong> (int) - Returns from a subroutine and pops off the number of scopes as provided in the operand</p>
 <p><strong>btr</strong> (string | int | label) - If the value on the top of the stack is true, then it branches to the given location</p>
@@ -597,7 +643,7 @@ pushv true
 <h2 id="variable-manipulation"><a class="header" href="#variable-manipulation">Variable Manipulation</a></h2>
 <p><strong>sto</strong> (string) - Stores the value on the top of the stack in the variable specified by the operand</p>
 <p><strong>uns</strong> - Removes the variable named by the value on the top of the stack</p>
-<p><strong>stol</strong> (string) - Stores the value on the top of the stack in the variable specified by the operand, but if the variable does not exist in the current scope it won't attempt to look for it in a higher scope.</p>
+<p><strong>stol</strong> (string) - Stores the value on the top of the stack in the variable specified by the operand, but if the variable does not exist in the current scope it won’t attempt to look for it in a higher scope.</p>
 <p><strong>stog</strong> (string) - Stores the value on the top of the stack in the variable specified by the operand, but always stores it in a global variable.</p>
 <p><strong>stoe</strong> (string) - Stores the value on the top of the stack in the variable specified by the operand, but if the variable does not exist yet, it will throw an error instead of creating a new one.</p>
 <p><strong>exst</strong> - Tests if the identifier on the top of the stack is a variable, and is in scope. It will push true if it is, and false if it is not.</p>
@@ -614,24 +660,25 @@ contains the Interrupt Priority level of the trigger. For one trigger to interru
 until the first trigger is completed before it will fire.</p>
 <p><strong>rmvt</strong> - Pops a function pointer from the stack and removes any triggers that call that function pointer.</p>
 <h2 id="scopes"><a class="header" href="#scopes">Scopes</a></h2>
-<p><strong>bscp</strong> (int), (int) - Pushes a new variable namespace scope (for example, when a &quot;{&quot; is encountered in a block-scoping language),
+<p><strong>bscp</strong> (int), (int) - Pushes a new variable namespace scope (for example, when a “{” is encountered in a block-scoping language),
 the first operand being the new scope id, and the second one being the parent scope id.</p>
-<p><strong>escp</strong> (int) - Pops a variable namespace scope (for example, when a &quot;}&quot; is encountered in a block-scoping language), the operand
+<p><strong>escp</strong> (int) - Pops a variable namespace scope (for example, when a “}” is encountered in a block-scoping language), the operand
 being the number of scope depths to pop.</p>
 <h2 id="delegates"><a class="header" href="#delegates">Delegates</a></h2>
 <p><strong>phdl</strong> (int), (bool) - Pushes a delegate object onto the stack, optionally capturing a closure.</p>
 <p><strong>prl</strong> (string) - See KOS Code docs for more information.</p>
-<p><strong>pdrl</strong> (string), (bool) - This serves the same purpose as prl, except it's for use with UserDelegates instead of raw integer IP calls.</p>
+<p><strong>pdrl</strong> (string), (bool) - This serves the same purpose as prl, except it’s for use with UserDelegates instead of raw integer IP calls.</p>
 <h2 id="misc"><a class="header" href="#misc">Misc.</a></h2>
-<p><strong>lbrt</strong> (string) - It exists purely to store, as an operand, the label of the next opcode to follow it. Mostly used for internal kOS things.<br />
-This shouldn't really be used when writing KASM unless you know exactly what you are doing, as it can have unintended and hard to debug consequences.</p>
+<p><strong>lbrt</strong> (string) - It exists purely to store, as an operand, the label of the next opcode to follow it. Mostly used for internal kOS things.<br>This shouldn’t really be used when writing KASM unless you know exactly what you are doing, as it can have unintended and hard to debug consequences.</p>
 <p><strong>tcan</strong> - Tests whether or not the current subroutine context on the stack that is being executed right now is one that has been flagged
 as cancelled by someone having called SubroutineContext.Cancel(). This pushes a True or a False on the stack to provide the answer. This should be
 the first thing done by triggers that wish to be cancel-able by other triggers.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="chapter-3-kasm-preprocessor"><a class="header" href="#chapter-3-kasm-preprocessor">Chapter 3: KASM Preprocessor</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="chapter-3-kasm-preprocessor"><a class="header" href="#chapter-3-kasm-preprocessor">Chapter 3: KASM Preprocessor</a></h1>
 <p>KASM contains a powerful macro processor, which supports conditional assembly, multi-level file inclusion, and two forms of macro (single-line and multi-line).</p>
 <p>Preprocessor directives all start with a dot (.)</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="single-line-macros"><a class="header" href="#single-line-macros">Single-Line Macros</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="single-line-macros"><a class="header" href="#single-line-macros">Single-Line Macros</a></h1>
 <h2 id="declaration"><a class="header" href="#declaration">Declaration</a></h2>
 <p>Single-line macros are defined using the <code>.define</code> directive:</p>
 <pre><code>.define NUM         25
@@ -692,7 +739,8 @@ push a(2)
 </code></pre>
 <p>This is valid and will not cause a conflict. Which macro gets expanded depends on the number of arguments. Hence why the <code>.undef</code> directive
 requires the number of arguments to be specified: so that it knows which one to undefine.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="multi-line-macros"><a class="header" href="#multi-line-macros">Multi-Line Macros</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="multi-line-macros"><a class="header" href="#multi-line-macros">Multi-Line Macros</a></h1>
 <h2 id="declaration-1"><a class="header" href="#declaration-1">Declaration</a></h2>
 <p>Multi-line macros are defined using the <code>.macro</code> and <code>.endmacro</code> directives:</p>
 <pre><code>.macro MULTI
@@ -725,7 +773,7 @@ add
 <p>Multi-Line macros can have default arguments as well, and this is specified by using a range.</p>
 <p>The first number is the minimum number of required arguments, and the second number is the maximum number of required arguments.</p>
 <p>A valid range would be <code>0-1</code></p>
-<p>This is placed after the macro's identifier. But if default arguments are used, the default values must be given, separated by commas,
+<p>This is placed after the macro’s identifier. But if default arguments are used, the default values must be given, separated by commas,
 after the range. The number of default values given must match the maximum number of require arguments, minus those that are required.</p>
 <pre><code>.macro RET 0-1 1
     RET &amp;1
@@ -784,10 +832,11 @@ sub
 .endmacro
 </code></pre>
 <p>These macros do not conflict because they both have different numbers of arguments. However if the first definition had an argument range of <code>1-2</code> they would conflict.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="repeats"><a class="header" href="#repeats">Repeats</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="repeats"><a class="header" href="#repeats">Repeats</a></h1>
 <p>A repeat is similar to a macro, but it cannot take arguments. Instead after a <code>.rep</code> directive, the preprocessor expects
 a number of times for the tokens inside to be repeated. A repeat block is ended with a <code>.endrep</code> directive.</p>
-<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<h2 id="simple-example"><a class="header" href="#simple-example">Simple Example</a></h2>
 <pre><code>.rep 5
     push 0
 .endrep
@@ -799,12 +848,49 @@ push 0
 push 0
 push 0
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="include"><a class="header" href="#include">Include</a></h1>
+<h2 id="number-of-iterations"><a class="header" href="#number-of-iterations">Number of Iterations</a></h2>
+<p>You can get access to the current iteration number by specifying either <code>&amp;0</code> or <code>&amp;1</code>. The only difference between them being that <code>&amp;0</code> will start at 0, and <code>&amp;1</code> will start at 1.</p>
+<pre><code>.rep 5
+    push &amp;0
+.endrep
+</code></pre>
+<p>This would expand to the following:</p>
+<pre><code>push 0
+push 1
+push 2
+push 4
+push 4
+</code></pre>
+<p>Meanwhile</p>
+<pre><code>.rep 5
+    push &amp;1
+.endrep
+</code></pre>
+<p>Would expand to the following:</p>
+<pre><code>push 1
+push 2
+push 3
+push 4
+push 5
+</code></pre>
+<p>This is just meant to be a quality of life improvement, as you can always perform arithmetic on the result:</p>
+<pre><code>.rep 5
+    push &amp;0 + 3
+.endrep
+</code></pre>
+<pre><code>push 3
+push 4
+push 5
+push 6
+push 7
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="include"><a class="header" href="#include">Include</a></h1>
 <p>The <code>.include</code> directive is a powerful preprocessor directive that allows the programmer to include source code from another file into the current file.</p>
-<h2 id="example-1"><a class="header" href="#example-1">Example</a></h2>
-<pre><code>.include &quot;macros.kasm&quot;
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<pre><code>.include "macros.kasm"
 
-PRINT &quot;Hello, world!&quot;
+PRINT "Hello, world!"
 </code></pre>
 <p>This assumes that the source file called <code>macros.kasm</code> is in the same directory as the main file, or in the include directory specified by <strong>-i</strong>
 and it contains (at least):</p>
@@ -813,7 +899,7 @@ and it contains (at least):</p>
 .macro PRINT 1
     push @
     push &amp;1
-    call &quot;&quot;, &quot;print()&quot;
+    call "", "print()"
     pop
 .endmacro
 </code></pre>
@@ -821,14 +907,15 @@ and it contains (at least):</p>
 <pre><code>.macro PRINT 1
     push @
     push &amp;1
-    call &quot;&quot;, &quot;print()&quot;
+    call "", "print()"
     pop
 .endmacro
 
-PRINT &quot;Hello, world!&quot;
+PRINT "Hello, world!"
 </code></pre>
 <p>This allows the programmer to organize macro definitions and other code much more effectively.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="if-directives"><a class="header" href="#if-directives">If* Directives</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="if-directives"><a class="header" href="#if-directives">If* Directives</a></h1>
 <p>As stated previously, KASM supports conditional assembly, which means that some code could, or could
 not be included in the final binary if logic that KASM follows is met, or not.</p>
 <p>These are extremely similar to C-style #if directives.</p>
@@ -839,18 +926,18 @@ not be included in the final binary if logic that KASM follows is met, or not.</
 
 .ifdef DEBUG                            ; If something is defined
     .if VERBOSE == 1                    ; Nested!
-        PRINT &quot;Debug mode on!&quot;
+        PRINT "Debug mode on!"
     .elif VERBOSE == 2                  ; Else if
-        PRINT &quot;Extra debug mode on!&quot;
+        PRINT "Extra debug mode on!"
     .elifdef PRINT_MESSAGES
-        PRINT_MESSAGE(&quot;Oh no&quot;)
+        PRINT_MESSAGE("Oh no")
     .endif                              ; Must show end of if
 .else
     ; Do something else
 .endif
 </code></pre>
 <p>In this case the code would end up being this:</p>
-<pre><code>PRINT &quot;Extra debug mode on!&quot;
+<pre><code>PRINT "Extra debug mode on!"
 </code></pre>
 <h2 id="variants"><a class="header" href="#variants">Variants</a></h2>
 <p>Other variants such as .ifn (if not), .elifn (else if not), and .ifndef/.elifndef also are supported:</p>
@@ -865,13 +952,14 @@ not be included in the final binary if logic that KASM follows is met, or not.</
 <li>elifndef &lt;identifier&gt;</li>
 <li>endif</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="chapter-4-assembly-directives"><a class="header" href="#chapter-4-assembly-directives">Chapter 4: Assembly Directives</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="chapter-4-assembly-directives"><a class="header" href="#chapter-4-assembly-directives">Chapter 4: Assembly Directives</a></h1>
 <p>Besides the preprocessor directives, KASM also has a few assembly directives that are not for preprocessing purposes.</p>
 <h2 id="extern---external"><a class="header" href="#extern---external"><code>.extern</code> - External</a></h2>
 <p>This directive defines a symbol as external to the linker.</p>
 <p>This means that whatever symbol this specifies is not in this file, but is in another file that will be linked with the output of this one.</p>
 <p>In more general terms, it is a promise that a symbol exists somewhere else.</p>
-<h4 id="example-2"><a class="header" href="#example-2">Example</a></h4>
+<h4 id="example-1"><a class="header" href="#example-1">Example</a></h4>
 <pre><code>.extern .func add_func
 
 call add_func, #
@@ -895,8 +983,8 @@ func_name:
     ...
 </code></pre>
 <h2 id="type---symbol-type"><a class="header" href="#type---symbol-type"><code>.type</code> - Symbol Type</a></h2>
-<p>This declares a symbol's type. As you may have noticed in the <code>.extern</code> example there was the type of the symbol specified (<code>.func</code>).</p>
-<p>This can be done when the symbol's binding (local, global, or extern) is specified, but it can also be done later.</p>
+<p>This declares a symbol’s type. As you may have noticed in the <code>.extern</code> example there was the type of the symbol specified (<code>.func</code>).</p>
+<p>This can be done when the symbol’s binding (local, global, or extern) is specified, but it can also be done later.</p>
 <p>An equivalent set of code to the <code>.extern</code> example, but using <code>.type</code> would be:</p>
 <pre><code>.extern add_func
 .type .func add_func
@@ -915,7 +1003,8 @@ func_name:
 add_func:
     ....
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="sections"><a class="header" href="#sections">Sections</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="sections"><a class="header" href="#sections">Sections</a></h1>
 <p>In KASM there are two types of sections in a .kasm file:</p>
 <ul>
 <li>Text</li>
@@ -928,7 +1017,7 @@ add_func:
 </code></pre>
 <h2 id="text-sections"><a class="header" href="#text-sections">Text Sections</a></h2>
 <p>By default, KASM is already in a <code>.text</code> section, so you are already familiar with what that means: you can write code in it</p>
-<h4 id="example-3"><a class="header" href="#example-3">Example</a></h4>
+<h4 id="example-2"><a class="header" href="#example-2">Example</a></h4>
 <pre><code>.section .text
 
 .func
@@ -944,12 +1033,14 @@ preprocessor includes or copy-and-pasting, we use a <code>.data</code> section.<
 PI .f64v  3.1415 ; Declares a symbol named PI
                  ; that is a ScalarDouble with a value of 3.1415
 </code></pre>
-<p>See <a href="chapter_4/../chapter_2/data_types.html">Data Types</a> for information on how to declare symbols of all types</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="tutorial"><a class="header" href="#tutorial">Tutorial</a></h1>
+<p>See <a href="#data-types">Data Types</a> for information on how to declare symbols of all types</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="tutorial"><a class="header" href="#tutorial">Tutorial</a></h1>
 <p>This tutorial assumes that you have both <strong>kasm</strong> and <a href="https://github.com/newcomb-luke/kOS-KLinker"><strong>kld</strong></a> installed.</p>
 <p>This also assumes that you have a moderate understanding of programming, and hopefully at least a small understanding of assembly language.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="hello-world"><a class="header" href="#hello-world">Hello World</a></h1>
-<p>Following in the footsteps of the official kOS KerboScript tutorials, the first thing that you will learn is how to print &quot;Hello world&quot;</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="hello-world"><a class="header" href="#hello-world">Hello World</a></h1>
+<p>Following in the footsteps of the official kOS KerboScript tutorials, the first thing that you will learn is how to print “Hello world”</p>
 <p>There is some boilerplate (template) code that one must always write to create an executable program in KASM:</p>
 <p>Start off by creating a new file called <code>hello.kasm</code> wherever you would like.</p>
 <p>Then write the following lines:</p>
@@ -976,8 +1067,8 @@ Otherwise, strange and difficult to debug things happen.</p>
 <p>Now we can resume writing our hello world program!</p>
 <p>All we do is add the following four lines inside of our <code>_start</code>:</p>
 <pre><code>push @
-push &quot;Hello world!&quot;
-call #, &quot;print()&quot;
+push "Hello world!"
+call #, "print()"
 pop
 </code></pre>
 <p>When calling a function in KASM, there are two ways to do it:</p>
@@ -985,7 +1076,7 @@ pop
 <pre><code>call func_name, #
 </code></pre>
 <p>And:</p>
-<pre><code>call #, &quot;func_name()&quot;
+<pre><code>call #, "func_name()"
 </code></pre>
 <p>The above syntax is used when calling built-in kOS functions. There will be a list of those at the end of the tutorials list.</p>
 <p>When calling built-in functions, if they are not meant to return any value to you, such as <code>print()</code>, then they return a NULL value.</p>
@@ -993,7 +1084,7 @@ pop
 <p>Both ways of calling a function require you to <code>push</code> your arguments onto the stack before you call it.</p>
 <p>First we <code>push @</code> to push a function <em>argument marker</em> which just is there to mark the end of the arguments to a function. Remember
 <code>push</code> adds things to the top of the stack.</p>
-<p>So when we next say <code>push &quot;Hello world!&quot;</code> with actually pushes the string we want to print onto the stack.</p>
+<p>So when we next say <code>push "Hello world!"</code> with actually pushes the string we want to print onto the stack.</p>
 <p>The stack now has our string, and our argument marker. Then <code>call</code> is called.</p>
 <h4 id="final-code"><a class="header" href="#final-code">Final code</a></h4>
 <p>The final code to print out hello world onto the screen in kOS is:</p>
@@ -1002,12 +1093,12 @@ pop
 .func
 _start:
     push @
-    push &quot;Hello world!&quot;
-    call #, &quot;print()&quot;
+    push "Hello world!"
+    call #, "print()"
     pop
     eop
 </code></pre>
-<p>Feel free to replace the string <code>&quot;Hello world!&quot;</code> with whatever you want.</p>
+<p>Feel free to replace the string <code>"Hello world!"</code> with whatever you want.</p>
 <p>You can even replace the string entirely, <code>print()</code> prints numbers and booleans as well.</p>
 <h4 id="using-the-code"><a class="header" href="#using-the-code">Using the code</a></h4>
 <p>In order to get this code into a format kOS can use, we have to run these two commands:</p>
@@ -1019,8 +1110,9 @@ that you can run in kOS by typing:</p>
 <pre><code>SWITCH TO 0.
 RUN hello_world.ksm.
 </code></pre>
-<p>See <a href="chapter_5/../chapter_1/running_kasm.html">how to run KASM</a> and the <a href="https://github.com/newcomb-luke/kOS-KLinker">KLinker Docs</a> if you are confused.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="simple-launch-code"><a class="header" href="#simple-launch-code">Simple Launch Code</a></h1>
+<p>See <a href="#chapter-1-running-kasm">how to run KASM</a> and the <a href="https://github.com/newcomb-luke/kOS-KLinker">KLinker Docs</a> if you are confused.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="simple-launch-code"><a class="header" href="#simple-launch-code">Simple Launch Code</a></h1>
 <p>This tutorial assumes that you have a built rocket in KSP that you are trying to launch.</p>
 <p>In this example we will make a program that will launch a vessel from the launch pad.</p>
 <p>This example mainly follows along with the kOS KerboScript documentation.</p>
@@ -1034,14 +1126,14 @@ In order to make it look nicer this time, we will clear the screen.</p>
 <p>We can create a macro that will call it for us, so that all we have to do is invoke that macro:</p>
 <pre><code>.macro CLEARSCREEN
     push @
-    call #, &quot;clearscreen()&quot;
+    call #, "clearscreen()"
     pop
 .endmacro
 </code></pre>
 <p>If all we wanted our code to do was clear the screen, then this is all that we would need:</p>
 <pre><code>.macro CLEARSCREEN
     push @
-    call #, &quot;clearscreen()&quot;
+    call #, "clearscreen()"
     pop
 .endmacro
 
@@ -1057,7 +1149,7 @@ _start:
 <pre><code>.macro PRINT
     push @
     swap
-    call #, &quot;print()&quot;
+    call #, "print()"
     pop
 .endmacro
 </code></pre>
@@ -1066,14 +1158,14 @@ _start:
 <h4 id="working-code"><a class="header" href="#working-code">Working Code</a></h4>
 <pre><code>.macro CLEARSCREEN
     push @
-    call #, &quot;clearscreen()&quot;
+    call #, "clearscreen()"
     pop
 .endmacro
 
 .macro PRINT
     push @
     swap
-    call #, &quot;print()&quot;
+    call #, "print()"
     pop
 .endmacro
 
@@ -1083,7 +1175,7 @@ _start:
 _start:
     CLEARSCREEN
 
-    push &quot;Counting down:&quot;
+    push "Counting down:"
     PRINT
 
     push 10 ; We will count down from 10 (counter)
@@ -1095,9 +1187,9 @@ _start:
 	btr .countdown_end   ; We jump to the end of the loop if that was true
 	dup                  ; Duplicate our counter value on the stack so
                              ;   that we print one, and use the other for counting
-	push &quot;...&quot;           ; Push some dots that we will print out before each number
-	swap                 ; Swap them because concatenation happens &quot;backwards&quot;
-	add                  ; Concatenate &quot;...&quot; + counter
+	push "..."           ; Push some dots that we will print out before each number
+	swap                 ; Swap them because concatenation happens "backwards"
+	add                  ; Concatenate "..." + counter
 	PRINT                ; Print them
 
 	pushv 1              ; Push a value of 1
@@ -1112,7 +1204,8 @@ _start:
     eop
 </code></pre>
 <p>In the next tutorial we will modify this example, so stay tuned!</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="better-launch-code"><a class="header" href="#better-launch-code">Better Launch Code</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="better-launch-code"><a class="header" href="#better-launch-code">Better Launch Code</a></h1>
 <p>This tutorial builds off of the last, improving our launch code.</p>
 <p>The first order of business is to actually start the engine. As you know this is done by setting the throttle to 100%, and staging.</p>
 <p>In order to set the throttle, we need to introduce how to access variables in KASM.</p>
@@ -1122,7 +1215,7 @@ _start:
 <li>bscp - Begin scope</li>
 <li>escp - End scope</li>
 </ul>
-<p>By default kOS creates a global variable scope, whose ID is 0. If we want to make variables in our &quot;main function&quot; scope, the
+<p>By default kOS creates a global variable scope, whose ID is 0. If we want to make variables in our “main function” scope, the
 scope ID is incremented, for example to create our variable scope will be 1:</p>
 <pre><code>bscp 1, 0
 
@@ -1130,11 +1223,11 @@ scope ID is incremented, for example to create our variable scope will be 1:</p>
 
 escp 1
 </code></pre>
-<p>The first operand to <code>bscp</code> is the new scope ID, and the second is supposed to be the &quot;parent ID&quot;, or the scope that this scope is in.</p>
+<p>The first operand to <code>bscp</code> is the new scope ID, and the second is supposed to be the “parent ID”, or the scope that this scope is in.</p>
 <p>The operand to <code>escp</code> is the number of scopes that we are ending. We have only created one variable scope, so the operand here is <code>1</code>.
 This removes any variables that were declared in that scope.</p>
 <p>If you know C-style languages, or even just KerboScript, you can think of <code>bscp</code> as a <code>{</code> and <code>escp</code> as a <code>}</code></p>
-<p>Now that we have that, in order to set the throttle, all we have to do is set the value of a variable named <code>throttle</code>. Variables in 
+<p>Now that we have that, in order to set the throttle, all we have to do is set the value of a variable named <code>throttle</code>. Variables in
 kOS are prefixed with the <code>$</code> character, so the name would be <code>$throttle</code></p>
 <p>In order to store a value on the stack to a variable, there is the <code>sto</code> instruction, which stands for store.</p>
 <p>So in order to set the throttle, the code is:</p>
@@ -1143,7 +1236,7 @@ kOS are prefixed with the <code>$</code> character, so the name would be <code>$
 ...
 
 push 1.0 ; The value we want the throttle to be
-sto &quot;$throttle&quot;
+sto "$throttle"
 
 ... other code
 
@@ -1153,7 +1246,7 @@ escp 1
 <p>When you write the KS code <code>STAGE.</code>, it actually just calls a built-in function: <code>stage()</code></p>
 <p>So this is the code you have to write to stage in KASM:</p>
 <pre><code>push @
-call #, &quot;stage()&quot;
+call #, "stage()"
 pop
 </code></pre>
 <h4 id="steering"><a class="header" href="#steering">Steering</a></h4>
@@ -1163,10 +1256,10 @@ pop
 <p>Steering is similar to throttle in that there is a global variable named <code>$steering</code> that we set
 to the desired rotation.</p>
 <p>Therefore setting the steering to up can be performed using the following code:</p>
-<pre><code>push &quot;$up&quot;
-sto &quot;$steering&quot;
+<pre><code>push "$up"
+sto "$steering"
 </code></pre>
-<p>Note that <code>push</code>-ing a variable puts the variable's value on the stack</p>
+<p>Note that <code>push</code>-ing a variable puts the variable’s value on the stack</p>
 <h4 id="waiting"><a class="header" href="#waiting">Waiting</a></h4>
 <p>If the code were to set the throttle, set the steering, and then end, kOS would tell the throttle and steering
 to go back to normal. Therefore in order to make them stay, we need the program to not end.</p>
@@ -1181,18 +1274,18 @@ it can slow down your game, and use more electric charge. Therefore we wait for 
 <p>This would work perfectly fine, but to be a little more sophisticated, we will
 follow more along with the kOS tutorial and wait until we are above 70,000 m.</p>
 <p>Similar to throttle, steering, and up, the <code>SHIP</code> variable it self is just a global variable named <code>$ship</code>.</p>
-<p>In KerboScript in order to get the ship's altitude, one would write: <code>SHIP:ALTITUDE</code></p>
-<p>In order to do the <code>:</code>, we will use an instruction called <code>gmb</code>, which stands for &quot;get member&quot;</p>
-<p>To get the ship's altitude, we would write:</p>
-<pre><code>push &quot;$ship&quot;
-gmb &quot;altitude&quot;
+<p>In KerboScript in order to get the ship’s altitude, one would write: <code>SHIP:ALTITUDE</code></p>
+<p>In order to do the <code>:</code>, we will use an instruction called <code>gmb</code>, which stands for “get member”</p>
+<p>To get the ship’s altitude, we would write:</p>
+<pre><code>push "$ship"
+gmb "altitude"
 </code></pre>
 <p>To check this in a loop against 70,000 we would write:</p>
 <pre><code>.altitude_loop:
     push 0              ; Wait 0 seconds to provide a little delay
     wait
-    push &quot;$ship&quot;
-    gmb &quot;altitude&quot;      ; SHIP:ALTITUDE
+    push "$ship"
+    gmb "altitude"      ; SHIP:ALTITUDE
     push 70000          ; &gt; 70,000
     cgt                 ; Actually performs the comparison
     bfa .altitude_loop  ; If it isn't 70,000 yet, loop again
@@ -1201,14 +1294,14 @@ gmb &quot;altitude&quot;
 <p>Combining all of the code we have written so far together, the result would be:</p>
 <pre><code>.macro CLEARSCREEN
     push @
-    call #, &quot;clearscreen()&quot;
+    call #, "clearscreen()"
     pop
 .endmacro
 
 .macro PRINT
     push @
     swap
-    call #, &quot;print()&quot;
+    call #, "print()"
     pop
 .endmacro
 
@@ -1221,7 +1314,7 @@ _start:
     CLEARSCREEN
 
     ; Do the countdown
-    push &quot;Counting down:&quot;
+    push "Counting down:"
     PRINT
     push 10
     .countdown_loop:
@@ -1230,7 +1323,7 @@ _start:
 	clt
 	btr .countdown_end
 	dup
-	push &quot;...&quot;
+	push "..."
 	swap
 	add
 	PRINT
@@ -1243,15 +1336,15 @@ _start:
 
     ; Set the throttle
     push 1.0
-    sto &quot;$throttle&quot;
+    sto "$throttle"
 
     ; Set steering
-    push &quot;$up&quot;
-    sto &quot;$steering&quot;
+    push "$up"
+    sto "$steering"
 
     ; Stage
     push @
-    call #, &quot;stage()&quot;
+    call #, "stage()"
     pop
 
     ; Wait to reach 70km
@@ -1259,8 +1352,8 @@ _start:
     .altitude_loop:
 	push 0              ; Wait 0 seconds to provide a little delay
 	wait
-	push &quot;$ship&quot;
-	gmb &quot;altitude&quot;      ; SHIP:ALTITUDE
+	push "$ship"
+	gmb "altitude"      ; SHIP:ALTITUDE
 	push 70000          ; &gt; 70,000
 	cgt                 ; Actually performs the comparison
 	bfa .altitude_loop  ; If it isn't 70,000 yet, loop again
@@ -1268,37 +1361,38 @@ _start:
     escp 1
     eop
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="miscellaneous"><a class="header" href="#miscellaneous">Miscellaneous</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="miscellaneous"><a class="header" href="#miscellaneous">Miscellaneous</a></h1>
 <p>Now that we have introduced many of the aspects of KASM and inner workings of kOS, this page will
 serve as a quick reference for implementing various things.</p>
 <h2 id="if-statements"><a class="header" href="#if-statements">If statements</a></h2>
-<p>Let's say we had the variable <code>$x</code>, and wanted to basically do:</p>
+<p>Let’s say we had the variable <code>$x</code>, and wanted to basically do:</p>
 <pre><code>IF X &gt; 1 {
-    PRINT &quot;IF&quot;.
+    PRINT "IF".
 } ELSE {
-    PRINT &quot;ELSE&quot;.
+    PRINT "ELSE".
 }
 </code></pre>
 <p>The KASM implementation would be:</p>
-<pre><code>	push &quot;$x&quot;
+<pre><code>	push "$x"
 	push 1
 	cgt         ; x &gt; 1
 	bfa .else
 	push @
-	push &quot;IF&quot;
-	call #, &quot;print()&quot;
+	push "IF"
+	call #, "print()"
 	pop
 	jmp .if_end
     .else:
 	push @
-	push &quot;ELSE&quot;
-	call #, &quot;print()&quot;
+	push "ELSE"
+	call #, "print()"
 	pop
     .if_end:
 	...
 </code></pre>
 <h2 id="while-loop"><a class="header" href="#while-loop">While loop</a></h2>
-<p>Let's say we wanted to implement the following while loop (the inverse of an <code>UNITL</code> loop):</p>
+<p>Let’s say we wanted to implement the following while loop (the inverse of an <code>UNITL</code> loop):</p>
 <pre><code>while SHIP:ALTITUDE &lt; 70000 {
     wait 0.
 }
@@ -1307,8 +1401,8 @@ serve as a quick reference for implementing various things.</p>
 <pre><code>.loop:
     push 0
     wait
-    push &quot;$ship&quot;
-    gmb &quot;altitude&quot;
+    push "$ship"
+    gmb "altitude"
     push 70000
     clt            ; SHIP:ALTITUDE &lt; 70000
     btr .loop
@@ -1334,7 +1428,7 @@ serve as a quick reference for implementing various things.</p>
     dup
     push @
     swap
-    call #, &quot;print()&quot;
+    call #, "print()"
     pop
     push 1
     add
@@ -1345,25 +1439,26 @@ serve as a quick reference for implementing various things.</p>
 <p>KASM (using a kOS variable <code>$i</code>):</p>
 <pre><code>bscp 1, 0
 push 0
-stol &quot;$i&quot;
+stol "$i"
 .loop:
-    push &quot;$i&quot;
+    push "$i"
     push 10
     clt
     bfa .loop_end
     push @
-    push &quot;$i&quot;
-    call #, &quot;print()&quot;
+    push "$i"
+    call #, "print()"
     pop
-    push &quot;$i&quot;
+    push "$i"
     push 1
     add
-    sto &quot;$i&quot;
+    sto "$i"
     jmp .loop
 .loop_end:
     escp 1
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="functions"><a class="header" href="#functions">Functions</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="functions"><a class="header" href="#functions">Functions</a></h1>
 <p>In KASM, just like KerboScript, you can create functions that can be called later in your programs, as a way to reuse code.</p>
 <h2 id="declaration-2"><a class="header" href="#declaration-2">Declaration</a></h2>
 <p>You already know how to define a function, our <code>_start</code> function:</p>
@@ -1386,22 +1481,22 @@ add_two:
 <p>If you are familiar with C-style functions, or even KerboScript functions, there is the <code>return</code> keyword that is
 used when you want to go back to where the function is called.</p>
 <p>This is done in KASM using the <code>ret</code> instruction. <code>ret</code> is tied into the kOS variable scope system and takes one
-operand: the number of scopes to &quot;pop&quot; when returning. Any values that you want to return are first pushed to the stack.</p>
+operand: the number of scopes to “pop” when returning. Any values that you want to return are first pushed to the stack.</p>
 <p>For our function, this would be:</p>
 <pre><code>.func
 add_two:
     add
     ret 0
 </code></pre>
-<p>The sum of the two numbers is already on the stack, so there is no need to push it again. In our case we didn't create any variable
+<p>The sum of the two numbers is already on the stack, so there is no need to push it again. In our case we didn’t create any variable
 scopes, so we do <code>ret 0</code>. If we had created variable scopes, like in the following example:</p>
 <pre><code>.func
 add_two:
     bscp 3, 0 ; Create a new scope with ID 3
-    sto &quot;$x&quot;  ; Store the first number in `x`
-    sto &quot;$y&quot;  ; Store the second number in `y`
-    push &quot;$x&quot; ; Get the value back out of x
-    push &quot;$y&quot; ; Same for y
+    sto "$x"  ; Store the first number in `x`
+    sto "$y"  ; Store the second number in `y`
+    push "$x" ; Get the value back out of x
+    push "$y" ; Same for y
     add
     escp 1
     ret 0
@@ -1425,7 +1520,7 @@ _start:
     push 2
     push 3
     call add_two, #
-    call #, &quot;print()&quot;
+    call #, "print()"
     pop
     eop
 
@@ -1439,11 +1534,12 @@ add_two:
 </code></pre>
 <p>This is how you call functions within the same file as the function is declared. In the next section about creating static libraries,
 we will go over how to make functions callable from a different file, and how to call them.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="static-libraries"><a class="header" href="#static-libraries">Static Libraries</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="static-libraries"><a class="header" href="#static-libraries">Static Libraries</a></h1>
 <p>Static libraries are collections of code that are put all into one file, but can be written in multiple files.
-They allow you to reuse code that you have already assembled using <code>KASM</code>, so that you don't need to run it each time.</p>
+They allow you to reuse code that you have already assembled using <code>KASM</code>, so that you don’t need to run it each time.</p>
 <p>This is where <code>global</code> and <code>external</code> symbols come into play.</p>
-<p>Let's say we have the function from last time called <code>add_two</code>, but we want to put it with a bunch of other math functions
+<p>Let’s say we have the function from last time called <code>add_two</code>, but we want to put it with a bunch of other math functions
 (for some reason) so we put it in a file called <code>math.kasm</code>:</p>
 <p><strong>math.kasm</strong></p>
 <pre><code>.func
@@ -1461,7 +1557,7 @@ _start:
     push 2
     push 3
     call add_two, #
-    call #, &quot;print()&quot;
+    call #, "print()"
     pop
     eop
 </code></pre>
@@ -1475,7 +1571,7 @@ _start:
 </code></pre>
 <p>The file <code>main.kasm</code> has no way of knowing that the function <code>add_two</code> actually exists in another file,
 it assumes you will write it in the same file, which we did not.</p>
-<p>So you need to tell KASM that it will exist in another file, that it will be &quot;external&quot; to this file.</p>
+<p>So you need to tell KASM that it will exist in another file, that it will be “external” to this file.</p>
 <p>Therefore we use the <code>.extern</code> keyword to declare <code>add_two</code> as external:</p>
 <pre><code>.global _start
 .extern .func add_two
@@ -1483,7 +1579,7 @@ it assumes you will write it in the same file, which we did not.</p>
 <p>You note that you also have to specify the type of <code>add_two</code> as a function.</p>
 <p><code>main.kasm</code> will now assemble! But if you try to run <code>kld</code> like in the past to turn it in to a .ksm file,
 you will get an error:</p>
-<pre><code>Unresolved external symbol error. External symbol &quot;add_two&quot; has no definition
+<pre><code>Unresolved external symbol error. External symbol "add_two" has no definition
 </code></pre>
 <p>It says we never defined <code>add_two</code>, and that is because we never actually added the code for it!</p>
 <p>In order to do that, we need to assemble the file we put <code>add_two</code> in:</p>
@@ -1492,11 +1588,11 @@ you will get an error:</p>
 <p>Now we have <code>math.ko</code>, which we can pass to the linker at the same time as <code>main.ko</code>:</p>
 <pre><code>kld -o program.ksm main.ko add.ko
 </code></pre>
-<p>Although... this will give you the same error as before, and that is because we never told KASM to make add_two
+<p>Although… this will give you the same error as before, and that is because we never told KASM to make add_two
 available to other files. By default KASM makes every function you have local, so that in theory you can
 name a function the same thing twice, and as long as they are local to two different files, then it will work
-as expected, each will call their own version, and you won't have to make two different names for them.</p>
-<p>To tell KASM to make a function &quot;global&quot; to be seen by other files, we use the <code>.global</code> keyword:</p>
+as expected, each will call their own version, and you won’t have to make two different names for them.</p>
+<p>To tell KASM to make a function “global” to be seen by other files, we use the <code>.global</code> keyword:</p>
 <pre><code>.global add_two
 
 .func
@@ -1514,48 +1610,49 @@ kld -o program.ksm main.ko math.ko
 </code></pre>
 <p>This will make one giant file named <code>complex.ksm</code> that will have all of the code it needs in it.</p>
 <p>There are certain times though, that may not want to have one large file, but instead split it up into multiple
-files, that we could even possible switch out with future versions and the program that relies on it doesn't need to be
+files, that we could even possible switch out with future versions and the program that relies on it doesn’t need to be
 recompiled, a good example would be how regular KerboScript deals with functions in other files.</p>
 <p>This is where <strong>shared libraries</strong> come in.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="shared-libraries"><a class="header" href="#shared-libraries">Shared Libraries</a></h1>
-<p>Shared libraries are useful because you don't have to link all code in your project over and over whenever
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="shared-libraries"><a class="header" href="#shared-libraries">Shared Libraries</a></h1>
+<p>Shared libraries are useful because you don’t have to link all code in your project over and over whenever
 the code changes. It also allows you to keep file sizes smaller. The same shared library can be used by multiple
 programs at the same time, and only one copy of it has to exist.</p>
 <h2 id="in-kerboscript"><a class="header" href="#in-kerboscript">In KerboScript</a></h2>
-<p>As you probably know, in KerboScript when you want to load the code from another file, all you have to do us &quot;run&quot;
+<p>As you probably know, in KerboScript when you want to load the code from another file, all you have to do us “run”
 that file. If we wanted the code to only be loaded once (because it is just a bunch of functions) we could do something
 like:</p>
-<pre><code>RUNONCEPATH(&quot;library.ksm&quot;).
+<pre><code>RUNONCEPATH("library.ksm").
 </code></pre>
 <p>And that would load our functions that we can later call. In order to understand how to do something similar in KASM, we
-must first look at the <a href="https://en.wikipedia.org/wiki/Disassembler">disassembly</a> of calling <code>RUNONCEPATH(&quot;library.ksm&quot;).</code></p>
+must first look at the <a href="https://en.wikipedia.org/wiki/Disassembler">disassembly</a> of calling <code>RUNONCEPATH("library.ksm").</code></p>
 <p>This can be found by first compiling the file, in this case the file with the above code was called <code>main.ks</code> and then
 running <a href="https://github.com/newcomb-luke/KDump">KDump</a> (<code>kdump --disassembly main.ksm</code>):</p>
 <pre><code>push  @
 push  @
 push  true
-pushv  &quot;library.ksm&quot;
+pushv  "library.ksm"
 eval
-call  &quot;@LR00&quot;,#
+call  "@LR00",#
 pop
 </code></pre>
-<p>This may be confusing at first, but mostly all that is happening here is that there is a place in the code called &quot;@LR00&quot;
+<p>This may be confusing at first, but mostly all that is happening here is that there is a place in the code called “@LR00”
 which is loaded into kOS every time you run a program from the terminal. It exists so that each and every piece of user
-code doesn't need to have all the code in it required to run a program every time the user wants to.</p>
+code doesn’t need to have all the code in it required to run a program every time the user wants to.</p>
 <p>This code is able to be changed by the kOS devs at any time because it is not meant to be written directly by users, and is
-always accessed by the &quot;run&quot; family of functions. In order to understand what we are calling however, as of kOS version 1.3.0.0,
+always accessed by the “run” family of functions. In order to understand what we are calling however, as of kOS version 1.3.0.0,
 the code is:</p>
-<pre><code>bscp -999, 0     ; This instruction has the label &quot;@LR00&quot;
-stol &quot;$runonce&quot;
-stol &quot;$filename&quot;
+<pre><code>bscp -999, 0     ; This instruction has the label "@LR00"
+stol "$runonce"
+stol "$filename"
 push @
-push &quot;$filename&quot;
+push "$filename"
 eval
 push true
 push #
-call #, &quot;load()&quot;
+call #, "load()"
 bfa run_program
-push &quot;$runonce&quot;
+push "$runonce"
 bfa run_program
 pop_loop:
     pop
@@ -1567,19 +1664,19 @@ after_pop:
     push 0
     ret 1
 run_program:
-    stol &quot;$entrypoint&quot;
-    call &quot;$entrypoint&quot;, #
+    stol "$entrypoint"
+    call "$entrypoint", #
     pop
     push 0
     ret 1
 </code></pre>
 <p>This is a whole lot to digest, but basically there is a built-in function called <code>load()</code> that kOS calls when it wants to load
-a file. It returns various things, in particular the program's &quot;entry point&quot; which is called like a function, and that is just
+a file. It returns various things, in particular the program’s “entry point” which is called like a function, and that is just
 the first instruction in the program you are trying to run.</p>
 <p>The arguments we are more interested in though, and on lines 2 and 3, there are the <code>stol</code> instructions which store if the program
 should only be run once, and the other one stores the filename. So these two things are the parameters to the kOS loader.</p>
 <h2 id="loading"><a class="header" href="#loading">Loading</a></h2>
-<p>In order to do the same thing in our program, we can simply make a piece of code that calls &quot;@LR00&quot; the same way the KerboScript code does.</p>
+<p>In order to do the same thing in our program, we can simply make a piece of code that calls “@LR00” the same way the KerboScript code does.</p>
 <p>This is not too difficult to do. Here we create a macro to do it for us just in case we want to load multiple:</p>
 <pre><code>.global _start
 
@@ -1589,21 +1686,21 @@ should only be run once, and the other one stores the filename. So these two thi
     push true
     pushv &amp;1 ; &amp;1 gets replaced with the argument we give
     eval
-    call &quot;@LR00&quot;, #
+    call "@LR00", #
     pop
 .endmacro
 
 .func
 _start:
-    LOAD(&quot;library.ksm)
+    LOAD("library.ksm)
     eop
 </code></pre>
-<p>This program will &quot;load&quot; (aka run) our <code>library.ksm</code> file.</p>
+<p>This program will “load” (aka run) our <code>library.ksm</code> file.</p>
 <h2 id="delegates-1"><a class="header" href="#delegates-1">Delegates</a></h2>
 <p>In KerboScript, delegates are functions that you can effectively store in a variable. As of the current version of KerboScript,
 it turns out that all functions are actually used in the same way that delegates are. This allows you to assume that a function exists
 and generate <code>call</code> instructions for it just by using a variable name. The way that you would call a function like this would be:</p>
-<pre><code>call #, &quot;$add_two*&quot;
+<pre><code>call #, "$add_two*"
 </code></pre>
 <p>Because it is a function delegate and not just a normal variable, the convention is to put a <em><strong>*</strong></em> after the variable name. In this
 case we call the function <code>add_two</code> because that is the name of it in our code, but you can mix and match the names although that might
@@ -1613,7 +1710,7 @@ be confusing.</p>
 </code></pre>
 <p>That we would do if calling the function statically.</p>
 <h2 id="library-side"><a class="header" href="#library-side">Library Side</a></h2>
-<p>Now that we know how to call the function that we have loaded, we need to know how to set that up from the library's view.</p>
+<p>Now that we know how to call the function that we have loaded, we need to know how to set that up from the library’s view.</p>
 <p>This is where the special <code>_init</code> function label comes into play in KASM. It is used to initialize things inside of a shared library,
 which usually takes the form of setting up function delegates.</p>
 <p>An example of the shared library code for our <code>add_two</code> function would be:</p>
@@ -1622,11 +1719,11 @@ which usually takes the form of setting up function delegates.</p>
 .func
 _init:
     pdrl add_two, true
-    sto &quot;$add_two*&quot;
+    sto "$add_two*"
 
     push @
-    push &quot;Loaded!&quot;
-    call #, &quot;print()&quot;
+    push "Loaded!"
+    call #, "print()"
     pop
 
     ret 0 ; Note this, see below
@@ -1638,17 +1735,17 @@ add_two:
     ret 0
 </code></pre>
 <p>As you can see, our code for <code>add_two</code> stays exactly the same, but we have the new <code>_init</code> function.</p>
-<p>Here we use the special <code>pdrl</code> instruction. This stands for &quot;push delegate relocate later&quot;, and basically allows us to store a function
+<p>Here we use the special <code>pdrl</code> instruction. This stands for “push delegate relocate later”, and basically allows us to store a function
 onto the stack, and then store it in a variable. The first argument is the function that we want to push, and the second argument is a
 boolean of whether or not we would like to capture a closure or not.</p>
-<p>Then the next instruction we do is just storing our delegate into <code>&quot;$add_two*&quot;</code> like above.</p>
-<p>Then just to verify that it is working, for fun we print out &quot;Loaded!&quot;.</p>
+<p>Then the next instruction we do is just storing our delegate into <code>"$add_two*"</code> like above.</p>
+<p>Then just to verify that it is working, for fun we print out “Loaded!”.</p>
 <p><strong>Note</strong>: Notice at the bottom of <code>_init</code> we <code>ret 0</code>. This may be confusing, but remember in the kOS file loader, it simply calls the
-file as a function, so in order to tell kOS that our <code>_init</code> function is over, we need to <code>ret</code>, and in this case we haven't created any
+file as a function, so in order to tell kOS that our <code>_init</code> function is over, we need to <code>ret</code>, and in this case we haven’t created any
 variable scopes.</p>
-<p>The main program can be linked normally (<code>kld -o main.ksm main.ko</code>) because it doesn't do anything special. But KLinker needs slightly more
+<p>The main program can be linked normally (<code>kld -o main.ksm main.ko</code>) because it doesn’t do anything special. But KLinker needs slightly more
 information in order to tread the shared library as it would need to be treated.</p>
-<p>So in order to link a shared library, all you have to change is to add the <strong>--shared</strong> flag:</p>
+<p>So in order to link a shared library, all you have to change is to add the <strong>–shared</strong> flag:</p>
 <pre><code>kld --shared -o library.ksm library.ko
 </code></pre>
 <p>Then you will have two files named <code>main.ksm</code> and <code>library.ksm</code> that when you put in the same place, you can run <code>main.ksm</code> and it will
@@ -1663,20 +1760,20 @@ call functions inside of <code>library.ksm</code>.</p>
 	push true
 	pushv &amp;1
 	eval
-	call &quot;@LR00&quot;, #
+	call "@LR00", #
 	pop
 .endmacro
 
 .func
 _start:
-	LOAD(&quot;library.ksm&quot;)
+	LOAD("library.ksm")
 
 	push @
 	push @
 	push 2
 	push 3
-	call #, &quot;$add_two*&quot;
-	call #, &quot;print()&quot;
+	call #, "$add_two*"
+	call #, "print()"
 	pop
 	eop
 </code></pre>
@@ -1686,11 +1783,11 @@ _start:
 .func
 _init:
 	pdrl add_two, true
-	sto &quot;$add_two*&quot;
+	sto "$add_two*"
 
 	push @
-	push &quot;Loaded!&quot;
-	call #, &quot;print()&quot;
+	push "Loaded!"
+	call #, "print()"
 	pop
 	ret 0
 
@@ -1703,42 +1800,44 @@ add_two:
 <p>Because you have previously seen how KerboScript function calling actually works (using <code>pdrl</code>), it is worth noting that this is both how
 you can call KerboScript functions from your KASM code, and how you can make KASM functions callable from KerboScript code.</p>
 <h2 id="final-notes"><a class="header" href="#final-notes">Final Notes</a></h2>
-<p>This is the last offical &quot;tutorial&quot; section of this book. The following section only lists the various kOS built-in functions. You now
+<p>This is the last offical “tutorial” section of this book. The following section only lists the various kOS built-in functions. You now
 have enough information to do whatever you desire to do in KASM.</p>
 <p>If after reading the list of all built-in functions, you are still confused on how to do something in KASM, I encourage you to write
 equivalent code in KerboScript, and then run <a href="https://github.com/newcomb-luke/KDump">KDump</a> in order to see how KerboScript does it.</p>
 <p>If there are requests to create a new tutorial section for something that is more specific, then I will definitely consider adding it.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="built-in-list"><a class="header" href="#built-in-list">Built-In List</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="built-in-list"><a class="header" href="#built-in-list">Built-In List</a></h1>
 <p>Please let me know if there is any built-in function of great importance that is missing from this list.</p>
 <p>This is the list of (as of the current kOS version) common built-in functions that you can call.</p>
-<p>Please note that any arguments that the function takes must be provided in sort of &quot;opposite order&quot;.
+<p>Please note that any arguments that the function takes must be provided in sort of “opposite order”.
 If they take in a boolean as the first argument and an integer as the second, the integer would be pushed
 first, and the boolean would be pushed last (so that it is on the top of the stack).</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="math-functions"><a class="header" href="#math-functions">Math Functions</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="math-functions"><a class="header" href="#math-functions">Math Functions</a></h1>
 <h2 id="table-of-contents"><a class="header" href="#table-of-contents">Table of Contents</a></h2>
 <ul>
-<li><a href="chapter_6/math.html#abs">abs</a></li>
-<li><a href="chapter_6/math.html#mod">mod</a></li>
-<li><a href="chapter_6/math.html#floor">floor</a></li>
-<li><a href="chapter_6/math.html#ceiling">ceiling</a></li>
-<li><a href="chapter_6/math.html#round">round</a></li>
-<li><a href="chapter_6/math.html#sqrt">sqrt</a></li>
-<li><a href="chapter_6/math.html#ln">ln</a></li>
-<li><a href="chapter_6/math.html#log10">log10</a></li>
-<li><a href="chapter_6/math.html#min">min</a></li>
-<li><a href="chapter_6/math.html#max">max</a></li>
-<li><a href="chapter_6/math.html#random">random</a></li>
-<li><a href="chapter_6/math.html#randomseed">randomseed</a></li>
-<li><a href="chapter_6/math.html#char">char</a></li>
-<li><a href="chapter_6/math.html#unchar">unchar</a></li>
-<li><a href="chapter_6/math.html#sin">sin</a></li>
-<li><a href="chapter_6/math.html#cos">cos</a></li>
-<li><a href="chapter_6/math.html#tan">tan</a></li>
-<li><a href="chapter_6/math.html#arcsin">arcsin</a></li>
-<li><a href="chapter_6/math.html#arccos">arccos</a></li>
-<li><a href="chapter_6/math.html#arctan">arctan</a></li>
-<li><a href="chapter_6/math.html#arctan2">arctan2</a></li>
-<li><a href="chapter_6/math.html#anglediff">anglediff</a></li>
+<li><a href="#abs">abs</a></li>
+<li><a href="#mod">mod</a></li>
+<li><a href="#floor">floor</a></li>
+<li><a href="#ceiling">ceiling</a></li>
+<li><a href="#round">round</a></li>
+<li><a href="#sqrt">sqrt</a></li>
+<li><a href="#ln">ln</a></li>
+<li><a href="#log10">log10</a></li>
+<li><a href="#min">min</a></li>
+<li><a href="#max">max</a></li>
+<li><a href="#random">random</a></li>
+<li><a href="#randomseed">randomseed</a></li>
+<li><a href="#char">char</a></li>
+<li><a href="#unchar">unchar</a></li>
+<li><a href="#sin">sin</a></li>
+<li><a href="#cos">cos</a></li>
+<li><a href="#tan">tan</a></li>
+<li><a href="#arcsin">arcsin</a></li>
+<li><a href="#arccos">arccos</a></li>
+<li><a href="#arctan">arctan</a></li>
+<li><a href="#arctan2">arctan2</a></li>
+<li><a href="#anglediff">anglediff</a></li>
 </ul>
 <h2 id="abs"><a class="header" href="#abs">abs()</a></h2>
 <h4 id="takes"><a class="header" href="#takes">Takes</a></h4>
@@ -1816,7 +1915,7 @@ if given 1.882 and 2, the result would be 1.88</li>
 <h2 id="sqrt"><a class="header" href="#sqrt">sqrt()</a></h2>
 <h4 id="takes-5"><a class="header" href="#takes-5">Takes</a></h4>
 <ul>
-<li>Any number type, the number to take the square root of </li>
+<li>Any number type, the number to take the square root of</li>
 </ul>
 <h4 id="description-5"><a class="header" href="#description-5">Description</a></h4>
 <ul>
@@ -1860,7 +1959,7 @@ if given 1.882 and 2, the result would be 1.88</li>
 <h4 id="description-8"><a class="header" href="#description-8">Description</a></h4>
 <ul>
 <li>If numbers are provided, it returns the minimum of the two</li>
-<li>If strings are provided, it returns the one that is considered to be &quot;less&quot;, useful for sorting</li>
+<li>If strings are provided, it returns the one that is considered to be “less”, useful for sorting</li>
 </ul>
 <h4 id="returns-8"><a class="header" href="#returns-8">Returns</a></h4>
 <ul>
@@ -1874,7 +1973,7 @@ if given 1.882 and 2, the result would be 1.88</li>
 <h4 id="description-9"><a class="header" href="#description-9">Description</a></h4>
 <ul>
 <li>If numbers are provided, it returns the maximum of the two</li>
-<li>If strings are provided, it returns the one that is considered to be &quot;greater&quot;, useful for sorting</li>
+<li>If strings are provided, it returns the one that is considered to be “greater”, useful for sorting</li>
 </ul>
 <h4 id="returns-9"><a class="header" href="#returns-9">Returns</a></h4>
 <ul>
@@ -2047,19 +2146,20 @@ is preserved.</li>
 <ul>
 <li>The difference in angle, in degrees</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="general"><a class="header" href="#general">General</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="general"><a class="header" href="#general">General</a></h1>
 <h2 id="table-of-contents-1"><a class="header" href="#table-of-contents-1">Table of Contents</a></h2>
 <ul>
-<li><a href="chapter_6/general.html#print">print</a></li>
-<li><a href="chapter_6/general.html#printat">printat</a></li>
-<li><a href="chapter_6/general.html#clearscreen">clearscreen</a></li>
-<li><a href="chapter_6/general.html#stage">stage</a></li>
-<li><a href="chapter_6/general.html#toggleflybywire">toggleflybywire</a></li>
-<li><a href="chapter_6/general.html#selectautopilotmode">selectautopilotmode</a></li>
-<li><a href="chapter_6/general.html#run">run</a></li>
-<li><a href="chapter_6/general.html#load">load</a></li>
-<li><a href="chapter_6/general.html#reboot">reboot</a></li>
-<li><a href="chapter_6/general.html#shutdown">shutdown</a></li>
+<li><a href="#print">print</a></li>
+<li><a href="#printat">printat</a></li>
+<li><a href="#clearscreen">clearscreen</a></li>
+<li><a href="#stage">stage</a></li>
+<li><a href="#toggleflybywire">toggleflybywire</a></li>
+<li><a href="#selectautopilotmode">selectautopilotmode</a></li>
+<li><a href="#run">run</a></li>
+<li><a href="#load">load</a></li>
+<li><a href="#reboot">reboot</a></li>
+<li><a href="#shutdown">shutdown</a></li>
 </ul>
 <h2 id="print"><a class="header" href="#print">print()</a></h2>
 <h4 id="takes-22"><a class="header" href="#takes-22">Takes</a></h4>
@@ -2075,91 +2175,91 @@ is preserved.</li>
 <li>Nothing (a useless 0)</li>
 </ul>
 <h2 id="printat"><a class="header" href="#printat">printat()</a></h2>
-<h4 id="takes-23"><a class="header" href="#takes-23">Takes</a></h4>
+<h4 id="takes-1-1"><a class="header" href="#takes-1-1">Takes</a></h4>
 <ul>
 <li>The row to print at</li>
 <li>The column to print at</li>
 <li>Any value to print (except ArgMarker)</li>
 </ul>
-<h4 id="description-23"><a class="header" href="#description-23">Description</a></h4>
+<h4 id="description-1-1"><a class="header" href="#description-1-1">Description</a></h4>
 <ul>
 <li>Prints a value on the screen at the location specified</li>
 </ul>
-<h4 id="returns-23"><a class="header" href="#returns-23">Returns</a></h4>
+<h4 id="returns-1-1"><a class="header" href="#returns-1-1">Returns</a></h4>
 <ul>
 <li>Nothing (a useless 0)</li>
 </ul>
 <h2 id="clearscreen"><a class="header" href="#clearscreen">clearscreen()</a></h2>
-<h4 id="takes-24"><a class="header" href="#takes-24">Takes</a></h4>
+<h4 id="takes-2-1"><a class="header" href="#takes-2-1">Takes</a></h4>
 <ul>
 <li>Nothing</li>
 </ul>
-<h4 id="description-24"><a class="header" href="#description-24">Description</a></h4>
+<h4 id="description-2-1"><a class="header" href="#description-2-1">Description</a></h4>
 <ul>
 <li>Clears the kOS terminal screen</li>
 </ul>
-<h4 id="returns-24"><a class="header" href="#returns-24">Returns</a></h4>
+<h4 id="returns-2-1"><a class="header" href="#returns-2-1">Returns</a></h4>
 <ul>
 <li>Nothing (a useless 0)</li>
 </ul>
 <h2 id="stage"><a class="header" href="#stage">stage()</a></h2>
-<h4 id="takes-25"><a class="header" href="#takes-25">Takes</a></h4>
+<h4 id="takes-3-1"><a class="header" href="#takes-3-1">Takes</a></h4>
 <ul>
 <li>Nothing</li>
 </ul>
-<h4 id="description-25"><a class="header" href="#description-25">Description</a></h4>
+<h4 id="description-3-1"><a class="header" href="#description-3-1">Description</a></h4>
 <ul>
 <li>Stages the rocket, similar to hitting the spacebar</li>
 </ul>
-<h4 id="returns-25"><a class="header" href="#returns-25">Returns</a></h4>
+<h4 id="returns-3-1"><a class="header" href="#returns-3-1">Returns</a></h4>
 <ul>
 <li>Nothing (a useless 0)</li>
 </ul>
 <h2 id="toggleflybywire"><a class="header" href="#toggleflybywire">toggleflybywire()</a></h2>
-<h4 id="takes-26"><a class="header" href="#takes-26">Takes</a></h4>
+<h4 id="takes-4-1"><a class="header" href="#takes-4-1">Takes</a></h4>
 <ul>
 <li>A boolean of this should enable or disable fly-by-wire</li>
 <li>A string representing which type of control to set</li>
 </ul>
-<h4 id="description-26"><a class="header" href="#description-26">Description</a></h4>
+<h4 id="description-4-1"><a class="header" href="#description-4-1">Description</a></h4>
 <ul>
-<li>This is another name for &quot;cooked control mode&quot;, where you are locking the user out of controlling the rocket. If you set the boolean to <code>true</code>
+<li>This is another name for “cooked control mode”, where you are locking the user out of controlling the rocket. If you set the boolean to <code>true</code>
 it will lock, if you set it to <code>false</code> it will unlock. The string you provide determines which set of controls it should lock out. For example
-passing in <code>&quot;throttle&quot;</code> will lock the throttle, <code>&quot;steering&quot;</code> for steering, etc.</li>
+passing in <code>"throttle"</code> will lock the throttle, <code>"steering"</code> for steering, etc.</li>
 </ul>
-<h4 id="returns-26"><a class="header" href="#returns-26">Returns</a></h4>
+<h4 id="returns-4-1"><a class="header" href="#returns-4-1">Returns</a></h4>
 <ul>
 <li>Nothing (a useless 0)</li>
 </ul>
 <h2 id="selectautopilotmode"><a class="header" href="#selectautopilotmode">selectautopilotmode()</a></h2>
-<h4 id="takes-27"><a class="header" href="#takes-27">Takes</a></h4>
+<h4 id="takes-5-1"><a class="header" href="#takes-5-1">Takes</a></h4>
 <ul>
 <li>A string</li>
 </ul>
-<h4 id="description-27"><a class="header" href="#description-27">Description</a></h4>
+<h4 id="description-5-1"><a class="header" href="#description-5-1">Description</a></h4>
 <ul>
 <li>This essentially performs normally user-operated Navball operations. If SAS is enabled, it will set its mode. All possible SAS modes are listed below:
 <ul>
-<li>&quot;maneuver&quot;</li>
-<li>&quot;prograde&quot;</li>
-<li>&quot;retrograde&quot;</li>
-<li>&quot;normal&quot;</li>
-<li>&quot;antinormal&quot;</li>
-<li>&quot;radialin&quot;</li>
-<li>&quot;radialout&quot;</li>
-<li>&quot;target&quot;</li>
-<li>&quot;antitarget&quot;</li>
-<li>&quot;stability&quot;</li>
+<li>“maneuver”</li>
+<li>“prograde”</li>
+<li>“retrograde”</li>
+<li>“normal”</li>
+<li>“antinormal”</li>
+<li>“radialin”</li>
+<li>“radialout”</li>
+<li>“target”</li>
+<li>“antitarget”</li>
+<li>“stability”</li>
 </ul>
 </li>
 <li>An error is thrown for invalid modes</li>
 </ul>
-<h4 id="returns-27"><a class="header" href="#returns-27">Returns</a></h4>
+<h4 id="returns-5-1"><a class="header" href="#returns-5-1">Returns</a></h4>
 <ul>
 <li>Nothing (a useless 0)</li>
 </ul>
 <h2 id="run"><a class="header" href="#run">run()</a></h2>
-<h4 id="takes-28"><a class="header" href="#takes-28">Takes</a></h4>
+<h4 id="takes-6-1"><a class="header" href="#takes-6-1">Takes</a></h4>
 <ul>
 <li>Arguments to itself:
 <ul>
@@ -2174,28 +2274,28 @@ passing in <code>&quot;throttle&quot;</code> will lock the throttle, <code>&quot
 </ul>
 </li>
 </ul>
-<h4 id="description-28"><a class="header" href="#description-28">Description</a></h4>
+<h4 id="description-6-1"><a class="header" href="#description-6-1">Description</a></h4>
 <ul>
 <li>The arguments to this are the volume id of the file you will be running, and the path. Then it runs the file with the arguments provided (if any)</li>
 </ul>
-<h4 id="returns-28"><a class="header" href="#returns-28">Returns</a></h4>
+<h4 id="returns-6-1"><a class="header" href="#returns-6-1">Returns</a></h4>
 <ul>
 <li>Nothing (a useless 0)</li>
 </ul>
 <h2 id="load"><a class="header" href="#load">load()</a></h2>
-<h4 id="takes-29"><a class="header" href="#takes-29">Takes</a></h4>
+<h4 id="takes-7-1"><a class="header" href="#takes-7-1">Takes</a></h4>
 <ul>
 <li>A Null value, or a StringValue path of the output file of the compilation</li>
 <li>A boolean of whether or not to skip loading it if it has been previously loaded</li>
 <li>A StringValue path of the file to be loaded</li>
 </ul>
-<h4 id="description-29"><a class="header" href="#description-29">Description</a></h4>
+<h4 id="description-7-1"><a class="header" href="#description-7-1">Description</a></h4>
 <ul>
 <li>This function is both used for compiling KerboScript files, and loading them into memory as shared libraries. Due to this, the arguments have a few
 different possibilities.</li>
 <li>If you are trying to compile a <code>.ks</code> file:
 <ul>
-<li>The first argument should be either <code>&quot;-default-compile-out-&quot;</code> if you want the output file name to be the same as the input, just with a
+<li>The first argument should be either <code>"-default-compile-out-"</code> if you want the output file name to be the same as the input, just with a
 <code>.ksm</code> extension, or a file path.</li>
 <li>The second argument should be <code>false</code>, because if the file was prevously compiled, you want to compile it again.</li>
 <li>The third argument should be the path of the file you are trying to compile</li>
@@ -2209,7 +2309,7 @@ different possibilities.</li>
 </ul>
 </li>
 </ul>
-<h4 id="returns-29"><a class="header" href="#returns-29">Returns</a></h4>
+<h4 id="returns-7-1"><a class="header" href="#returns-7-1">Returns</a></h4>
 <ul>
 <li>If run in compile mode:
 <ul>
@@ -2224,300 +2324,304 @@ different possibilities.</li>
 </li>
 </ul>
 <h2 id="reboot"><a class="header" href="#reboot">reboot()</a></h2>
-<h4 id="takes-30"><a class="header" href="#takes-30">Takes</a></h4>
+<h4 id="takes-8-1"><a class="header" href="#takes-8-1">Takes</a></h4>
 <ul>
 <li>Nothing</li>
 </ul>
-<h4 id="description-30"><a class="header" href="#description-30">Description</a></h4>
+<h4 id="description-8-1"><a class="header" href="#description-8-1">Description</a></h4>
 <ul>
 <li>Reboots the kOS CPU this is run on</li>
 </ul>
-<h4 id="returns-30"><a class="header" href="#returns-30">Returns</a></h4>
+<h4 id="returns-8-1"><a class="header" href="#returns-8-1">Returns</a></h4>
 <ul>
 <li>Nothing, the CPU is reset</li>
 </ul>
 <h2 id="shutdown"><a class="header" href="#shutdown">shutdown()</a></h2>
-<h4 id="takes-31"><a class="header" href="#takes-31">Takes</a></h4>
+<h4 id="takes-9-1"><a class="header" href="#takes-9-1">Takes</a></h4>
 <ul>
 <li>Nothing</li>
 </ul>
-<h4 id="description-31"><a class="header" href="#description-31">Description</a></h4>
+<h4 id="description-9-1"><a class="header" href="#description-9-1">Description</a></h4>
 <ul>
 <li>Shuts down the kOS CPU this is run on</li>
 </ul>
-<h4 id="returns-31"><a class="header" href="#returns-31">Returns</a></h4>
+<h4 id="returns-9-1"><a class="header" href="#returns-9-1">Returns</a></h4>
 <ul>
 <li>Nothing, the CPU is shut down</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="file-io"><a class="header" href="#file-io">File I/O</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="file-io"><a class="header" href="#file-io">File I/O</a></h1>
 <h2 id="table-of-contents-2"><a class="header" href="#table-of-contents-2">Table of Contents</a></h2>
 <ul>
-<li><a href="chapter_6/file_io.html#printlist">printlist</a></li>
-<li><a href="chapter_6/file_io.html#logfile">logfile</a></li>
-<li><a href="chapter_6/file_io.html#path">path</a></li>
-<li><a href="chapter_6/file_io.html#scriptpath">scriptpath</a></li>
-<li><a href="chapter_6/file_io.html#switch">switch</a></li>
-<li><a href="chapter_6/file_io.html#cd-or-chdir">cd or chdir</a></li>
-<li><a href="chapter_6/file_io.html#copypath">copypath</a></li>
-<li><a href="chapter_6/file_io.html#movepath">movepath</a></li>
-<li><a href="chapter_6/file_io.html#deletepath">deletepath</a></li>
-<li><a href="chapter_6/file_io.html#exists">exists</a></li>
-<li><a href="chapter_6/file_io.html#open">open</a></li>
-<li><a href="chapter_6/file_io.html#create">create</a></li>
-<li><a href="chapter_6/file_io.html#createdir">createdir</a></li>
+<li><a href="#printlist">printlist</a></li>
+<li><a href="#logfile">logfile</a></li>
+<li><a href="#path">path</a></li>
+<li><a href="#scriptpath">scriptpath</a></li>
+<li><a href="#switch">switch</a></li>
+<li><a href="#cd-or-chdir">cd or chdir</a></li>
+<li><a href="#copypath">copypath</a></li>
+<li><a href="#movepath">movepath</a></li>
+<li><a href="#deletepath">deletepath</a></li>
+<li><a href="#exists">exists</a></li>
+<li><a href="#open">open</a></li>
+<li><a href="#create">create</a></li>
+<li><a href="#createdir">createdir</a></li>
 </ul>
 <h2 id="printlist"><a class="header" href="#printlist">printlist()</a></h2>
-<h4 id="takes-32"><a class="header" href="#takes-32">Takes</a></h4>
+<h4 id="takes-23"><a class="header" href="#takes-23">Takes</a></h4>
 <ul>
 <li>A string representing the type of thing to print</li>
 </ul>
-<h4 id="description-32"><a class="header" href="#description-32">Description</a></h4>
+<h4 id="description-23"><a class="header" href="#description-23">Description</a></h4>
 <ul>
 <li>This is the KerboScript <code>LIST.</code> command. So it prints the contents of the current directory to the terminal. However there are
-many different things it can list, and the default (with no arguments) version is &quot;files&quot;. Below is a list of all possible types
+many different things it can list, and the default (with no arguments) version is “files”. Below is a list of all possible types
 to list:
 <ul>
-<li>&quot;files&quot;</li>
-<li>&quot;volumes&quot;</li>
-<li>&quot;processors&quot;</li>
-<li>&quot;bodies&quot;</li>
-<li>&quot;targets&quot;</li>
-<li>&quot;resources&quot;</li>
-<li>&quot;parts&quot;</li>
-<li>&quot;engines&quot;</li>
-<li>&quot;rcs&quot;</li>
-<li>&quot;sensors&quot;</li>
-<li>&quot;config&quot;</li>
-<li>&quot;fonts&quot;</li>
+<li>“files”</li>
+<li>“volumes”</li>
+<li>“processors”</li>
+<li>“bodies”</li>
+<li>“targets”</li>
+<li>“resources”</li>
+<li>“parts”</li>
+<li>“engines”</li>
+<li>“rcs”</li>
+<li>“sensors”</li>
+<li>“config”</li>
+<li>“fonts”</li>
 </ul>
 </li>
 </ul>
-<h4 id="returns-32"><a class="header" href="#returns-32">Returns</a></h4>
+<h4 id="returns-23"><a class="header" href="#returns-23">Returns</a></h4>
 <ul>
 <li>Nothing (a useless 0)</li>
 </ul>
 <h2 id="logfile"><a class="header" href="#logfile">logfile()</a></h2>
-<h4 id="takes-33"><a class="header" href="#takes-33">Takes</a></h4>
+<h4 id="takes-1-2"><a class="header" href="#takes-1-2">Takes</a></h4>
 <ul>
 <li>The file to log the data to</li>
 <li>The data to be logged</li>
 </ul>
-<h4 id="description-33"><a class="header" href="#description-33">Description</a></h4>
+<h4 id="description-1-2"><a class="header" href="#description-1-2">Description</a></h4>
 <ul>
 <li>This is the KerboScript <code>LOG &lt;string&gt; TO &lt;path&gt;.</code>, so all it does is append text to a file, or it can log integers, etc as well.</li>
-<li>Note: <code>.ks</code> is the &quot;default file extension&quot; inside of kOS, so if no file extension is provided on the file path, it will add <code>.ks</code> to it </li>
+<li>Note: <code>.ks</code> is the “default file extension” inside of kOS, so if no file extension is provided on the file path, it will add <code>.ks</code> to it</li>
 </ul>
-<h4 id="returns-33"><a class="header" href="#returns-33">Returns</a></h4>
+<h4 id="returns-1-2"><a class="header" href="#returns-1-2">Returns</a></h4>
 <ul>
 <li>Nothing (a useless 0)</li>
 </ul>
 <h2 id="path"><a class="header" href="#path">path()</a></h2>
-<h4 id="takes-34"><a class="header" href="#takes-34">Takes</a></h4>
+<h4 id="takes-2-2"><a class="header" href="#takes-2-2">Takes</a></h4>
 <ul>
 <li>A StringValue representing the path</li>
 </ul>
-<h4 id="description-34"><a class="header" href="#description-34">Description</a></h4>
+<h4 id="description-2-2"><a class="header" href="#description-2-2">Description</a></h4>
 <ul>
 <li>Creates a <code>Path</code> structure representing the file path provided.</li>
 </ul>
-<h4 id="returns-34"><a class="header" href="#returns-34">Returns</a></h4>
+<h4 id="returns-2-2"><a class="header" href="#returns-2-2">Returns</a></h4>
 <ul>
 <li>The <code>Path</code> structure</li>
 </ul>
 <h2 id="scriptpath"><a class="header" href="#scriptpath">scriptpath()</a></h2>
-<h4 id="takes-35"><a class="header" href="#takes-35">Takes</a></h4>
+<h4 id="takes-3-2"><a class="header" href="#takes-3-2">Takes</a></h4>
 <ul>
 <li>Nothing</li>
 </ul>
-<h4 id="description-35"><a class="header" href="#description-35">Description</a></h4>
+<h4 id="description-3-2"><a class="header" href="#description-3-2">Description</a></h4>
 <ul>
 <li>Creates a <code>Path</code> structure representing the currently running file.</li>
 </ul>
-<h4 id="returns-35"><a class="header" href="#returns-35">Returns</a></h4>
+<h4 id="returns-3-2"><a class="header" href="#returns-3-2">Returns</a></h4>
 <ul>
 <li>The <code>Path</code> structure</li>
 </ul>
 <h2 id="switch"><a class="header" href="#switch">switch()</a></h2>
-<h4 id="takes-36"><a class="header" href="#takes-36">Takes</a></h4>
+<h4 id="takes-4-2"><a class="header" href="#takes-4-2">Takes</a></h4>
 <ul>
 <li>An integer representing a VolumeId</li>
 </ul>
-<h4 id="description-36"><a class="header" href="#description-36">Description</a></h4>
+<h4 id="description-4-2"><a class="header" href="#description-4-2">Description</a></h4>
 <ul>
 <li>The built-in <code>SWITCH TO &lt;volume&gt;.</code> KerboScript function, which switches the internal volume that the file system is using.</li>
 </ul>
-<h4 id="returns-36"><a class="header" href="#returns-36">Returns</a></h4>
+<h4 id="returns-4-2"><a class="header" href="#returns-4-2">Returns</a></h4>
 <ul>
 <li>Nothing (a useless 0)</li>
 </ul>
 <h2 id="cd-or-chdir"><a class="header" href="#cd-or-chdir">cd() or chdir()</a></h2>
-<h4 id="takes-37"><a class="header" href="#takes-37">Takes</a></h4>
+<h4 id="takes-5-2"><a class="header" href="#takes-5-2">Takes</a></h4>
 <ul>
 <li>(Optional) the path to change directories to</li>
 </ul>
-<h4 id="description-37"><a class="header" href="#description-37">Description</a></h4>
+<h4 id="description-5-2"><a class="header" href="#description-5-2">Description</a></h4>
 <ul>
-<li>Changes the directory that kOS has internally for what the current directory is. If no path is provided, it will change to the &quot;root&quot;
+<li>Changes the directory that kOS has internally for what the current directory is. If no path is provided, it will change to the “root”
 of the current volume.</li>
 </ul>
-<h4 id="returns-37"><a class="header" href="#returns-37">Returns</a></h4>
+<h4 id="returns-5-2"><a class="header" href="#returns-5-2">Returns</a></h4>
 <ul>
 <li>Nothing (a useless 0)</li>
 </ul>
 <h2 id="copypath"><a class="header" href="#copypath">copypath()</a></h2>
-<h4 id="takes-38"><a class="header" href="#takes-38">Takes</a></h4>
+<h4 id="takes-6-2"><a class="header" href="#takes-6-2">Takes</a></h4>
 <ul>
 <li>A destination <code>Path</code></li>
 <li>A source <code>Path</code></li>
 </ul>
-<h4 id="description-38"><a class="header" href="#description-38">Description</a></h4>
+<h4 id="description-6-2"><a class="header" href="#description-6-2">Description</a></h4>
 <ul>
 <li>Copies a source file to a destination. If the destination is a file, it copies the contents into a new file with that name, if the
 destination is a folder, it simply copies the file into that folder.</li>
 </ul>
-<h4 id="returns-38"><a class="header" href="#returns-38">Returns</a></h4>
+<h4 id="returns-6-2"><a class="header" href="#returns-6-2">Returns</a></h4>
 <ul>
 <li>A boolean representing if the copy of multiple files was successful or not</li>
 </ul>
 <h2 id="movepath"><a class="header" href="#movepath">movepath()</a></h2>
-<h4 id="takes-39"><a class="header" href="#takes-39">Takes</a></h4>
+<h4 id="takes-7-2"><a class="header" href="#takes-7-2">Takes</a></h4>
 <ul>
 <li>A destination <code>Path</code></li>
 <li>A source <code>Path</code></li>
 </ul>
-<h4 id="description-39"><a class="header" href="#description-39">Description</a></h4>
+<h4 id="description-7-2"><a class="header" href="#description-7-2">Description</a></h4>
 <ul>
 <li>Moves a source file to a destination. If the destination is a file, it moves the contents into a new file with that name, if the
 destination is a folder, it simply moves the file into that folder.</li>
 </ul>
-<h4 id="returns-39"><a class="header" href="#returns-39">Returns</a></h4>
+<h4 id="returns-7-2"><a class="header" href="#returns-7-2">Returns</a></h4>
 <ul>
 <li>A boolean representing if the movement of multiple files was successful or not</li>
 </ul>
 <h2 id="deletepath"><a class="header" href="#deletepath">deletepath()</a></h2>
-<h4 id="takes-40"><a class="header" href="#takes-40">Takes</a></h4>
+<h4 id="takes-8-2"><a class="header" href="#takes-8-2">Takes</a></h4>
 <ul>
 <li>The path of the thing to delete</li>
 </ul>
-<h4 id="description-40"><a class="header" href="#description-40">Description</a></h4>
+<h4 id="description-8-2"><a class="header" href="#description-8-2">Description</a></h4>
 <ul>
 <li>Deletes a file or directory on the current volume</li>
 </ul>
-<h4 id="returns-40"><a class="header" href="#returns-40">Returns</a></h4>
+<h4 id="returns-8-2"><a class="header" href="#returns-8-2">Returns</a></h4>
 <ul>
 <li>A boolean representing if the deletion was successful</li>
 </ul>
 <h2 id="exists"><a class="header" href="#exists">exists()</a></h2>
-<h4 id="takes-41"><a class="header" href="#takes-41">Takes</a></h4>
+<h4 id="takes-9-2"><a class="header" href="#takes-9-2">Takes</a></h4>
 <ul>
 <li>A string path</li>
 </ul>
-<h4 id="description-41"><a class="header" href="#description-41">Description</a></h4>
+<h4 id="description-9-2"><a class="header" href="#description-9-2">Description</a></h4>
 <ul>
 <li>Checks if a file or directory exists</li>
 </ul>
-<h4 id="returns-41"><a class="header" href="#returns-41">Returns</a></h4>
+<h4 id="returns-9-2"><a class="header" href="#returns-9-2">Returns</a></h4>
 <ul>
 <li>Returns true if the path exists, false if not</li>
 </ul>
 <h2 id="open"><a class="header" href="#open">open()</a></h2>
-<h4 id="takes-42"><a class="header" href="#takes-42">Takes</a></h4>
+<h4 id="takes-10-1"><a class="header" href="#takes-10-1">Takes</a></h4>
 <ul>
 <li>The String path of the file or directory to open</li>
 </ul>
-<h4 id="description-42"><a class="header" href="#description-42">Description</a></h4>
+<h4 id="description-10-1"><a class="header" href="#description-10-1">Description</a></h4>
 <ul>
 <li>Opens a file or directory if it exists</li>
 </ul>
-<h4 id="returns-42"><a class="header" href="#returns-42">Returns</a></h4>
+<h4 id="returns-10-1"><a class="header" href="#returns-10-1">Returns</a></h4>
 <ul>
 <li>If the path exists, it will return a <code>VolumeItem</code> containing a directory or file. If the path does not exist, it returns a boolean <code>false</code></li>
 </ul>
 <h2 id="create"><a class="header" href="#create">create()</a></h2>
-<h4 id="takes-43"><a class="header" href="#takes-43">Takes</a></h4>
+<h4 id="takes-11-1"><a class="header" href="#takes-11-1">Takes</a></h4>
 <ul>
 <li>The String path of the file to create</li>
 </ul>
-<h4 id="description-43"><a class="header" href="#description-43">Description</a></h4>
+<h4 id="description-11-1"><a class="header" href="#description-11-1">Description</a></h4>
 <ul>
 <li>Creates a file with the provided path and name</li>
 </ul>
-<h4 id="returns-43"><a class="header" href="#returns-43">Returns</a></h4>
+<h4 id="returns-11-1"><a class="header" href="#returns-11-1">Returns</a></h4>
 <ul>
 <li>A <code>VolumeFile</code> containing the new file</li>
 </ul>
 <h2 id="createdir"><a class="header" href="#createdir">createdir()</a></h2>
-<h4 id="takes-44"><a class="header" href="#takes-44">Takes</a></h4>
+<h4 id="takes-12-1"><a class="header" href="#takes-12-1">Takes</a></h4>
 <ul>
 <li>The String path of the directory to create</li>
 </ul>
-<h4 id="description-44"><a class="header" href="#description-44">Description</a></h4>
+<h4 id="description-12-1"><a class="header" href="#description-12-1">Description</a></h4>
 <ul>
 <li>Creates a directory with the provided path and name</li>
 </ul>
-<h4 id="returns-44"><a class="header" href="#returns-44">Returns</a></h4>
+<h4 id="returns-12-1"><a class="header" href="#returns-12-1">Returns</a></h4>
 <ul>
 <li>A <code>VolumeDirectory</code> containing the new directory</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="internal"><a class="header" href="#internal">Internal</a></h1>
-<p>These are various &quot;internal&quot; kOS functions that usually no one really needs to use</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="internal"><a class="header" href="#internal">Internal</a></h1>
+<p>These are various “internal” kOS functions that usually no one really needs to use</p>
 <h2 id="profileresult"><a class="header" href="#profileresult">profileresult()</a></h2>
-<h4 id="takes-45"><a class="header" href="#takes-45">Takes</a></h4>
+<h4 id="takes-24"><a class="header" href="#takes-24">Takes</a></h4>
 <ul>
 <li>Nothing</li>
 </ul>
-<h4 id="description-45"><a class="header" href="#description-45">Description</a></h4>
+<h4 id="description-24"><a class="header" href="#description-24">Description</a></h4>
 <ul>
 <li>If you have the runtime statistics configuration option <code>Config:STAT</code> set to true, then in addition to the summary statistics
 after the program run, you can also see a detailed report of the “profiling” result of your most recent program run, by calling
 this function.</li>
 </ul>
-<h4 id="returns-45"><a class="header" href="#returns-45">Returns</a></h4>
+<h4 id="returns-24"><a class="header" href="#returns-24">Returns</a></h4>
 <ul>
 <li>A StringValue containing the profile data for running the script</li>
 </ul>
 <h2 id="droppriority"><a class="header" href="#droppriority">droppriority()</a></h2>
-<h4 id="takes-46"><a class="header" href="#takes-46">Takes</a></h4>
+<h4 id="takes-1-3"><a class="header" href="#takes-1-3">Takes</a></h4>
 <ul>
 <li>Nothing</li>
 </ul>
-<h4 id="description-46"><a class="header" href="#description-46">Description</a></h4>
+<h4 id="description-1-3"><a class="header" href="#description-1-3">Description</a></h4>
 <ul>
-<li>Drops the current trigger's running priority to the priority of the code that it interrupted</li>
+<li>Drops the current trigger’s running priority to the priority of the code that it interrupted</li>
 </ul>
-<h4 id="returns-46"><a class="header" href="#returns-46">Returns</a></h4>
+<h4 id="returns-1-3"><a class="header" href="#returns-1-3">Returns</a></h4>
 <ul>
 <li>Nothing (a useless 0)</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="general-guides"><a class="header" href="#general-guides">General Guides</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="general-guides"><a class="header" href="#general-guides">General Guides</a></h1>
 <p>These are a few general guides for programming in Kerbal OS. These sort of mirror some of the regular kOS documentation
 but are all in Kerbal Assembly. This is meant to prevent a lot of redundant disassembly.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="lists"><a class="header" href="#lists">Lists</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="lists"><a class="header" href="#lists">Lists</a></h1>
 <h2 id="table-of-contents-3"><a class="header" href="#table-of-contents-3">Table of Contents</a></h2>
 <ul>
-<li><a href="chapter_7/lists.html#list-construction">List Construction</a></li>
-<li><a href="chapter_7/lists.html#associated-suffixes">Associated Suffixes</a>
+<li><a href="#list-construction">List Construction</a></li>
+<li><a href="#associated-suffixes">Associated Suffixes</a>
 <ul>
-<li><a href="chapter_7/lists.html#enumerable-suffixes">Enumerable Suffixes</a>
+<li><a href="#enumerable-suffixes">Enumerable Suffixes</a>
 <ul>
-<li><a href="chapter_7/lists.html#iterator">Iterator</a></li>
-<li><a href="chapter_7/lists.html#reverse-iterator">Reverse Iterator</a></li>
-<li><a href="chapter_7/lists.html#length">Length</a></li>
-<li><a href="chapter_7/lists.html#contains">Contains</a></li>
-<li><a href="chapter_7/lists.html#dump">Dump</a></li>
+<li><a href="#iterator">Iterator</a></li>
+<li><a href="#reverse-iterator">Reverse Iterator</a></li>
+<li><a href="#length">Length</a></li>
+<li><a href="#contains">Contains</a></li>
+<li><a href="#dump">Dump</a></li>
 </ul>
 </li>
-<li><a href="chapter_7/lists.html#list-suffixes">List Suffixes</a>
+<li><a href="#list-suffixes">List Suffixes</a>
 <ul>
-<li><a href="chapter_7/lists.html#add-item">Add Item</a></li>
-<li><a href="chapter_7/lists.html#insert-item">Insert Item</a></li>
-<li><a href="chapter_7/lists.html#remove-item">Remove Item</a></li>
-<li><a href="chapter_7/lists.html#clear-list">Clear List</a></li>
+<li><a href="#add-item">Add Item</a></li>
+<li><a href="#insert-item">Insert Item</a></li>
+<li><a href="#remove-item">Remove Item</a></li>
+<li><a href="#clear-list">Clear List</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a href="chapter_7/lists.html#element-access">Element Access</a></li>
+<li><a href="#element-access">Element Access</a></li>
 </ul>
 <h2 id="list-construction"><a class="header" href="#list-construction">List Construction</a></h2>
 <p>Numerous built-in functions in kOS return a list.
@@ -2525,15 +2629,15 @@ If you wish to make your own list from scratch you can do so with the <code>list
 built-in function. You pass a varying number of arguments into it to pre-populate
 the list with an initial list of items.</p>
 <pre><code>push @
-call #, &quot;list()&quot;
-stol &quot;$mylist&quot;
+call #, "list()"
+stol "$mylist"
 </code></pre>
 <pre><code>push @
 push 10
 push 20
 push 30
-call #, &quot;list()&quot;
-stol &quot;$mylist&quot;
+call #, "list()"
+stol "$mylist"
 </code></pre>
 <p>Anything can be stored in a list, including other lists.</p>
 <h2 id="associated-suffixes"><a class="header" href="#associated-suffixes">Associated Suffixes</a></h2>
@@ -2541,92 +2645,92 @@ stol &quot;$mylist&quot;
 <h3 id="enumerable-suffixes"><a class="header" href="#enumerable-suffixes">Enumerable Suffixes</a></h3>
 <h4 id="iterator"><a class="header" href="#iterator">Iterator</a></h4>
 <p>An alternate means of iterating over an <code>Enumerable</code>. Returns an <code>Iterator</code> object.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;iterator&quot;
+<pre><code>push "$mylist"
+gmet "iterator"
 push @
-call #, &quot;&lt;indirect&gt;&quot;
-stol &quot;$myiter&quot;
+call #, "&lt;indirect&gt;"
+stol "$myiter"
 </code></pre>
 <h4 id="reverse-iterator"><a class="header" href="#reverse-iterator">Reverse Iterator</a></h4>
 <p>Just like Iterator, but the order of the items is reversed.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;reverseiterator&quot;
+<pre><code>push "$mylist"
+gmet "reverseiterator"
 push @
-call #, &quot;&lt;indirect&gt;&quot;
-stol &quot;$myreviter&quot;
+call #, "&lt;indirect&gt;"
+stol "$myreviter"
 </code></pre>
 <h4 id="length"><a class="header" href="#length">Length</a></h4>
 <p>Returns the number of elements in the enumerable as an integer.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;length&quot;
+<pre><code>push "$mylist"
+gmet "length"
 push @
-call #, &quot;&lt;indirect&gt;&quot;
-stol &quot;$length&quot;
+call #, "&lt;indirect&gt;"
+stol "$length"
 </code></pre>
 <h4 id="contains"><a class="header" href="#contains">Contains</a></h4>
 <p>Returns true if the enumerable contains an item equal to the one passed as an arguments</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;contains&quot;
+<pre><code>push "$mylist"
+gmet "contains"
 push @
 push 2
-call #, &quot;&lt;indirect&gt;&quot;
+call #, "&lt;indirect&gt;"
 btr .somewhere
 </code></pre>
 <h4 id="empty"><a class="header" href="#empty">Empty</a></h4>
 <p>Returns true if the enumerable has zero items in it.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;empty&quot;
+<pre><code>push "$mylist"
+gmet "empty"
 push @
-call #, &quot;&lt;indirect&gt;&quot;
+call #, "&lt;indirect&gt;"
 btr .somewhere
 </code></pre>
 <h4 id="dump"><a class="header" href="#dump">Dump</a></h4>
 <p>Returns a string containing a verbose dump of the enumerable’s contents.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;empty&quot;
+<pre><code>push "$mylist"
+gmet "empty"
 push @
-call #, &quot;&lt;indirect&gt;&quot;
-stol &quot;$dump&quot;
+call #, "&lt;indirect&gt;"
+stol "$dump"
 </code></pre>
 <h3 id="list-suffixes"><a class="header" href="#list-suffixes">List Suffixes</a></h3>
 <h4 id="add-item"><a class="header" href="#add-item">Add Item</a></h4>
 <p>Appends the new value given to the end of the list.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;add&quot;
+<pre><code>push "$mylist"
+gmet "add"
 push @
 push 2
-call #, &quot;&lt;indirect&gt;&quot;
+call #, "&lt;indirect&gt;"
 pop
 </code></pre>
 <h4 id="insert-item"><a class="header" href="#insert-item">Insert Item</a></h4>
 <p>Inserts a new value at the position given,
 pushing all the other values in the list (if any) one spot to the right.</p>
-<p>The code below inserts the value <code>&quot;Hello&quot;</code> into index 0.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;insert&quot;
+<p>The code below inserts the value <code>"Hello"</code> into index 0.</p>
+<pre><code>push "$mylist"
+gmet "insert"
 push @
 push 0
-push &quot;Hello&quot;
-call #, &quot;&lt;indirect&gt;&quot;
+push "Hello"
+call #, "&lt;indirect&gt;"
 pop
 </code></pre>
 <h4 id="remove-item"><a class="header" href="#remove-item">Remove Item</a></h4>
 <p>Remove the item from the list at the numeric index given,
 with counting starting at the first item being item zero</p>
 <p>The code below removes the value at index 0.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;remove&quot;
+<pre><code>push "$mylist"
+gmet "remove"
 push @
 push 0
-call #, &quot;&lt;indirect&gt;&quot;
+call #, "&lt;indirect&gt;"
 pop
 </code></pre>
 <h4 id="clear-list"><a class="header" href="#clear-list">Clear List</a></h4>
 <p>Calling this suffix will remove all of the items currently stored in the <code>List</code>.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;clear&quot;
+<pre><code>push "$mylist"
+gmet "clear"
 push @
-call #, &quot;&lt;indirect&gt;&quot;
+call #, "&lt;indirect&gt;"
 pop
 </code></pre>
 <h4 id="copy-suffix"><a class="header" href="#copy-suffix">Copy Suffix</a></h4>
@@ -2635,23 +2739,23 @@ pop
 index number, and running for the given length of items.</p>
 <p>The code below stores a sublist of <code>mylist</code> that starts at index 1 of <code>mylist</code>
 and has a length of 4.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;sublist&quot;
+<pre><code>push "$mylist"
+gmet "sublist"
 push @
 push 1
 push 4
-call #, &quot;&lt;indirect&gt;&quot;
-stol &quot;$mysublist&quot;
+call #, "&lt;indirect&gt;"
+stol "$mysublist"
 </code></pre>
 <h4 id="join-list-into-string"><a class="header" href="#join-list-into-string">Join List into String</a></h4>
 <p>Returns a string created by converting each element of the array to a string,
 separated by the given separator.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;join&quot;
+<pre><code>push "$mylist"
+gmet "join"
 push @
-push &quot;,&quot;
-call #, &quot;&lt;indirect&gt;&quot;
-stol &quot;$mystring&quot;
+push ","
+call #, "&lt;indirect&gt;"
+stol "$mystring"
 </code></pre>
 <h4 id="find-item"><a class="header" href="#find-item">Find Item</a></h4>
 <p>Returns the first integer index within the list where an item equal to this
@@ -2660,41 +2764,41 @@ will be used to decide if a match is found. This is a linear search from start
 to finish so it can be slow if the list is long.
 If no such item is found, <code>-1</code> is returned.</p>
 <p>The code below searches for the number <code>5</code> in <code>mylist</code> and stores the result in <code>mylocation</code>.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;find&quot;
+<pre><code>push "$mylist"
+gmet "find"
 push @
 push 5
-call #, &quot;&lt;indirect&gt;&quot;
-stol &quot;$mylocation&quot;
+call #, "&lt;indirect&gt;"
+stol "$mylocation"
 </code></pre>
 <h4 id="index-of-item"><a class="header" href="#index-of-item">Index Of Item</a></h4>
-<p>This is just an alias for <strong><a href="chapter_7/lists.html#find-item">find</a></strong>.</p>
+<p>This is just an alias for <strong><a href="#find-item">find</a></strong>.</p>
 <h4 id="find-last-item"><a class="header" href="#find-last-item">Find Last Item</a></h4>
 <p>This is the same as FIND(item), except that it searches backward instead of forward
 through the list. It finds the lastmost element that is equal to the item.</p>
 <p>The code below searches for the number <code>5</code> in <code>mylist</code> and stores the result in <code>mylocation</code>.</p>
-<pre><code>push &quot;$mylist&quot;
-gmet &quot;findlast&quot;
+<pre><code>push "$mylist"
+gmet "findlast"
 push @
 push 5
-call #, &quot;&lt;indirect&gt;&quot;
-stol &quot;$mylocation&quot;
+call #, "&lt;indirect&gt;"
+stol "$mylocation"
 </code></pre>
 <h4 id="last-index-of-item"><a class="header" href="#last-index-of-item">Last Index Of Item</a></h4>
-<p>This is just an alias for <strong><a href="chapter_7/lists.html#find-last-item">findlast</a></strong>.</p>
+<p>This is just an alias for <strong><a href="#find-last-item">findlast</a></strong>.</p>
 <h3 id="element-access"><a class="header" href="#element-access">Element Access</a></h3>
 <p>In order to access individual elements in a list, we perform an operating called indexing.
 All list locations start at index 0, so the first element is at index 0, and the second
 at index 1, etc.</p>
-<p>In KerboScript one uses the &quot;list index&quot; syntax:</p>
+<p>In KerboScript one uses the “list index” syntax:</p>
 <pre><code>PRINT mylist[0].
 </code></pre>
 <p>This prints the first element in the list.</p>
 <p>In <strong>kasm</strong> one writes:</p>
-<pre><code>push &quot;$mylist&quot;
+<pre><code>push "$mylist"
 push 0
 gidx
-call #, &quot;print()&quot;
+call #, "print()"
 pop
 </code></pre>
 <p>This also accesses the first element in the list and prints it.</p>
@@ -2716,29 +2820,36 @@ pop
 
         </div>
 
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
 
 
 
-        <script type="text/javascript">
+        <script>
             window.playground_copyable = true;
         </script>
 
 
-        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
 
-        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
-        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-c22b7243.js"></script>
 
         <!-- Custom JS scripts -->
 
-        <script type="text/javascript">
+        <script>
         window.addEventListener('load', function() {
             window.setTimeout(window.print, 100);
         });
         </script>
 
+
+    </div>
     </body>
 </html>
