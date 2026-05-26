@@ -69,7 +69,7 @@ impl SymbolManager {
         self.map.insert(identifier, declared);
     }
 
-    pub fn symbols(&self) -> Iter<String, DeclaredSymbol> {
+    pub fn symbols(&'_ self) -> Iter<'_, String, DeclaredSymbol> {
         self.map.iter()
     }
 }
@@ -118,7 +118,7 @@ impl LabelManager {
         self.map.insert(name, label);
     }
 
-    pub fn labels(&self) -> Iter<String, Label> {
+    pub fn labels(&'_ self) -> Iter<'_, String, Label> {
         self.map.iter()
     }
 }

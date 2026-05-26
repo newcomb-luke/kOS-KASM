@@ -276,7 +276,7 @@ impl<'a> Parser<'a> {
                     // In all other cases, we require this to be a data type
                     if matches!(
                         other,
-                        TokenKind::TypeI8
+                        TokenKind::TypeU8
                             | TokenKind::TypeI16
                             | TokenKind::TypeI32
                             | TokenKind::TypeI32V
@@ -327,8 +327,8 @@ impl<'a> Parser<'a> {
                         } else {
                             // If it is a supposed to be an integer of some kind
                             if let Value::Int(i) = value {
-                                if other == TokenKind::TypeI8 {
-                                    if let Ok(i) = i8::try_from(i) {
+                                if other == TokenKind::TypeU8 {
+                                    if let Ok(i) = u8::try_from(i) {
                                         KOSValue::Byte(i)
                                     } else {
                                         self.session.struct_span_error(type_span, format!("value provided {} is too large to fit into a byte", i)).emit();
@@ -1040,17 +1040,37 @@ impl<'a> Parser<'a> {
 
         let operand = match first_token.kind {
             TokenKind::Identifier => {
-                let snippet = self.session.span_to_snippet(&first_token.as_span());
-                let identifier_str = snippet.as_slice().to_string();
+                let inner_label = if let Some(next_token) = raw.get(1) {
+                    if next_token.kind == TokenKind::InnerLabelReference {
+                        one_token = false;
+                        Some(*next_token)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
 
-                InstructionOperand::Symbol(identifier_str)
+                let snippet = self.session.span_to_snippet(&first_token.as_span());
+                let identifier_str = snippet.as_slice();
+
+                if let Some(inner_label) = inner_label {
+                    let inner_label_snippet = self.session.span_to_snippet(&inner_label.as_span());
+                    let inner_label_str = inner_label_snippet.as_slice();
+
+                    InstructionOperand::Label(format!("{}{}", identifier_str, inner_label_str))
+                } else {
+                    InstructionOperand::Symbol(identifier_str.to_string())
+                }
             }
             TokenKind::LiteralInteger
             | TokenKind::LiteralHex
             | TokenKind::LiteralBinary
             | TokenKind::LiteralTrue
             | TokenKind::LiteralFalse
-            | TokenKind::LiteralFloat => {
+            | TokenKind::LiteralFloat
+            | TokenKind::OperatorMinus
+            | TokenKind::OperatorNegate => {
                 let mut exp_tokens = raw.iter().peekable();
                 let parsed_exp = match ExpressionParser::parse_expression(
                     &mut exp_tokens,

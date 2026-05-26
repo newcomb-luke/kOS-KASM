@@ -1,7 +1,7 @@
 use std::{collections::hash_map::DefaultHasher, hash::Hasher, path::PathBuf};
 
 use crate::{
-    errors::Span,
+    errors::{SourceFile, Span},
     lexer::{phase0, Lexer, Token, TokenKind},
     preprocessor::{
         evaluator::{EvalError, ExpressionEvaluator, ToBool},
@@ -483,9 +483,104 @@ impl<'a> Executor<'a> {
             return Err(());
         }
 
-        let mut repeat_tokens = self.execute_nodes(repeat.contents)?;
+        // We pre-construct the tokens for the current iteration number so they can be stored in a SourceFile
+        let mut iterations_text = String::new();
+        let mut iteration_tokens = Vec::new();
 
-        repeat_tokens = repeat_tokens.repeat(num as usize);
+        // We do one extra, in case the user references the non zero-based iteration
+        for i in 0..=num {
+            let start = iterations_text.len();
+            iterations_text.push_str(&i.to_string());
+            let end = iterations_text.len();
+
+            iteration_tokens.push(Token {
+                kind: TokenKind::LiteralInteger,
+                file_id: 0, // Placeholder
+                source_index: start as u32,
+                len: (end - start) as u16,
+            })
+        }
+
+        let internal_file_id = self.session.add_file(SourceFile::new(
+            "repeat iteration number".to_string(),
+            None,
+            None,
+            iterations_text,
+            0, // This gets replaced
+        ));
+
+        let mut cleaner_contents = Vec::new();
+
+        for i in 0..num {
+            for node in &repeat.contents {
+                if let PASTNode::BenignTokens(benign_tokens) = node {
+                    let mut new_benign_tokens = Vec::new();
+                    let mut was_arg_ref = false;
+
+                    for token in &benign_tokens.tokens {
+                        if token.kind == TokenKind::SymbolAnd {
+                            was_arg_ref = true;
+                        } else if was_arg_ref {
+                            was_arg_ref = false;
+
+                            if token.kind != TokenKind::LiteralInteger {
+                                self.session
+                                    .struct_bug(
+                                        "didn't properly check for repeat iteration references"
+                                            .to_string(),
+                                    )
+                                    .emit();
+                                return Err(());
+                            }
+
+                            let arg_ref_snippet = self.session.span_to_snippet(&token.as_span());
+                            let arg_ref_str = arg_ref_snippet.as_slice();
+                            let arg_ref = match parse_integer_literal(arg_ref_str) {
+                                Ok(num) => num,
+                                Err(_) => {
+                                    self.session
+                                        .struct_span_error(
+                                            token.as_span(),
+                                            "integer value out of bounds for signed 32 bit"
+                                                .to_string(),
+                                        )
+                                        .emit();
+                                    return Err(());
+                                }
+                            };
+
+                            if arg_ref != 0 && arg_ref != 1 {
+                                self.session
+                                    .struct_span_error(
+                                        token.as_span(),
+                                        "repeat iteration references can only be 0 or 1"
+                                            .to_string(),
+                                    )
+                                    .emit();
+                                return Err(());
+                            }
+
+                            let index = if arg_ref == 0 { i } else { i + 1 } as usize;
+
+                            new_benign_tokens.push(Token {
+                                file_id: internal_file_id,
+                                ..*iteration_tokens.get(index).unwrap()
+                            })
+                        } else {
+                            new_benign_tokens.push(*token);
+                        }
+                    }
+
+                    cleaner_contents.push(PASTNode::BenignTokens(BenignTokens::from_vec(
+                        new_benign_tokens,
+                    )));
+                } else {
+                    cleaner_contents.push(node.clone());
+                }
+            }
+        }
+
+        let repeat_tokens = self.execute_nodes(cleaner_contents)?;
 
         Ok(Some(repeat_tokens))
     }
