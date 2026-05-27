@@ -498,7 +498,9 @@ impl<'a> Executor<'a> {
                 file_id: 0, // Placeholder
                 source_index: start as u32,
                 len: (end - start) as u16,
-            })
+            });
+
+            iterations_text.push('\n');
         }
 
         let internal_file_id = self.session.add_file(SourceFile::new(

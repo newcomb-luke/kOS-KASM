@@ -299,7 +299,8 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
                         // We can do a little error checking, but if it is external, we can't
                         // really do much
 
-                        if symbol.binding.unwrap() != SymBind::Extern {
+                        // Symbols default to being Local
+                        if symbol.binding.unwrap_or(SymBind::Local) != SymBind::Extern {
                             let is_ok = match &symbol.value {
                                 SymbolValue::Value(value) => {
                                     let operand_type = match value {
@@ -522,15 +523,30 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
             Opcode::Eof => &[&[]],
             Opcode::Eop => &[&[]],
             Opcode::Nop => &[&[]],
-            Opcode::Sto => &[&[OperandType::String]],
+            Opcode::Sto => &[&[OperandType::String, OperandType::StringValue]],
             Opcode::Uns => &[&[]],
-            Opcode::Gmb => &[&[OperandType::String]],
-            Opcode::Smb => &[&[OperandType::String]],
+            Opcode::Gmb => &[&[OperandType::String, OperandType::StringValue]],
+            Opcode::Smb => &[&[OperandType::String, OperandType::StringValue]],
             Opcode::Gidx => &[&[]],
             Opcode::Sidx => &[&[]],
-            Opcode::Bfa => &[&[OperandType::String, OperandType::Int32, OperandType::Label]],
-            Opcode::Jmp => &[&[OperandType::String, OperandType::Int32, OperandType::Label]],
-            Opcode::Jmps => &[&[]],
+            Opcode::Bfa => &[&[
+                OperandType::String,
+                OperandType::Byte,
+                OperandType::Int16,
+                OperandType::Int32,
+                OperandType::Label,
+                OperandType::StringValue,
+                OperandType::ScalarInt,
+            ]],
+            Opcode::Jmp => &[&[
+                OperandType::String,
+                OperandType::Byte,
+                OperandType::Int16,
+                OperandType::Int32,
+                OperandType::Label,
+                OperandType::StringValue,
+                OperandType::ScalarInt,
+            ]],
             Opcode::Add => &[&[]],
             Opcode::Sub => &[&[]],
             Opcode::Mul => &[&[]],
@@ -552,15 +568,19 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
                     OperandType::String,
                     OperandType::Null,
                     OperandType::Function,
+                    OperandType::StringValue,
                 ],
                 &[
                     OperandType::String,
+                    OperandType::Byte,
                     OperandType::Int16,
                     OperandType::Int32,
                     OperandType::Null,
+                    OperandType::StringValue,
+                    OperandType::ScalarInt,
                 ],
             ],
-            Opcode::Ret => &[&[OperandType::Int16]],
+            Opcode::Ret => &[&[OperandType::Byte, OperandType::Int16]],
             Opcode::Push => &[&[
                 OperandType::Null,
                 OperandType::Bool,
@@ -575,28 +595,61 @@ impl<'a, 'b, 'c> Verifier<'a, 'b, 'c> {
             Opcode::Dup => &[&[]],
             Opcode::Swap => &[&[]],
             Opcode::Eval => &[&[]],
-            Opcode::Addt => &[&[OperandType::Bool], &[OperandType::Int32]],
+            Opcode::Addt => &[
+                &[OperandType::Bool, OperandType::BooleanValue],
+                &[
+                    OperandType::Byte,
+                    OperandType::Int16,
+                    OperandType::Int32,
+                    OperandType::ScalarInt,
+                ],
+            ],
             Opcode::Rmvt => &[&[]],
             Opcode::Wait => &[&[]],
-            Opcode::Gmet => &[&[OperandType::String]],
-            Opcode::Stol => &[&[OperandType::String]],
-            Opcode::Stog => &[&[OperandType::String]],
-            Opcode::Bscp => &[&[OperandType::Int16], &[OperandType::Int16]],
-            Opcode::Escp => &[&[OperandType::Int16]],
-            Opcode::Stoe => &[&[OperandType::String]],
-            Opcode::Phdl => &[&[OperandType::Byte, OperandType::Int16, OperandType::Int32]],
-            Opcode::Btr => &[&[OperandType::String, OperandType::Int32, OperandType::Label]],
+            Opcode::Gmet => &[&[OperandType::String, OperandType::StringValue]],
+            Opcode::Stol => &[&[OperandType::String, OperandType::StringValue]],
+            Opcode::Stog => &[&[OperandType::String, OperandType::StringValue]],
+            Opcode::Bscp => &[
+                &[OperandType::Byte, OperandType::Int16],
+                &[OperandType::Byte, OperandType::Int16],
+            ],
+            Opcode::Escp => &[&[OperandType::Byte, OperandType::Int16]],
+            Opcode::Stoe => &[&[OperandType::String, OperandType::StringValue]],
+            Opcode::Phdl => &[&[
+                OperandType::Byte,
+                OperandType::Int16,
+                OperandType::Int32,
+                OperandType::ScalarInt,
+            ]],
+            Opcode::Btr => &[&[
+                OperandType::String,
+                OperandType::Byte,
+                OperandType::Int16,
+                OperandType::Int32,
+                OperandType::Label,
+                OperandType::StringValue,
+                OperandType::ScalarInt,
+            ]],
             Opcode::Exst => &[&[]],
             Opcode::Argb => &[&[]],
             Opcode::Targ => &[&[]],
             Opcode::Tcan => &[&[]],
+            Opcode::Jmps => &[&[]],
 
-            Opcode::Prl => &[&[OperandType::String, OperandType::Function]],
+            Opcode::Prl => &[&[
+                OperandType::String,
+                OperandType::Function,
+                OperandType::StringValue,
+            ]],
             Opcode::Pdrl => &[
-                &[OperandType::String, OperandType::Function],
-                &[OperandType::Bool],
+                &[
+                    OperandType::String,
+                    OperandType::Function,
+                    OperandType::StringValue,
+                ],
+                &[OperandType::Bool, OperandType::BooleanValue],
             ],
-            Opcode::Lbrt => &[&[OperandType::String]],
+            Opcode::Lbrt => &[&[OperandType::String, OperandType::StringValue]],
 
             // Pseudo-instruction
             Opcode::Pushv => &[&[
